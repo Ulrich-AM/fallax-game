@@ -91,6 +91,10 @@ export class FallaxScene extends Phaser.Scene {
     super('fallax');
   }
 
+  private get playerBody(): Phaser.Physics.Arcade.Body {
+    return this.player.body as Phaser.Physics.Arcade.Body;
+  }
+
   preload(): void {
     this.load.audio('prologue-theme', '/audio/themes/bossfight-prologue.mp3');
     this.load.audio('vector-shot', '/audio/effects/vector-shot.mp3');
@@ -253,9 +257,9 @@ export class FallaxScene extends Phaser.Scene {
 
     this.player = this.physics.add.image(250, 740, 'player-gradient');
     this.player.setDisplaySize(PLAYER_SIZE, PLAYER_SIZE).setDepth(5).setCollideWorldBounds(true);
-    this.player.body.setSize(40, 40, true);
-    this.player.body.setMaxVelocity(1200, 1250);
-    this.player.body.setDragX(1500);
+    this.playerBody.setSize(40, 40, true);
+    this.playerBody.setMaxVelocity(1200, 1250);
+    this.playerBody.setDragX(1500);
   }
 
   private createBoss(): void {
@@ -365,7 +369,7 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private updatePlayerMovement(time: number): void {
-    const body = this.player.body;
+    const body = this.playerBody;
     const onGround = body.blocked.down || body.touching.down;
     if (onGround) this.coyoteUntil = time + 110;
 
@@ -407,7 +411,7 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private startDash(time: number): void {
-    const body = this.player.body;
+    const body = this.playerBody;
     const inputDirection = Number(this.keyD.isDown || this.cursors.right.isDown)
       - Number(this.keyA.isDown || this.cursors.left.isDown);
     const direction = inputDirection === 0 ? this.lastFacing : inputDirection;
@@ -428,8 +432,8 @@ export class FallaxScene extends Phaser.Scene {
 
     this.time.delayedCall(245, () => {
       if (!this.player.active) return;
-      this.player.body.setAllowGravity(true);
-      this.player.body.setVelocityX(this.lastFacing * 460);
+      this.playerBody.setAllowGravity(true);
+      this.playerBody.setVelocityX(this.lastFacing * 460);
       this.tweens.add({ targets: this.player, scaleX: 1, scaleY: 1, duration: 210, ease: 'Back.Out' });
       this.tweens.add({ targets: this.playerGlow, alpha: 0.12, duration: 220, ease: 'Sine.Out' });
     });
@@ -481,12 +485,13 @@ export class FallaxScene extends Phaser.Scene {
 
     const projectile = this.physics.add.image(spawnX, spawnY, 'vector-projectile');
     projectile.setDisplaySize(24, 8).setDepth(7).setRotation(direction.angle());
-    projectile.body.setAllowGravity(false);
-    projectile.body.setVelocity(direction.x * 1260, direction.y * 1260);
-    projectile.body.setSize(22, 7, true);
+    const projectileBody = projectile.body as Phaser.Physics.Arcade.Body;
+    projectileBody.setAllowGravity(false);
+    projectileBody.setVelocity(direction.x * 1260, direction.y * 1260);
+    projectileBody.setSize(22, 7, true);
     this.projectiles.push({ sprite: projectile, expiresAt: time + 1500 });
 
-    this.player.body.setVelocityX(this.player.body.velocity.x - direction.x * 10);
+    this.playerBody.setVelocityX(this.playerBody.velocity.x - direction.x * 10);
     this.playerGlow.setAlpha(0.22);
     this.tweens.add({ targets: this.playerGlow, alpha: 0.12, duration: 110 });
 
@@ -580,8 +585,8 @@ export class FallaxScene extends Phaser.Scene {
     this.coreMode = 'manual';
     this.coreDangerous = false;
 
-    const predictedX = this.player.x + this.player.body.velocity.x * 0.24;
-    const predictedY = this.player.y + this.player.body.velocity.y * 0.12;
+    const predictedX = this.player.x + this.playerBody.velocity.x * 0.24;
+    const predictedY = this.player.y + this.playerBody.velocity.y * 0.12;
     const direction = new Phaser.Math.Vector2(predictedX - this.boss.x, predictedY - this.boss.y).normalize();
     const backwardX = this.boss.x - direction.x * 68;
     const backwardY = this.boss.y - direction.y * 68;
@@ -659,7 +664,7 @@ export class FallaxScene extends Phaser.Scene {
     this.coreMode = 'orbit';
     const surface = this.chooseCrashSurface();
     const targetX = Phaser.Math.Clamp(
-      this.player.x + this.player.body.velocity.x * 0.2,
+      this.player.x + this.playerBody.velocity.x * 0.2,
       surface.x - surface.width / 2 + 90,
       surface.x + surface.width / 2 - 90,
     );
@@ -905,7 +910,7 @@ export class FallaxScene extends Phaser.Scene {
     this.playerHealth = Math.max(0, this.playerHealth - amount);
     this.playerInvulnerableUntil = time + 720;
     const knockDirection = this.player.x < sourceX ? -1 : 1;
-    this.player.body.setVelocity(knockDirection * 430, -360);
+    this.playerBody.setVelocity(knockDirection * 430, -360);
     this.cameras.main.shake(150, 0.008);
     this.playerGlow.setAlpha(0.48);
     this.player.setAlpha(0.42);
@@ -931,7 +936,6 @@ export class FallaxScene extends Phaser.Scene {
     this.coreDangerous = false;
     this.phaseText.setText('PHASE II');
     this.statusText.setText('PHASE II');
-    this.theme?.setRate(1.035);
 
     this.tweens.add({ targets: this.statusText, alpha: 0, duration: 900, delay: 650 });
     this.tweens.add({
@@ -994,7 +998,7 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private updateCameraLead(): void {
-    const velocity = this.player.body.velocity;
+    const velocity = this.playerBody.velocity;
     this.cameras.main.setFollowOffset(-velocity.x * 0.22, -velocity.y * 0.055);
   }
 
@@ -1037,10 +1041,9 @@ export class FallaxScene extends Phaser.Scene {
 
   private loseFight(): void {
     this.fightOver = true;
-    this.theme?.setRate(0.8);
     this.statusText.setText('SYSTEM FRACTURED\nR: RETRY  •  ENTER: MENU').setAlpha(1).setLineSpacing(14);
-    this.player.body.setVelocity(0, 0);
-    this.player.body.setAllowGravity(false);
+    this.playerBody.setVelocity(0, 0);
+    this.playerBody.setAllowGravity(false);
     this.tweens.add({ targets: [this.player, this.playerGlow], alpha: 0, rotation: 0.7, duration: 700, ease: 'Cubic.In' });
     this.cameras.main.shake(420, 0.014);
   }
