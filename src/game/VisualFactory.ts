@@ -12,7 +12,7 @@ export function createLinearTexture(
   height: number,
   stops: GradientStop[],
   direction: 'vertical' | 'horizontal' | 'diagonal' = 'vertical',
-  radius = 0,
+  _radius = 0,
 ): void {
   if (scene.textures.exists(key)) return;
 
@@ -30,12 +30,7 @@ export function createLinearTexture(
   context.clearRect(0, 0, width, height);
   context.fillStyle = gradient;
 
-  if (radius > 0) {
-    roundedRect(context, 0, 0, width, height, radius);
-    context.fill();
-  } else {
-    context.fillRect(0, 0, width, height);
-  }
+  context.fillRect(0, 0, width, height);
 
   texture.refresh();
 }
@@ -84,26 +79,8 @@ export function createButtonTexture(
       { offset: 1, color: bottomColor },
     ],
     'vertical',
-    16,
+    0,
   );
-}
-
-function roundedRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-): void {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  context.beginPath();
-  context.moveTo(x + safeRadius, y);
-  context.arcTo(x + width, y, x + width, y + height, safeRadius);
-  context.arcTo(x + width, y + height, x, y + height, safeRadius);
-  context.arcTo(x, y + height, x, y, safeRadius);
-  context.arcTo(x, y, x + width, y, safeRadius);
-  context.closePath();
 }
 
 function withAlpha(hex: string, alpha: number): string {

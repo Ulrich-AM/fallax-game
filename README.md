@@ -4,13 +4,17 @@ A shape-driven boss rush built around one rule:
 
 > Simple shapes, complex effects and mechanics.
 
-The current vertical slice contains the gray-square player, platforming, a long directional dash, the rapid-fire **Vector**, a menu-driven loadout and bossfight flow, reactive camera movement, smooth generated lighting, and the full two-phase **Prologue** encounter.
+The current vertical slice contains the gray-square player, platforming, a long directional dash, the rapid-fire **Vector**, a menu-driven loadout and bossfight flow, reactive camera movement, sharp-corner gradient shading, and the full two-phase **Prologue** encounter.
 
 ## Stack
 
 - TypeScript
 - Phaser 3.90.0
 - Vite
+
+## Play on GitHub Pages
+
+After GitHub Pages is enabled with **Settings → Pages → Source: GitHub Actions**, every push to `main` can publish the production build at `https://ulrich-am.github.io/fallax-game/`.
 
 ## Run locally
 
@@ -33,6 +37,7 @@ Then open the local URL printed by Vite.
 | --- | --- |
 | Move | `A` / `D` or arrow keys |
 | Jump | `Space`, `W`, or Up |
+| Drop through a platform | `S` or Down |
 | Long dash | `Shift` |
 | Aim | Mouse |
 | Fire Vector | Left mouse button or `J` |
@@ -63,7 +68,7 @@ All attacks use anticipation, action, and recovery. Impacts add squash and stret
 
 ## Visual system
 
-Fallax generates smooth gradient textures at runtime for the player, boss, platforms, menus, health bars, projectiles, and arena. The same procedural texture helpers generate radial glow sprites that can be reused for attacks, bullets, interfaces, and future effects.
+Fallax generates gradient textures with deliberately sharp rectangular corners at runtime for the player, boss, platforms, menus, health bars, projectiles, and arena. The same procedural texture helpers generate radial glow sprites that can be reused for attacks, bullets, interfaces, and future effects.
 
 ## Audio organization
 
