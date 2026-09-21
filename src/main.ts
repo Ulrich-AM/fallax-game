@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import './style.css';
 import { FallaxScene } from './game/FallaxScene';
+import { MenuScene } from './game/MenuScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game',
-  backgroundColor: '#111318',
+  backgroundColor: '#090b10',
   width: 1280,
   height: 720,
   antialias: true,
@@ -22,7 +23,9 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [FallaxScene],
+  scene: [MenuScene, FallaxScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+game.registry.set('musicEnabled', true);
+game.registry.set('effectsEnabled', true);

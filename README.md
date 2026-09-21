@@ -4,15 +4,13 @@ A shape-driven boss rush built around one rule:
 
 > Simple shapes, complex effects and mechanics.
 
-This first vertical slice contains the gray-square player, platforming, a directional dash, switchable primary and secondary weapons, three future special slots, reactive camera movement, and the full two-phase **Prologue** boss.
+The current vertical slice contains the gray-square player, platforming, a long directional dash, the rapid-fire **Vector**, a menu-driven loadout and bossfight flow, reactive camera movement, smooth generated lighting, and the full two-phase **Prologue** encounter.
 
 ## Stack
 
 - TypeScript
 - Phaser 3.90.0
 - Vite
-
-Phaser 3.90 is pinned deliberately so the prototype stays on the established Phaser 3 API while the project architecture is still taking shape.
 
 ## Run locally
 
@@ -23,39 +21,34 @@ npm run dev
 
 Then open the local URL printed by Vite.
 
+## Menu
+
+- **Bossfights:** select Prologue and begin the encounter
+- **Inventory:** inspect the equipped Vector and reserved future slots
+- **Settings:** independently toggle music and effects
+
 ## Controls
 
 | Action | Control |
 | --- | --- |
 | Move | `A` / `D` or arrow keys |
 | Jump | `Space`, `W`, or Up |
-| Dash | `Shift` |
+| Long dash | `Shift` |
 | Aim | Mouse |
-| Primary weapon | Left mouse button |
-| Secondary weapon | Right mouse button |
-| Cycle primary | `Q` |
-| Cycle secondary | `E` |
-| Restart after victory/defeat | `R` |
+| Fire Vector | Left mouse button or `J` |
+| Return to menu | `Escape` |
+| Retry after defeat | `R` |
+| Return to menu after victory or defeat | `Enter` |
 
 ## Current loadout
 
-**Primary**
-
-- Quadder: rapid, low-damage square projectiles with mild spread
-- Needle: slower, precise, higher-damage shots
-
-**Secondary**
-
-- Ramshot: large heavy projectile with recoil
-- Scatter: six-projectile spread with recoil
-
-The three special slots are present in the HUD but intentionally empty until their mechanics are designed.
+**Vector** is the only equipped weapon. It fires accurate projectiles very quickly, but each projectile deals little damage. The secondary slot remains locked and the three special slots remain empty until those systems are designed.
 
 ## Prologue
 
 ### Phase I
 
-- **Swing:** the inner white square recoils, telegraphs a line, and thrusts toward the player's predicted position.
+- **Swing:** the inner white square recoils and thrusts toward the player's predicted position.
 - **Crash:** Prologue rises, anticipates, and smashes onto the floor or the platform supporting the player.
 - **Slide:** when the player is grounded, Prologue crashes and sweeps toward the nearest wall.
 
@@ -64,16 +57,22 @@ The three special slots are present in the HUD but intentionally empty until the
 - **Swing II:** a faster version of Swing.
 - **Rotation:** the white square extends outward and accelerates around Prologue.
 - **Crash II:** each impact sends shockwaves along the surface that was struck.
-- **Slide II:** Prologue charges into a wall and ricochets around the room like a Pong ball.
+- **Slide II:** Prologue ricochets around the room like a Pong ball.
 
-All attacks use anticipation, action, and recovery states. Impacts add squash and stretch, debris, flashes, afterimages, and camera shake.
+All attacks use anticipation, action, and recovery. Impacts add squash and stretch, flashes, additive glow, afterimages, and camera shake.
 
-## Boss soundtrack
+## Visual system
 
-The game expects the supplied track at:
+Fallax generates smooth gradient textures at runtime for the player, boss, platforms, menus, health bars, projectiles, and arena. The same procedural texture helpers generate radial glow sprites that can be reused for attacks, bullets, interfaces, and future effects.
+
+## Audio organization
 
 ```text
-public/audio/623104_Bossfight---Milky-Ways.mp3
+public/audio/
+├─ themes/
+│  └─ bossfight-prologue.mp3
+└─ effects/
+   └─ vector-shot.mp3
 ```
 
-The audio file is intentionally not committed. The track's Newgrounds licensing terms say to contact the artist before using it in a project. Keep your local copy at the path above for private development, and obtain permission before redistributing it with the public game.
+The Prologue theme loops during the fight. Vector uses its dedicated shooting effect with slight pitch variation so rapid fire sounds less repetitive.

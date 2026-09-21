@@ -1,9 +1,16 @@
-# Prologue theme
+# Fallax audio
 
-Place the supplied soundtrack here with this exact filename:
+Audio is separated by purpose:
 
-`623104_Bossfight---Milky-Ways.mp3`
+```text
+public/audio/
+├─ themes/
+│  └─ bossfight-prologue.mp3
+└─ effects/
+   └─ vector-shot.mp3
+```
 
-The game loads it as Prologue's looping boss theme after the first player input, which satisfies browser autoplay restrictions.
+- `themes/bossfight-prologue.mp3` is the looping Prologue boss theme.
+- `effects/vector-shot.mp3` is played for each Vector shot with slight pitch variation.
 
-The audio is not committed because the track's Newgrounds licensing terms ask project developers to contact the artist. Keep your copy local for private development and obtain permission before redistributing it with Fallax.
+The menu includes independent music and effects toggles. Keep licensing and redistribution permission documented for every added track or sound effect.
