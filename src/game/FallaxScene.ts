@@ -50,6 +50,7 @@ export class FallaxScene extends Phaser.Scene {
   private keyA!: Phaser.Input.Keyboard.Key;
   private keyD!: Phaser.Input.Keyboard.Key;
   private keyW!: Phaser.Input.Keyboard.Key;
+  private keyS!: Phaser.Input.Keyboard.Key;
   private keyJ!: Phaser.Input.Keyboard.Key;
   private keyShift!: Phaser.Input.Keyboard.Key;
   private keyEscape!: Phaser.Input.Keyboard.Key;
@@ -95,12 +96,42 @@ export class FallaxScene extends Phaser.Scene {
     return this.player.body as Phaser.Physics.Arcade.Body;
   }
 
+  private resetFightState(): void {
+    this.surfaces = [];
+    this.projectiles = [];
+    this.shockwaves = [];
+    this.playerHealth = MAX_PLAYER_HEALTH;
+    this.bossHealth = MAX_BOSS_HEALTH;
+    this.playerInvulnerableUntil = 0;
+    this.dashUntil = 0;
+    this.dashReadyAt = 0;
+    this.coyoteUntil = 0;
+    this.jumpBufferedUntil = 0;
+    this.lastFacing = 1;
+    this.nextVectorShotAt = 0;
+    this.bossState = 'idle';
+    this.bossPhase = 1;
+    this.nextAttackAt = 0;
+    this.lastAttack = null;
+    this.coreMode = 'orbit';
+    this.coreDangerous = false;
+    this.coreOrbitAngle = 0;
+    this.coreOrbitRadius = 35;
+    this.coreOrbitSpeed = 1.7;
+    this.bossHome.set(1110, 350);
+    this.ricochetVelocity.set(0, 0);
+    this.ricochetEndsAt = 0;
+    this.fightOver = false;
+    this.theme = null;
+  }
+
   preload(): void {
-    this.load.audio('prologue-theme', '/audio/themes/bossfight-prologue.mp3');
-    this.load.audio('vector-shot', '/audio/effects/vector-shot.mp3');
+    this.load.audio('prologue-theme', 'audio/themes/bossfight-prologue.mp3');
+    this.load.audio('vector-shot', 'audio/effects/vector-shot.mp3');
   }
 
   create(): void {
+    this.resetFightState();
     this.createTextures();
     this.createArena();
     this.createPlayer();
@@ -234,17 +265,25 @@ export class FallaxScene extends Phaser.Scene {
     });
 
     this.platforms = this.physics.add.staticGroup();
-    this.addPlatform(WORLD_WIDTH / 2, FLOOR_TOP + 42, ROOM_RIGHT - ROOM_LEFT, 84);
+    this.addPlatform(WORLD_WIDTH / 2, FLOOR_TOP + 42, ROOM_RIGHT - ROOM_LEFT, 84, true);
     this.addPlatform(355, 652, 360, 34);
     this.addPlatform(790, 532, 310, 34);
     this.addPlatform(1210, 665, 350, 34);
     this.addPlatform(560, 372, 240, 30);
   }
 
-  private addPlatform(x: number, y: number, width: number, height: number): void {
+  private addPlatform(x: number, y: number, width: number, height: number, isFloor = false): void {
     const platform = this.platforms.create(x, y, 'platform-gradient') as Phaser.Physics.Arcade.Image;
     platform.setDisplaySize(width, height).refreshBody();
     platform.setDepth(-2);
+    platform.setData('isFloor', isFloor);
+
+    const body = platform.body as Phaser.Physics.Arcade.StaticBody;
+    body.checkCollision.left = false;
+    body.checkCollision.right = false;
+    body.checkCollision.down = false;
+    body.checkCollision.up = true;
+
     this.surfaces.push({ x, top: y - height / 2, width });
   }
 
@@ -289,6 +328,7 @@ export class FallaxScene extends Phaser.Scene {
     this.keyA = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
     this.keyD = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     this.keyW = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    this.keyS = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.keyJ = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.keyShift = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.keyEscape = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -344,7 +384,7 @@ export class FallaxScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(80).setShadow(0, 0, '#dbe7ff', 20, true, true);
 
-    this.add.text(1220, 676, 'A/D MOVE  •  W/SPACE JUMP  •  SHIFT DASH  •  LMB/J FIRE', {
+    this.add.text(1220, 676, 'A/D MOVE  •  W/SPACE JUMP  •  S/DOWN DROP  •  SHIFT DASH  •  LMB/J FIRE', {
       fontFamily: 'Inter, Arial, sans-serif',
       fontSize: '11px',
       color: '#687286',
@@ -373,13 +413,17 @@ export class FallaxScene extends Phaser.Scene {
     const onGround = body.blocked.down || body.touching.down;
     if (onGround) this.coyoteUntil = time + 110;
 
+    const dropPressed = Phaser.Input.Keyboard.JustDown(this.keyS)
+      || Phaser.Input.Keyboard.JustDown(this.cursors.down);
+    if (dropPressed && onGround) this.dropThroughPlatform();
+
     const jumpPressed = Phaser.Input.Keyboard.JustDown(this.keyW)
       || Phaser.Input.Keyboard.JustDown(this.cursors.up)
       || Phaser.Input.Keyboard.JustDown(this.cursors.space);
     if (jumpPressed) this.jumpBufferedUntil = time + 125;
 
     if (time < this.jumpBufferedUntil && time < this.coyoteUntil && time >= this.dashUntil) {
-      body.setVelocityY(-690);
+      body.setVelocityY(-860);
       this.jumpBufferedUntil = 0;
       this.coyoteUntil = 0;
       this.player.setScale(0.88, 1.12);
@@ -408,6 +452,34 @@ export class FallaxScene extends Phaser.Scene {
       body.setAccelerationX(0);
       this.player.setRotation(Phaser.Math.Linear(this.player.rotation, 0, 0.12));
     }
+  }
+
+  private dropThroughPlatform(): void {
+    const playerFeet = this.player.y + PLAYER_SIZE / 2;
+    const platform = this.platforms.getChildren()
+      .map((child) => child as Phaser.Physics.Arcade.Image)
+      .find((candidate) => {
+        if (candidate.getData('isFloor') === true) return false;
+        const bounds = candidate.getBounds();
+        const withinX = this.player.x >= bounds.left - 4 && this.player.x <= bounds.right + 4;
+        const standingOnTop = Math.abs(playerFeet - bounds.top) <= 24;
+        return withinX && standingOnTop;
+      });
+
+    if (!platform) return;
+
+    const body = platform.body as Phaser.Physics.Arcade.StaticBody;
+    body.checkCollision.up = false;
+    this.coyoteUntil = 0;
+    this.jumpBufferedUntil = 0;
+    this.playerBody.setVelocityY(Math.max(this.playerBody.velocity.y, 190));
+
+    this.time.delayedCall(280, () => {
+      if (platform.active) {
+        const platformBody = platform.body as Phaser.Physics.Arcade.StaticBody;
+        platformBody.checkCollision.up = true;
+      }
+    });
   }
 
   private startDash(time: number): void {
@@ -498,7 +570,7 @@ export class FallaxScene extends Phaser.Scene {
     const effectsEnabled = this.registry.get('effectsEnabled') !== false;
     if (effectsEnabled && this.cache.audio.exists('vector-shot')) {
       this.sound.play('vector-shot', {
-        volume: 0.16,
+        volume: 0.06,
         detune: Phaser.Math.Between(-70, 70),
       });
     }
@@ -1019,11 +1091,28 @@ export class FallaxScene extends Phaser.Scene {
     });
   }
 
+  private fadeOutTheme(duration = 1000): void {
+    const theme = this.theme as (Phaser.Sound.BaseSound & { volume: number }) | null;
+    if (!theme || !theme.isPlaying) return;
+
+    const fade = { volume: theme.volume };
+    this.tweens.add({
+      targets: fade,
+      volume: 0,
+      duration,
+      ease: 'Sine.Out',
+      onUpdate: () => {
+        theme.volume = fade.volume;
+      },
+      onComplete: () => theme.stop(),
+    });
+  }
+
   private winFight(): void {
     this.fightOver = true;
     this.bossState = 'defeated';
     this.coreDangerous = false;
-    this.theme?.stop();
+    this.fadeOutTheme(1200);
     this.statusText.setText('PROLOGUE DEFEATED\nENTER: MENU').setAlpha(1).setLineSpacing(14);
     this.tweens.killTweensOf(this.boss);
     this.tweens.killTweensOf(this.core);
@@ -1041,6 +1130,7 @@ export class FallaxScene extends Phaser.Scene {
 
   private loseFight(): void {
     this.fightOver = true;
+    this.fadeOutTheme(1000);
     this.statusText.setText('SYSTEM FRACTURED\nR: RETRY  •  ENTER: MENU').setAlpha(1).setLineSpacing(14);
     this.playerBody.setVelocity(0, 0);
     this.playerBody.setAllowGravity(false);
