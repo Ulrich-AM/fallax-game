@@ -21,9 +21,10 @@ export class MenuScene extends Phaser.Scene {
 
     this.add.image(640, 360, 'menu-background').setDisplaySize(1280, 720).setScrollFactor(0);
     const glow = this.add.image(640, 220, 'white-glow')
-      .setDisplaySize(620, 300)
-      .setAlpha(0.12)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setDisplaySize(560, 112)
+      .setPosition(648, 226)
+      .setAlpha(0.22)
+      .setBlendMode(Phaser.BlendModes.NORMAL);
 
     this.add.text(640, 114, 'FALLAX', {
       fontFamily: 'Inter, Arial, sans-serif',
@@ -31,7 +32,7 @@ export class MenuScene extends Phaser.Scene {
       fontStyle: '700',
       color: '#f5f7fb',
       letterSpacing: 20,
-    }).setOrigin(0.5).setShadow(0, 0, '#dce8ff', 24, true, true);
+    }).setOrigin(0.5).setShadow(5, 6, '#05070a', 0, false, true);
 
     this.add.text(640, 172, 'SIMPLE SHAPES / COMPLEX FIGHTS', {
       fontFamily: 'Inter, Arial, sans-serif',
@@ -84,7 +85,7 @@ export class MenuScene extends Phaser.Scene {
       { offset: 0.45, color: '#737c8d' },
       { offset: 1, color: '#2e3440' },
     ], 'diagonal', 8);
-    createGlowTexture(this, 'white-glow', 256, '#dbe7ff', 0.88);
+    createGlowTexture(this, 'white-glow', 256, '#05070a', 1);
   }
 
   private createAmbientShapes(): void {
@@ -101,9 +102,10 @@ export class MenuScene extends Phaser.Scene {
         .setAlpha(0.18 + index * 0.025)
         .setRotation(index * 0.32);
       const shapeGlow = this.add.image(x, y, 'white-glow')
-        .setDisplaySize(size * 2.6, size * 2.6)
-        .setAlpha(0.035)
-        .setBlendMode(Phaser.BlendModes.ADD);
+        .setPosition(x + 6, y + 8)
+        .setDisplaySize(size * 1.08, size * 1.08)
+        .setAlpha(0.28)
+        .setBlendMode(Phaser.BlendModes.NORMAL);
 
       this.tweens.add({
         targets: [shape, shapeGlow],
@@ -149,10 +151,10 @@ export class MenuScene extends Phaser.Scene {
     this.addPageImage(640, 400, 'menu-panel').setDisplaySize(560, 410);
     this.addPageText(640, 240, 'BOSSFIGHTS', 24, '#eef2f8', 5);
 
-    const bossGlow = this.addPageImage(500, 378, 'white-glow')
-      .setDisplaySize(210, 210)
-      .setAlpha(0.12)
-      .setBlendMode(Phaser.BlendModes.ADD);
+    const bossGlow = this.addPageImage(508, 386, 'white-glow')
+      .setDisplaySize(144, 144)
+      .setAlpha(0.32)
+      .setBlendMode(Phaser.BlendModes.NORMAL);
     const boss = this.addPageImage(500, 378, 'menu-square').setDisplaySize(132, 132);
     const core = this.addPageImage(500, 378, 'menu-square').setDisplaySize(30, 30).setTint(0xffffff);
 
@@ -168,7 +170,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.addPageText(735, 320, 'PROLOGUE', 30, '#ffffff', 4).setOrigin(0, 0.5);
     this.addPageText(735, 363, 'THE FIRST FALSE SHAPE', 13, '#8792a5', 2).setOrigin(0, 0.5);
-    this.addPageText(735, 418, 'Two phases\nSeven attack patterns\nRecommended: VECTOR', 16, '#b8c0ce', 0)
+    this.addPageText(735, 418, 'Two phases\nExpanded attack set\nRecommended: VECTOR', 16, '#b8c0ce', 0)
       .setOrigin(0, 0.5)
       .setLineSpacing(8);
 
@@ -226,10 +228,10 @@ export class MenuScene extends Phaser.Scene {
   ): void {
     const texture = compact ? 'button-small' : bright ? 'button-bright' : 'button-main';
     const height = compact ? 54 : 72;
-    const buttonGlow = this.addPageImage(x, y, 'white-glow')
-      .setDisplaySize(width * 1.08, height * 2.3)
-      .setAlpha(bright ? 0.08 : 0.025)
-      .setBlendMode(Phaser.BlendModes.ADD);
+    const buttonGlow = this.addPageImage(x + 5, y + 7, 'white-glow')
+      .setDisplaySize(width, height)
+      .setAlpha(bright ? 0.32 : 0.22)
+      .setBlendMode(Phaser.BlendModes.NORMAL);
     const button = this.addPageImage(x, y, texture)
       .setDisplaySize(width, height)
       .setInteractive({ useHandCursor: true });
@@ -240,12 +242,12 @@ export class MenuScene extends Phaser.Scene {
     button.on('pointerover', () => {
       this.tweens.add({ targets: button, scaleX: baseScaleX * 1.025, scaleY: baseScaleY * 1.025, duration: 140, ease: 'Sine.Out' });
       this.tweens.add({ targets: text, scaleX: 1.025, scaleY: 1.025, duration: 140, ease: 'Sine.Out' });
-      this.tweens.add({ targets: buttonGlow, alpha: bright ? 0.17 : 0.1, duration: 160, ease: 'Sine.Out' });
+      this.tweens.add({ targets: buttonGlow, alpha: bright ? 0.42 : 0.32, duration: 160, ease: 'Sine.Out' });
     });
     button.on('pointerout', () => {
       this.tweens.add({ targets: button, scaleX: baseScaleX, scaleY: baseScaleY, duration: 180, ease: 'Sine.Out' });
       this.tweens.add({ targets: text, scaleX: 1, scaleY: 1, duration: 180, ease: 'Sine.Out' });
-      this.tweens.add({ targets: buttonGlow, alpha: bright ? 0.08 : 0.025, duration: 180, ease: 'Sine.Out' });
+      this.tweens.add({ targets: buttonGlow, alpha: bright ? 0.32 : 0.22, duration: 180, ease: 'Sine.Out' });
     });
     button.on('pointerdown', () => {
       this.tweens.add({
