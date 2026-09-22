@@ -5,13 +5,18 @@ export type GradientStop = {
   color: string;
 };
 
+function solidColor(stops: GradientStop[]): string {
+  if (stops.length === 0) return '#ffffff';
+  return stops[Math.floor((stops.length - 1) / 2)].color;
+}
+
 export function createLinearTexture(
   scene: Phaser.Scene,
   key: string,
   width: number,
   height: number,
   stops: GradientStop[],
-  direction: 'vertical' | 'horizontal' | 'diagonal' = 'vertical',
+  _direction: 'vertical' | 'horizontal' | 'diagonal' = 'vertical',
   _radius = 0,
 ): void {
   if (scene.textures.exists(key)) return;
@@ -20,18 +25,9 @@ export function createLinearTexture(
   if (!texture) return;
 
   const context = texture.context;
-  const gradient = direction === 'horizontal'
-    ? context.createLinearGradient(0, 0, width, 0)
-    : direction === 'diagonal'
-      ? context.createLinearGradient(0, 0, width, height)
-      : context.createLinearGradient(0, 0, 0, height);
-
-  stops.forEach((stop) => gradient.addColorStop(stop.offset, stop.color));
   context.clearRect(0, 0, width, height);
-  context.fillStyle = gradient;
-
+  context.fillStyle = solidColor(stops);
   context.fillRect(0, 0, width, height);
-
   texture.refresh();
 }
 
@@ -48,14 +44,8 @@ export function createGlowTexture(
   if (!texture) return;
 
   const context = texture.context;
-  const center = size / 2;
-  const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-  gradient.addColorStop(0, withAlpha(color, strength));
-  gradient.addColorStop(0.32, withAlpha(color, strength * 0.45));
-  gradient.addColorStop(1, withAlpha(color, 0));
-
   context.clearRect(0, 0, size, size);
-  context.fillStyle = gradient;
+  context.fillStyle = withAlpha(color, strength);
   context.fillRect(0, 0, size, size);
   texture.refresh();
 }
@@ -66,18 +56,14 @@ export function createButtonTexture(
   width: number,
   height: number,
   topColor: string,
-  bottomColor: string,
+  _bottomColor: string,
 ): void {
   createLinearTexture(
     scene,
     key,
     width,
     height,
-    [
-      { offset: 0, color: topColor },
-      { offset: 0.5, color: mixColor(topColor, bottomColor, 0.42) },
-      { offset: 1, color: bottomColor },
-    ],
+    [{ offset: 0, color: topColor }],
     'vertical',
     0,
   );
@@ -90,14 +76,4 @@ function withAlpha(hex: string, alpha: number): string {
   const green = (value >> 8) & 255;
   const blue = value & 255;
   return `rgba(${red}, ${green}, ${blue}, ${Phaser.Math.Clamp(alpha, 0, 1)})`;
-}
-
-function mixColor(first: string, second: string, amount: number): string {
-  const firstValue = Number.parseInt(first.replace('#', ''), 16);
-  const secondValue = Number.parseInt(second.replace('#', ''), 16);
-  const t = Phaser.Math.Clamp(amount, 0, 1);
-  const red = Phaser.Math.Linear((firstValue >> 16) & 255, (secondValue >> 16) & 255, t);
-  const green = Phaser.Math.Linear((firstValue >> 8) & 255, (secondValue >> 8) & 255, t);
-  const blue = Phaser.Math.Linear(firstValue & 255, secondValue & 255, t);
-  return `rgb(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)})`;
 }
