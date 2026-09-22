@@ -5,6 +5,10 @@ type Surface = {
   x: number;
   top: number;
   width: number;
+  sprite: Phaser.Physics.Arcade.Image;
+  shadow: Phaser.GameObjects.Image;
+  isFloor: boolean;
+  enabled: boolean;
 };
 
 type VectorProjectile = {
@@ -19,9 +23,16 @@ type Shockwave = {
   damage: number;
 };
 
-type BossState = 'idle' | 'transition' | 'swing' | 'rotation' | 'crash' | 'slide' | 'ricochet' | 'defeated';
+type ActiveHazard = {
+  sprite: Phaser.GameObjects.Image;
+  damage: number;
+  expiresAt: number;
+  sourceX: number;
+};
+
+type BossState = 'idle' | 'transition' | 'swing' | 'rotation' | 'crash' | 'slide' | 'ricochet' | 'false-floor' | 'sweep' | 'orbit-release' | 'platform-breaker' | 'defeated';
 type CoreMode = 'orbit' | 'manual' | 'rotation' | 'center';
-type AttackName = 'swing' | 'rotation' | 'crash' | 'slide' | 'ricochet';
+type AttackName = 'swing' | 'rotation' | 'crash' | 'slide' | 'ricochet' | 'false-floor' | 'sweep' | 'orbit-release' | 'platform-breaker';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 900;
@@ -45,6 +56,9 @@ export class FallaxScene extends Phaser.Scene {
   private surfaces: Surface[] = [];
   private projectiles: VectorProjectile[] = [];
   private shockwaves: Shockwave[] = [];
+  private hazards: ActiveHazard[] = [];
+  private sweepBeam: Phaser.GameObjects.Image | null = null;
+  private sweepActive = false;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyA!: Phaser.Input.Keyboard.Key;
@@ -79,6 +93,9 @@ export class FallaxScene extends Phaser.Scene {
   private bossHome = new Phaser.Math.Vector2(1110, 350);
   private ricochetVelocity = new Phaser.Math.Vector2();
   private ricochetEndsAt = 0;
+  private orbitReleaseVelocity = new Phaser.Math.Vector2();
+  private orbitReleaseEndsAt = 0;
+  private orbitReleaseBounces = 0;
   private fightOver = false;
 
   private playerHealthFill!: Phaser.GameObjects.Image;
@@ -100,6 +117,9 @@ export class FallaxScene extends Phaser.Scene {
     this.surfaces = [];
     this.projectiles = [];
     this.shockwaves = [];
+    this.hazards = [];
+    this.sweepBeam = null;
+    this.sweepActive = false;
     this.playerHealth = MAX_PLAYER_HEALTH;
     this.bossHealth = MAX_BOSS_HEALTH;
     this.playerInvulnerableUntil = 0;
@@ -121,6 +141,9 @@ export class FallaxScene extends Phaser.Scene {
     this.bossHome.set(1110, 350);
     this.ricochetVelocity.set(0, 0);
     this.ricochetEndsAt = 0;
+    this.orbitReleaseVelocity.set(0, 0);
+    this.orbitReleaseEndsAt = 0;
+    this.orbitReleaseBounces = 0;
     this.fightOver = false;
     this.theme = null;
   }
@@ -168,6 +191,7 @@ export class FallaxScene extends Phaser.Scene {
     this.updateProjectiles(time);
     this.updateBoss(time, delta);
     this.updateShockwaves(time, delta);
+    this.updateHazards(time);
     this.updateDamageChecks(time);
     this.updateHud(time);
     this.updateVisualTracking();
@@ -236,10 +260,13 @@ export class FallaxScene extends Phaser.Scene {
       { offset: 0.54, color: '#e86f6b' },
       { offset: 1, color: '#7f3438' },
     ], 'horizontal', 7);
-    createGlowTexture(this, 'player-glow', 192, '#b9c9e2', 0.64);
-    createGlowTexture(this, 'boss-glow', 384, '#9fb4d4', 0.7);
-    createGlowTexture(this, 'core-glow', 192, '#ffffff', 0.95);
-    createGlowTexture(this, 'projectile-glow', 96, '#cfe2ff', 0.75);
+    createLinearTexture(this, 'hazard-telegraph', 256, 64, [{ offset: 0, color: '#b84b4b' }]);
+    createLinearTexture(this, 'hazard-active', 256, 64, [{ offset: 0, color: '#f06a62' }]);
+    createLinearTexture(this, 'impact-fill', 128, 128, [{ offset: 0, color: '#eef3fb' }]);
+    createGlowTexture(this, 'player-glow', 192, '#05070a', 1);
+    createGlowTexture(this, 'boss-glow', 384, '#05070a', 1);
+    createGlowTexture(this, 'core-glow', 192, '#05070a', 1);
+    createGlowTexture(this, 'projectile-glow', 96, '#eef3fb', 1);
   }
 
   private createArena(): void {
@@ -250,20 +277,6 @@ export class FallaxScene extends Phaser.Scene {
       .setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT)
       .setDepth(-20);
 
-    const ambientGlow = this.add.image(1050, 300, 'boss-glow')
-      .setDisplaySize(900, 700)
-      .setAlpha(0.035)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setDepth(-18);
-    this.tweens.add({
-      targets: ambientGlow,
-      alpha: 0.065,
-      duration: 3400,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut',
-    });
-
     this.platforms = this.physics.add.staticGroup();
     this.addPlatform(WORLD_WIDTH / 2, FLOOR_TOP + 42, ROOM_RIGHT - ROOM_LEFT, 84, true);
     this.addPlatform(355, 652, 360, 34);
@@ -273,6 +286,11 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private addPlatform(x: number, y: number, width: number, height: number, isFloor = false): void {
+    const shadow = this.add.image(x + 7, y + 9, 'boss-glow')
+      .setDisplaySize(width, height)
+      .setAlpha(0.46)
+      .setDepth(-3);
+
     const platform = this.platforms.create(x, y, 'platform-gradient') as Phaser.Physics.Arcade.Image;
     platform.setDisplaySize(width, height).refreshBody();
     platform.setDepth(-2);
@@ -284,14 +302,21 @@ export class FallaxScene extends Phaser.Scene {
     body.checkCollision.down = false;
     body.checkCollision.up = true;
 
-    this.surfaces.push({ x, top: y - height / 2, width });
+    this.surfaces.push({
+      x,
+      top: y - height / 2,
+      width,
+      sprite: platform,
+      shadow,
+      isFloor,
+      enabled: true,
+    });
   }
 
   private createPlayer(): void {
-    this.playerGlow = this.add.image(250, 740, 'player-glow')
-      .setDisplaySize(110, 110)
-      .setAlpha(0.12)
-      .setBlendMode(Phaser.BlendModes.ADD)
+    this.playerGlow = this.add.image(256, 748, 'player-glow')
+      .setDisplaySize(48, 48)
+      .setAlpha(0.45)
       .setDepth(4);
 
     this.player = this.physics.add.image(250, 740, 'player-gradient');
@@ -302,18 +327,16 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private createBoss(): void {
-    this.bossGlow = this.add.image(this.bossHome.x, this.bossHome.y, 'boss-glow')
-      .setDisplaySize(310, 310)
-      .setAlpha(0.16)
-      .setBlendMode(Phaser.BlendModes.ADD)
+    this.bossGlow = this.add.image(this.bossHome.x + 12, this.bossHome.y + 14, 'boss-glow')
+      .setDisplaySize(BOSS_SIZE, BOSS_SIZE)
+      .setAlpha(0.42)
       .setDepth(1);
     this.boss = this.add.image(this.bossHome.x, this.bossHome.y, 'boss-gradient')
       .setDisplaySize(BOSS_SIZE, BOSS_SIZE)
       .setDepth(2);
-    this.coreGlow = this.add.image(this.boss.x, this.boss.y, 'core-glow')
-      .setDisplaySize(110, 110)
-      .setAlpha(0.34)
-      .setBlendMode(Phaser.BlendModes.ADD)
+    this.coreGlow = this.add.image(this.boss.x + 5, this.boss.y + 6, 'core-glow')
+      .setDisplaySize(38, 38)
+      .setAlpha(0.4)
       .setDepth(3);
     this.core = this.add.image(this.boss.x, this.boss.y, 'core-gradient')
       .setDisplaySize(34, 34)
@@ -382,7 +405,7 @@ export class FallaxScene extends Phaser.Scene {
       color: '#ffffff',
       letterSpacing: 5,
       align: 'center',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(80).setShadow(0, 0, '#dbe7ff', 20, true, true);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(80).setShadow(3, 4, '#05070a', 0, false, true);
 
     this.add.text(1220, 676, 'A/D MOVE  •  W/SPACE JUMP  •  S/DOWN DROP  •  SHIFT DASH  •  LMB/J FIRE', {
       fontFamily: 'Inter, Arial, sans-serif',
@@ -459,7 +482,7 @@ export class FallaxScene extends Phaser.Scene {
     const platform = this.platforms.getChildren()
       .map((child) => child as Phaser.Physics.Arcade.Image)
       .find((candidate) => {
-        if (candidate.getData('isFloor') === true) return false;
+        if (candidate.getData('isFloor') === true || !candidate.visible) return false;
         const bounds = candidate.getBounds();
         const withinX = this.player.x >= bounds.left - 4 && this.player.x <= bounds.right + 4;
         const standingOnTop = Math.abs(playerFeet - bounds.top) <= 24;
@@ -496,7 +519,7 @@ export class FallaxScene extends Phaser.Scene {
     body.setAcceleration(0, 0);
     body.setVelocity(direction * 1180, 0);
     this.player.setScale(1.28, 0.72);
-    this.playerGlow.setAlpha(0.32);
+    this.playerGlow.setAlpha(0.66);
 
     for (let index = 1; index <= 6; index += 1) {
       this.time.delayedCall(index * 28, () => this.spawnAfterimage());
@@ -507,7 +530,7 @@ export class FallaxScene extends Phaser.Scene {
       this.playerBody.setAllowGravity(true);
       this.playerBody.setVelocityX(this.lastFacing * 460);
       this.tweens.add({ targets: this.player, scaleX: 1, scaleY: 1, duration: 210, ease: 'Back.Out' });
-      this.tweens.add({ targets: this.playerGlow, alpha: 0.12, duration: 220, ease: 'Sine.Out' });
+      this.tweens.add({ targets: this.playerGlow, alpha: 0.45, duration: 220, ease: 'Sine.Out' });
     });
   }
 
@@ -542,9 +565,8 @@ export class FallaxScene extends Phaser.Scene {
     const spawnY = this.player.y + direction.y * 30;
 
     const glow = this.add.image(spawnX, spawnY, 'projectile-glow')
-      .setDisplaySize(50, 34)
-      .setAlpha(0.16)
-      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDisplaySize(34, 12)
+      .setAlpha(0.28)
       .setDepth(6);
     this.tweens.add({
       targets: glow,
@@ -564,8 +586,8 @@ export class FallaxScene extends Phaser.Scene {
     this.projectiles.push({ sprite: projectile, expiresAt: time + 1500 });
 
     this.playerBody.setVelocityX(this.playerBody.velocity.x - direction.x * 10);
-    this.playerGlow.setAlpha(0.22);
-    this.tweens.add({ targets: this.playerGlow, alpha: 0.12, duration: 110 });
+    this.playerGlow.setAlpha(0.56);
+    this.tweens.add({ targets: this.playerGlow, alpha: 0.45, duration: 110 });
 
     const effectsEnabled = this.registry.get('effectsEnabled') !== false;
     if (effectsEnabled && this.cache.audio.exists('vector-shot')) {
@@ -594,8 +616,8 @@ export class FallaxScene extends Phaser.Scene {
 
       if (Phaser.Geom.Intersects.RectangleToRectangle(sprite.getBounds(), bossBounds)) {
         this.bossHealth = Math.max(0, this.bossHealth - 1.7);
-        this.bossGlow.setAlpha(0.3);
-        this.tweens.add({ targets: this.bossGlow, alpha: 0.16, duration: 120, ease: 'Sine.Out' });
+        this.bossGlow.setAlpha(0.62);
+        this.tweens.add({ targets: this.bossGlow, alpha: 0.42, duration: 120, ease: 'Sine.Out' });
         sprite.destroy();
         return false;
       }
@@ -617,6 +639,7 @@ export class FallaxScene extends Phaser.Scene {
     }
 
     if (this.bossState === 'ricochet') this.updateRicochet(time, delta);
+    if (this.bossState === 'orbit-release') this.updateOrbitRelease(time, delta);
 
     this.coreOrbitAngle += this.coreOrbitSpeed * (delta / 1000);
     if (this.coreMode === 'orbit' || this.coreMode === 'rotation') {
@@ -634,11 +657,15 @@ export class FallaxScene extends Phaser.Scene {
     if (this.bossState !== 'idle') return;
 
     let choices: AttackName[] = this.bossPhase === 1
-      ? ['swing', 'crash', 'slide']
-      : ['swing', 'rotation', 'crash', 'ricochet'];
+      ? ['swing', 'crash', 'slide', 'false-floor', 'platform-breaker']
+      : ['swing', 'rotation', 'crash', 'ricochet', 'false-floor', 'sweep', 'orbit-release', 'platform-breaker'];
 
     const playerOnFloor = this.player.y > FLOOR_TOP - 90;
     if (!playerOnFloor) choices = choices.filter((attack) => attack !== 'slide');
+    if (!this.surfaces.some((surface) => !surface.isFloor && surface.enabled)) {
+      choices = choices.filter((attack) => attack !== 'platform-breaker');
+    }
+
     const withoutRepeat = choices.filter((attack) => attack !== this.lastAttack);
     if (withoutRepeat.length > 0) choices = withoutRepeat;
 
@@ -650,6 +677,10 @@ export class FallaxScene extends Phaser.Scene {
     if (attack === 'crash') this.attackCrash();
     if (attack === 'slide') this.attackSlide();
     if (attack === 'ricochet') this.attackRicochet();
+    if (attack === 'false-floor') this.attackFalseFloor();
+    if (attack === 'sweep') this.attackSweepBeam();
+    if (attack === 'orbit-release') this.attackOrbitRelease();
+    if (attack === 'platform-breaker') this.attackPlatformBreaker();
   }
 
   private attackSwing(): void {
@@ -768,6 +799,9 @@ export class FallaxScene extends Phaser.Scene {
             onComplete: () => {
               telegraph.destroy();
               this.impact(surface, this.bossPhase === 2);
+              if (this.bossPhase === 2) {
+                this.spawnDelayedEchoRect(targetX, targetY, BOSS_SIZE + 28, BOSS_SIZE + 18, 650, 16, 240);
+              }
               this.time.delayedCall(310, () => {
                 this.tweens.add({
                   targets: this.boss,
@@ -824,6 +858,10 @@ export class FallaxScene extends Phaser.Scene {
                   onComplete: () => {
                     this.cameras.main.shake(180, 0.009);
                     this.spawnImpactFlash(this.boss.x, this.boss.y, 220);
+                    if (this.bossPhase === 2) {
+                      const echoWidth = Math.abs(wallX - targetX) + BOSS_SIZE;
+                      this.spawnDelayedEchoRect((targetX + wallX) / 2, targetY, echoWidth, 92, 650, 16, 240);
+                    }
                     this.boss.setScale(1.2, 0.82);
                     this.time.delayedCall(260, () => {
                       this.tweens.add({
@@ -866,6 +904,253 @@ export class FallaxScene extends Phaser.Scene {
         this.ricochetVelocity.set(directionX * 910, 610);
         this.ricochetEndsAt = this.time.now + 2600;
         this.boss.setScale(1, 1);
+      },
+    });
+  }
+
+  private attackFalseFloor(): void {
+    this.bossState = 'false-floor';
+    this.coreMode = 'center';
+    this.coreDangerous = false;
+
+    const laneStep = (ROOM_RIGHT - ROOM_LEFT) / 6;
+    const laneWidth = Math.min(205, laneStep - 26);
+    const predictedX = Phaser.Math.Clamp(
+      this.player.x + this.playerBody.velocity.x * 0.3,
+      ROOM_LEFT,
+      ROOM_RIGHT,
+    );
+    const primaryIndex = Phaser.Math.Clamp(
+      Math.floor((predictedX - ROOM_LEFT) / laneStep),
+      0,
+      5,
+    );
+    const selected = new Set<number>([primaryIndex]);
+    while (selected.size < 3) selected.add(Phaser.Math.Between(0, 5));
+
+    const telegraphs = [...selected].map((index) => {
+      const x = ROOM_LEFT + laneStep * (index + 0.5);
+      return this.add.image(x, FLOOR_TOP - 90, 'hazard-telegraph')
+        .setDisplaySize(laneWidth, 180)
+        .setAlpha(0.24)
+        .setDepth(0);
+    });
+
+    this.tweens.add({
+      targets: telegraphs,
+      alpha: 0.52,
+      duration: 180,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Sine.InOut',
+    });
+
+    this.time.delayedCall(650, () => {
+      if (this.fightOver) return;
+      telegraphs.forEach((zone) => {
+        zone.setTexture('hazard-active').setAlpha(0.88);
+        this.hazards.push({
+          sprite: zone,
+          damage: 18,
+          expiresAt: this.time.now + 520,
+          sourceX: zone.x,
+        });
+      });
+      this.cameras.main.shake(120, 0.004);
+      this.time.delayedCall(650, () => this.completeAttack(480));
+    });
+  }
+
+  private attackSweepBeam(): void {
+    this.bossState = 'sweep';
+    this.coreMode = 'center';
+    this.coreDangerous = false;
+    const sweepX = WORLD_WIDTH / 2;
+    const sweepY = 300;
+
+    this.tweens.add({
+      targets: this.boss,
+      x: sweepX,
+      y: sweepY,
+      duration: 520,
+      ease: 'Sine.InOut',
+      onComplete: () => {
+        if (this.fightOver) return;
+        const beam = this.add.image(sweepX, sweepY, 'hazard-telegraph')
+          .setDisplaySize(1240, 24)
+          .setAlpha(0.28)
+          .setRotation(-0.72)
+          .setDepth(1);
+        this.sweepBeam = beam;
+
+        this.tweens.add({
+          targets: beam,
+          alpha: 0.52,
+          duration: 180,
+          yoyo: true,
+          repeat: 1,
+          onComplete: () => {
+            beam.setTexture('hazard-active').setAlpha(0.92);
+            this.sweepActive = true;
+            this.tweens.add({
+              targets: beam,
+              rotation: 0.72,
+              duration: 1450,
+              ease: 'Sine.InOut',
+              onComplete: () => {
+                this.sweepActive = false;
+                beam.destroy();
+                this.sweepBeam = null;
+                this.tweens.add({
+                  targets: this.boss,
+                  x: this.bossHome.x,
+                  y: this.bossHome.y,
+                  duration: 520,
+                  ease: 'Back.Out',
+                  onComplete: () => this.completeAttack(520),
+                });
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  private attackOrbitRelease(): void {
+    this.bossState = 'orbit-release';
+    this.coreMode = 'rotation';
+    this.coreDangerous = false;
+    this.coreOrbitRadius = 42;
+    this.coreOrbitSpeed = 2.2;
+
+    this.tweens.add({
+      targets: this,
+      coreOrbitRadius: 165,
+      coreOrbitSpeed: 8.4,
+      duration: 720,
+      ease: 'Back.Out',
+      onComplete: () => {
+        if (this.fightOver) return;
+        this.coreMode = 'manual';
+        this.coreDangerous = true;
+        this.orbitReleaseBounces = 0;
+        this.orbitReleaseEndsAt = this.time.now + 2400;
+
+        const predictedX = this.player.x + this.playerBody.velocity.x * 0.24;
+        const predictedY = this.player.y + this.playerBody.velocity.y * 0.12;
+        const direction = new Phaser.Math.Vector2(predictedX - this.core.x, predictedY - this.core.y).normalize();
+        this.orbitReleaseVelocity.set(direction.x * 930, direction.y * 930);
+      },
+    });
+  }
+
+  private updateOrbitRelease(time: number, delta: number): void {
+    if (this.orbitReleaseEndsAt === 0) return;
+
+    const seconds = delta / 1000;
+    this.core.x += this.orbitReleaseVelocity.x * seconds;
+    this.core.y += this.orbitReleaseVelocity.y * seconds;
+    const half = 17;
+    let bounced = false;
+
+    if (this.core.x <= ROOM_LEFT + half || this.core.x >= ROOM_RIGHT - half) {
+      this.core.x = Phaser.Math.Clamp(this.core.x, ROOM_LEFT + half, ROOM_RIGHT - half);
+      this.orbitReleaseVelocity.x *= -1;
+      bounced = true;
+    }
+    if (this.core.y <= ROOM_TOP + half || this.core.y >= FLOOR_TOP - half) {
+      this.core.y = Phaser.Math.Clamp(this.core.y, ROOM_TOP + half, FLOOR_TOP - half);
+      this.orbitReleaseVelocity.y *= -1;
+      bounced = true;
+    }
+
+    if (bounced) {
+      this.orbitReleaseBounces += 1;
+      this.spawnImpactFlash(this.core.x, this.core.y, 84);
+      this.cameras.main.shake(80, 0.004);
+    }
+
+    if (time >= this.orbitReleaseEndsAt || this.orbitReleaseBounces >= 2) {
+      this.finishOrbitRelease();
+    }
+  }
+
+  private finishOrbitRelease(): void {
+    if (this.orbitReleaseEndsAt === 0) return;
+    this.orbitReleaseEndsAt = 0;
+    this.orbitReleaseVelocity.set(0, 0);
+    this.coreDangerous = false;
+
+    this.tweens.add({
+      targets: this.core,
+      x: this.boss.x,
+      y: this.boss.y,
+      duration: 340,
+      ease: 'Back.Out',
+      onComplete: () => this.completeAttack(500),
+    });
+  }
+
+  private attackPlatformBreaker(): void {
+    const available = this.surfaces.filter((surface) => !surface.isFloor && surface.enabled);
+    if (available.length === 0) {
+      this.completeAttack(250);
+      return;
+    }
+
+    this.bossState = 'platform-breaker';
+    this.coreMode = 'orbit';
+    const surface = available.reduce((best, candidate) => (
+      Math.abs(candidate.x - this.player.x) < Math.abs(best.x - this.player.x) ? candidate : best
+    ));
+
+    const targetY = surface.top - BOSS_SIZE / 2;
+    const telegraph = this.add.image(surface.x, surface.top + 3, 'hazard-telegraph')
+      .setDisplaySize(surface.width, 12)
+      .setAlpha(0.3)
+      .setDepth(0);
+
+    this.tweens.add({ targets: telegraph, alpha: 0.65, duration: 180, yoyo: true, repeat: 2 });
+    this.tweens.add({
+      targets: this.boss,
+      x: surface.x,
+      y: Math.max(ROOM_TOP + 90, targetY - 260),
+      scaleX: 0.84,
+      scaleY: 1.18,
+      duration: 520,
+      ease: 'Sine.InOut',
+      onComplete: () => {
+        this.time.delayedCall(180, () => {
+          this.tweens.add({
+            targets: this.boss,
+            y: targetY,
+            scaleX: 1.2,
+            scaleY: 0.78,
+            duration: 180,
+            ease: 'Expo.In',
+            onComplete: () => {
+              telegraph.destroy();
+              this.impact(surface, false);
+              this.breakPlatform(surface);
+              if (this.bossPhase === 2) {
+                this.spawnDelayedEchoRect(surface.x, targetY, Math.min(surface.width, BOSS_SIZE + 80), BOSS_SIZE, 650, 17, 240);
+              }
+              this.time.delayedCall(280, () => {
+                this.tweens.add({
+                  targets: this.boss,
+                  x: this.bossHome.x,
+                  y: this.bossHome.y,
+                  scaleX: 1,
+                  scaleY: 1,
+                  duration: 620,
+                  ease: 'Back.Out',
+                  onComplete: () => this.completeAttack(560),
+                });
+              });
+            },
+          });
+        });
       },
     });
   }
@@ -914,10 +1199,103 @@ export class FallaxScene extends Phaser.Scene {
   private chooseCrashSurface(): Surface {
     const playerFeet = this.player.y + PLAYER_SIZE / 2;
     const matching = this.surfaces.filter((surface) => {
+      if (!surface.enabled) return false;
       const withinX = this.player.x >= surface.x - surface.width / 2 && this.player.x <= surface.x + surface.width / 2;
       return withinX && Math.abs(surface.top - playerFeet) < 90;
     });
-    return matching[0] ?? this.surfaces[0];
+    return matching[0] ?? this.surfaces.find((surface) => surface.enabled) ?? this.surfaces[0];
+  }
+
+  private breakPlatform(surface: Surface): void {
+    if (surface.isFloor || !surface.enabled) return;
+    surface.enabled = false;
+    const body = surface.sprite.body as Phaser.Physics.Arcade.StaticBody;
+    body.checkCollision.up = false;
+    surface.sprite.setVisible(false);
+    surface.shadow.setVisible(false);
+
+    this.time.delayedCall(2800, () => {
+      if (!surface.sprite.active) return;
+      surface.enabled = true;
+      body.checkCollision.up = true;
+      surface.sprite.setVisible(true).setAlpha(0);
+      surface.shadow.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: surface.sprite, alpha: 1, duration: 280, ease: 'Sine.Out' });
+      this.tweens.add({ targets: surface.shadow, alpha: 0.46, duration: 280, ease: 'Sine.Out' });
+    });
+  }
+
+  private spawnDelayedEchoRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    delay: number,
+    damage: number,
+    activeDuration: number,
+  ): void {
+    const echo = this.add.image(x, y, 'hazard-telegraph')
+      .setDisplaySize(width, height)
+      .setAlpha(0.18)
+      .setDepth(0);
+
+    this.tweens.add({ targets: echo, alpha: 0.42, duration: 180, yoyo: true, repeat: 1 });
+    this.time.delayedCall(delay, () => {
+      if (!echo.active || this.fightOver) {
+        echo.destroy();
+        return;
+      }
+      echo.setTexture('hazard-active').setAlpha(0.78).setDepth(6);
+      this.hazards.push({
+        sprite: echo,
+        damage,
+        expiresAt: this.time.now + activeDuration,
+        sourceX: x,
+      });
+    });
+  }
+
+  private updateHazards(time: number): void {
+    const playerBounds = this.player.getBounds();
+    this.hazards = this.hazards.filter((hazard) => {
+      if (!hazard.sprite.active) return false;
+      if (time >= hazard.expiresAt) {
+        hazard.sprite.destroy();
+        return false;
+      }
+      if (Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, hazard.sprite.getBounds())) {
+        this.damagePlayer(hazard.damage, hazard.sourceX, time);
+      }
+      return true;
+    });
+  }
+
+  private checkSweepBeamDamage(time: number): void {
+    const beam = this.sweepBeam;
+    if (!this.sweepActive || !beam?.active) return;
+
+    const halfLength = beam.displayWidth / 2;
+    const dx = Math.cos(beam.rotation) * halfLength;
+    const dy = Math.sin(beam.rotation) * halfLength;
+    const ax = beam.x - dx;
+    const ay = beam.y - dy;
+    const bx = beam.x + dx;
+    const by = beam.y + dy;
+    const abx = bx - ax;
+    const aby = by - ay;
+    const apx = this.player.x - ax;
+    const apy = this.player.y - ay;
+    const lengthSquared = abx * abx + aby * aby;
+    const t = lengthSquared === 0
+      ? 0
+      : Phaser.Math.Clamp((apx * abx + apy * aby) / lengthSquared, 0, 1);
+    const nearestX = ax + abx * t;
+    const nearestY = ay + aby * t;
+    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, nearestX, nearestY);
+
+    if (distance <= beam.displayHeight / 2 + PLAYER_SIZE * 0.42) {
+      this.damagePlayer(17, beam.x, time);
+    }
   }
 
   private impact(surface: Surface, createShockwave: boolean): void {
@@ -935,7 +1313,7 @@ export class FallaxScene extends Phaser.Scene {
       .setDisplaySize(86, 18)
       .setFlipX(velocityX < 0)
       .setDepth(6)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setBlendMode(Phaser.BlendModes.NORMAL);
     wave.setData('left', surface.x - surface.width / 2);
     wave.setData('right', surface.x + surface.width / 2);
     this.shockwaves.push({ sprite: wave, velocityX, expiresAt: this.time.now + 1700, damage: 16 });
@@ -962,9 +1340,12 @@ export class FallaxScene extends Phaser.Scene {
       this.damagePlayer(15, this.core.x, time);
     }
 
+    this.checkSweepBeamDamage(time);
+
     const dangerousBoss = this.bossState === 'crash'
       || this.bossState === 'slide'
-      || this.bossState === 'ricochet';
+      || this.bossState === 'ricochet'
+      || this.bossState === 'platform-breaker';
     if (dangerousBoss && Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, this.boss.getBounds())) {
       this.damagePlayer(this.bossState === 'ricochet' ? 22 : 18, this.boss.x, time);
     }
@@ -984,9 +1365,9 @@ export class FallaxScene extends Phaser.Scene {
     const knockDirection = this.player.x < sourceX ? -1 : 1;
     this.playerBody.setVelocity(knockDirection * 430, -360);
     this.cameras.main.shake(150, 0.008);
-    this.playerGlow.setAlpha(0.48);
+    this.playerGlow.setAlpha(0.72);
     this.player.setAlpha(0.42);
-    this.tweens.add({ targets: this.playerGlow, alpha: 0.12, duration: 430, ease: 'Sine.Out' });
+    this.tweens.add({ targets: this.playerGlow, alpha: 0.45, duration: 430, ease: 'Sine.Out' });
     this.tweens.add({ targets: this.player, alpha: 1, duration: 130, yoyo: true, repeat: 2 });
   }
 
@@ -997,6 +1378,9 @@ export class FallaxScene extends Phaser.Scene {
     this.coreDangerous = false;
     this.coreOrbitRadius = 35;
     this.coreOrbitSpeed = this.bossPhase === 1 ? 1.7 : 2.5;
+    this.orbitReleaseEndsAt = 0;
+    this.orbitReleaseVelocity.set(0, 0);
+    this.sweepActive = false;
     this.boss.setScale(1, 1);
     this.nextAttackAt = this.time.now + delay;
   }
@@ -1020,9 +1404,9 @@ export class FallaxScene extends Phaser.Scene {
     });
     this.tweens.add({
       targets: this.bossGlow,
-      alpha: 0.55,
-      scaleX: 1.35,
-      scaleY: 1.35,
+      alpha: 0.68,
+      scaleX: 1.12,
+      scaleY: 1.12,
       duration: 600,
       yoyo: true,
       repeat: 1,
@@ -1062,11 +1446,11 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private updateVisualTracking(): void {
-    this.playerGlow.setPosition(this.player.x, this.player.y);
-    this.bossGlow.setPosition(this.boss.x, this.boss.y);
-    this.coreGlow.setPosition(this.core.x, this.core.y);
-    this.coreGlow.setAlpha(this.coreDangerous ? 0.58 : 0.34);
-    this.coreGlow.setDisplaySize(this.coreDangerous ? 150 : 110, this.coreDangerous ? 150 : 110);
+    this.playerGlow.setPosition(this.player.x + 6, this.player.y + 8);
+    this.bossGlow.setPosition(this.boss.x + 12, this.boss.y + 14);
+    this.coreGlow.setPosition(this.core.x + 5, this.core.y + 6);
+    this.coreGlow.setAlpha(this.coreDangerous ? 0.68 : 0.4);
+    this.coreGlow.setDisplaySize(this.coreDangerous ? 46 : 38, this.coreDangerous ? 46 : 38);
   }
 
   private updateCameraLead(): void {
@@ -1075,10 +1459,10 @@ export class FallaxScene extends Phaser.Scene {
   }
 
   private spawnImpactFlash(x: number, y: number, size: number): void {
-    const flash = this.add.image(x, y, 'core-glow')
+    const flash = this.add.image(x, y, 'impact-fill')
       .setDisplaySize(size, size)
       .setAlpha(0.58)
-      .setBlendMode(Phaser.BlendModes.ADD)
+      .setBlendMode(Phaser.BlendModes.NORMAL)
       .setDepth(15);
     this.tweens.add({
       targets: flash,
