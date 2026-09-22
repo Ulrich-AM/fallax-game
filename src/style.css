@@ -21,9 +21,7 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(circle at 50% 32%, #202633 0%, #0d1118 46%, #05070a 100%),
-    #05070a;
+  background: #05070a;
 }
 
 canvas {
