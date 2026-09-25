@@ -358,3 +358,33 @@ canvas {
   cursor: default;
   color: #666d78;
 }
+
+
+/* Death / retry overlay */
+.death-menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 6, 9, 0.72);
+  z-index: 10;
+}
+
+.death-card {
+  width: 300px;
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid #353b46;
+  background: #0d0f13;
+}
+
+.death-card h2 {
+  margin: 0 0 12px;
+  font-size: 28px;
+  text-transform: lowercase;
+}
+
+.death-card .menu-button {
+  width: 100%;
+}
