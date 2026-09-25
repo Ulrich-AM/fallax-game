@@ -546,7 +546,7 @@ export class PrologueBoss {
             ai.changeState('idle', ctx);
           }
         },
-
+      })
 
       .addState('satelliteSpiral', {
         enter: (owner) => {
@@ -797,7 +797,7 @@ export class PrologueBoss {
             ai.changeState('recover', { world });
           }
         },
-      })      });
+      });
   }
 
   reset(world) {
