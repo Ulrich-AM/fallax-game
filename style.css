@@ -127,7 +127,8 @@ canvas {
 }
 
 /* Equipment */
-#equipment-screen {
+#equipment-screen,
+#shop-screen {
   display: grid;
   grid-template-columns: 220px 1fr;
   min-width: 760px;
@@ -422,4 +423,45 @@ canvas {
 .weapon-slot-button:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+
+.shop-item-card {
+  min-height: 118px;
+  border: 1px solid #323843;
+  background: #171a20;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.shop-item-card .item-title {
+  margin-bottom: 0;
+}
+
+.shop-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.shop-buy-button {
+  min-width: 84px;
+  height: 30px;
+  border: 1px solid #3b414d;
+  background: #111318;
+  color: #f2f3f5;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.shop-buy-button:hover:not(:disabled) {
+  background: #1a1d23;
+  border-color: #606875;
+}
+
+.shop-buy-button:disabled {
+  color: #737b87;
+  cursor: default;
 }
