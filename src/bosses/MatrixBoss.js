@@ -1,4 +1,4 @@
-import { BossAI } from './BossAI.js?v=25';
+import { BossAI } from './BossAI.js?v=26';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -64,6 +64,16 @@ export class MatrixBoss {
     this.outlineColor = '#494c52';
     this.coreColor = '#ffffff';
 
+    // Matrix is rendered to a low-resolution offscreen canvas and then
+    // nearest-neighbor upscaled so its silhouette/glow stay visibly pixelated.
+    this.pixelScale = 4;
+    this.pixelCanvasSize = 320;
+    this.pixelCanvas = document.createElement('canvas');
+    this.pixelCanvas.width = this.pixelCanvasSize / this.pixelScale;
+    this.pixelCanvas.height = this.pixelCanvasSize / this.pixelScale;
+    this.pixelCtx = this.pixelCanvas.getContext('2d');
+    this.pixelCtx.imageSmoothingEnabled = false;
+
     this.hurtFlash = 0;
 
     this.bullets = [];
@@ -110,13 +120,15 @@ export class MatrixBoss {
           owner.rotation += 12 * dt;
           owner.coreRotation -= 68 * dt;
 
+          // Simple left-to-right hover. Matrix keeps a fixed altitude instead
+          // of following a looping or figure-eight path.
+          const travel = 360;
+          const cycle = owner.idleClock * 0.42;
           owner.x =
             owner.spawnX +
-            Math.sin(owner.idleClock * 0.66) * 68;
+            Math.sin(cycle) * travel;
 
-          owner.y =
-            owner.spawnY +
-            Math.sin(owner.idleClock * 1.15) * 14;
+          owner.y = owner.spawnY;
 
           if (ai.timerDone('attackDelay')) {
             ai.changeState('swirl');
@@ -137,9 +149,6 @@ export class MatrixBoss {
           const time = ai.stateTime;
 
           owner.idleClock += dt;
-          owner.x +=
-            Math.sin(owner.idleClock * 1.5) *
-            4 * dt;
 
           if (time < openEnd) {
             const t = smoothstep(time / openEnd);
@@ -194,19 +203,19 @@ export class MatrixBoss {
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
 
-    const emitterDistance =
-      this.shellRadiusX + 12;
-
+    // Both arms originate from the exposed white core. Opposite directions
+    // still create the two-arm rotating spiral, but visually the projectiles
+    // now burst directly out of Matrix's center.
     this.spawnBullet(
-      this.x + dirX * emitterDistance,
-      this.y + dirY * emitterDistance,
+      this.x,
+      this.y,
       dirX,
       dirY,
     );
 
     this.spawnBullet(
-      this.x - dirX * emitterDistance,
-      this.y - dirY * emitterDistance,
+      this.x,
+      this.y,
       -dirX,
       -dirY,
     );
@@ -522,42 +531,75 @@ export class MatrixBoss {
     ctx.restore();
   }
 
+  renderPixelSprite() {
+    const pctx = this.pixelCtx;
+    const size = this.pixelCanvas.width;
+    const scale = 1 / this.pixelScale;
+
+    pctx.clearRect(0, 0, size, size);
+    pctx.save();
+    pctx.translate(size / 2, size / 2);
+    pctx.scale(scale, scale);
+    pctx.rotate(this.rotation * Math.PI / 180);
+
+    // Core first, so the shell naturally masks its edges.
+    pctx.save();
+    pctx.rotate(this.coreRotation * Math.PI / 180);
+
+    // A low-resolution glow becomes a deliberately chunky halo once the
+    // offscreen canvas is enlarged.
+    pctx.fillStyle = 'rgba(255,255,255,0.18)';
+    drawHexagon(pctx, 52, 52);
+    pctx.fill();
+
+    pctx.fillStyle = 'rgba(255,255,255,0.42)';
+    drawHexagon(pctx, 47, 47);
+    pctx.fill();
+
+    pctx.fillStyle = '#ffffff';
+    drawHexagon(pctx, 42, 42);
+    pctx.fill();
+
+    pctx.restore();
+
+    pctx.lineWidth = 5;
+    pctx.lineJoin = 'miter';
+    pctx.fillStyle = this.baseColor;
+    pctx.strokeStyle = this.outlineColor;
+
+    this.drawShellHalf(pctx, true);
+    this.drawShellHalf(pctx, false);
+
+    if (this.hurtFlash > 0) {
+      pctx.globalAlpha = this.hurtFlash * 0.82;
+      pctx.fillStyle = '#ffffff';
+      pctx.strokeStyle = '#ffffff';
+
+      this.drawShellHalf(pctx, true);
+      this.drawShellHalf(pctx, false);
+    }
+
+    pctx.restore();
+  }
+
   draw(ctx, cameraX) {
     if (this.dead) return;
 
     this.drawBullets(ctx, cameraX);
+    this.renderPixelSprite();
+
+    const drawSize = this.pixelCanvasSize;
 
     ctx.save();
-    ctx.translate(
-      Math.round(this.x - cameraX),
-      Math.round(this.y),
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      this.pixelCanvas,
+      Math.round(this.x - cameraX - drawSize / 2),
+      Math.round(this.y - drawSize / 2),
+      drawSize,
+      drawSize,
     );
-
-    ctx.rotate(
-      this.rotation * Math.PI / 180,
-    );
-
-    this.drawCore(ctx);
-
-    ctx.lineWidth = 5;
-    ctx.lineJoin = 'miter';
-    ctx.fillStyle = this.baseColor;
-    ctx.strokeStyle = this.outlineColor;
-
-    this.drawShellHalf(ctx, true);
-    this.drawShellHalf(ctx, false);
-
-    if (this.hurtFlash > 0) {
-      ctx.globalAlpha =
-        this.hurtFlash * 0.82;
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#ffffff';
-      ctx.shadowBlur = 0;
-
-      this.drawShellHalf(ctx, true);
-      this.drawShellHalf(ctx, false);
-    }
-
     ctx.restore();
   }
+
 }
