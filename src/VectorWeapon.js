@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=17';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -27,7 +27,7 @@ export class VectorWeapon {
     this.inaccuracy = degToRad(3);
 
     this.specialCooldown = 7.5;
-    this.specialCooldownTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
     this.specialShotCount = 20;
     this.specialShotsRemaining = 0;
     this.specialShotInterval = 0.028;
@@ -75,9 +75,15 @@ export class VectorWeapon {
     };
   }
 
-  update(dt, player, pointerWorld, firing, world) {
+  update(dt, player, pointerWorld, firing, world, active = true) {
     this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
-    this.specialCooldownTimer = Math.max(0, this.specialCooldownTimer - dt);
+
+    if (active) {
+      this.specialCooldownTimer = Math.max(
+        0,
+        this.specialCooldownTimer - dt,
+      );
+    }
     this.specialShotTimer = Math.max(0, this.specialShotTimer - dt);
     this.burstShotTimer = Math.max(0, this.burstShotTimer - dt);
 
