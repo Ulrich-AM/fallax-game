@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=8';
-import { PlayerController } from './PlayerController.js?v=8';
-import { MOVEMENT } from './movementConfig.js?v=8';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=9';
+import { PlayerController } from './PlayerController.js?v=9';
+import { MOVEMENT } from './movementConfig.js?v=9';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,9 +11,10 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=8';
-import { VectorWeapon } from './VectorWeapon.js?v=8';
-import { BossAI } from './bosses/BossAI.js?v=8';
+} from './equipment.js?v=9';
+import { VectorWeapon } from './VectorWeapon.js?v=9';
+import { BossAI } from './bosses/BossAI.js?v=9';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=9';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -84,6 +85,8 @@ const playerDefinition = group([
 
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
+const prologueBoss = new PrologueBoss(world);
+let activeBoss = null;
 
 const camera = { x: 0, targetX: 0 };
 const keys = new Set();
@@ -223,6 +226,7 @@ function update(dt) {
   if (pressed.has('KeyR')) {
     player.reset();
     vectorWeapon.reset();
+    activeBoss?.reset?.(world);
   }
 
   player.update(dt, {
@@ -236,6 +240,11 @@ function update(dt) {
   const follow = 1 - Math.exp(-9 * dt);
   camera.x += (camera.targetX - camera.x) * follow;
 
+  activeBoss?.update?.(dt, {
+    player,
+    world,
+  });
+
   if (getPrimaryWeaponId() === 'vector') {
     vectorWeapon.update(
       dt,
@@ -244,6 +253,8 @@ function update(dt) {
       pointer.firing,
       world,
     );
+
+    vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
   }
 
   pressed.clear();
@@ -379,21 +390,52 @@ function drawHUD() {
   ctx.restore();
 }
 
+function drawBossBar() {
+  if (!activeBoss) return;
+
+  const width = 560;
+  const height = 12;
+  const x = Math.round((W - width) / 2);
+  const y = 34;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.font = 'bold 16px Arial, sans-serif';
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(activeBoss.name, W / 2, y - 8);
+
+  ctx.fillStyle = '#17191f';
+  ctx.fillRect(x, y, width, height);
+
+  ctx.fillStyle = '#8a8e95';
+  ctx.fillRect(x, y, width * activeBoss.healthRatio, height);
+
+  ctx.strokeStyle = '#3b404a';
+  ctx.strokeRect(x + 0.5, y + 0.5, width, height);
+  ctx.restore();
+}
+
 function renderGame() {
   drawGrid();
   drawPlatforms();
+
+  activeBoss?.draw?.(ctx, camera.x, ART_PIXEL);
   drawPlayer();
 
   if (getPrimaryWeaponId() === 'vector') {
     vectorWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
 
+  drawBossBar();
   drawHUD();
 }
 
 function startPrologue() {
   player.reset();
   vectorWeapon.reset();
+  prologueBoss.reset(world);
+  activeBoss = prologueBoss;
   camera.x = 0;
   camera.targetX = 0;
   showScreen('game');
@@ -635,4 +677,6 @@ window.BOSSFIGHTS = {
   loadout,
   ownedItems,
   BossAI,
+  PrologueBoss,
+  prologueBoss,
 };
