@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=21';
-import { PlayerController } from './PlayerController.js?v=21';
-import { MOVEMENT } from './movementConfig.js?v=21';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=22';
+import { PlayerController } from './PlayerController.js?v=22';
+import { MOVEMENT } from './movementConfig.js?v=22';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,12 +14,13 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=21';
-import { VectorWeapon } from './VectorWeapon.js?v=21';
-import { EuclidWeapon } from './EuclidWeapon.js?v=21';
-import { HorizonWeapon } from './HorizonWeapon.js?v=21';
-import { BossAI } from './bosses/BossAI.js?v=21';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=21';
+} from './equipment.js?v=22';
+import { VectorWeapon } from './VectorWeapon.js?v=22';
+import { EuclidWeapon } from './EuclidWeapon.js?v=22';
+import { HorizonWeapon } from './HorizonWeapon.js?v=22';
+import { MachWeapon } from './MachWeapon.js?v=22';
+import { BossAI } from './bosses/BossAI.js?v=22';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=22';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -107,6 +108,7 @@ const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
+const machWeapon = new MachWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -151,6 +153,7 @@ function getWeaponInstance(id) {
   if (id === 'vector') return vectorWeapon;
   if (id === 'euclid') return euclidWeapon;
   if (id === 'horizon') return horizonWeapon;
+  if (id === 'mach') return machWeapon;
   return null;
 }
 
@@ -359,6 +362,7 @@ function update(dt) {
     vectorWeapon.reset();
     euclidWeapon.reset();
     horizonWeapon.reset();
+    machWeapon.reset();
     activeBoss?.reset?.(world);
   }
 
@@ -432,6 +436,15 @@ function update(dt) {
     activeBoss,
     ART_PIXEL,
     activeWeaponId === 'horizon',
+  );
+
+  machWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'mach' && pointer.firing,
+    activeBoss,
+    activeWeaponId === 'mach',
   );
 
   if (player.health <= 0) {
@@ -683,6 +696,18 @@ function renderGame() {
     horizonWeapon.draw(ctx, player, getPointerWorld(), camera.x);
   }
 
+  if (activeWeaponId === 'mach') {
+    machWeapon.draw(
+      ctx,
+      player,
+      getPointerWorld(),
+      camera.x,
+      ART_PIXEL,
+    );
+  } else {
+    machWeapon.drawWaves(ctx, camera.x);
+  }
+
   ctx.restore();
 
   drawBossBar();
@@ -696,6 +721,7 @@ function startPrologue() {
   vectorWeapon.reset();
   euclidWeapon.reset();
   horizonWeapon.reset();
+  machWeapon.reset();
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -989,4 +1015,5 @@ window.BOSSFIGHTS = {
   vectorWeapon,
   euclidWeapon,
   horizonWeapon,
+  machWeapon,
 };
