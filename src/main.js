@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=7';
-import { PlayerController } from './PlayerController.js?v=7';
-import { MOVEMENT } from './movementConfig.js?v=7';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=8';
+import { PlayerController } from './PlayerController.js?v=8';
+import { MOVEMENT } from './movementConfig.js?v=8';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,8 +11,9 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=7';
-import { VectorWeapon } from './VectorWeapon.js?v=7';
+} from './equipment.js?v=8';
+import { VectorWeapon } from './VectorWeapon.js?v=8';
+import { BossAI } from './bosses/BossAI.js?v=8';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -633,4 +634,5 @@ window.BOSSFIGHTS = {
   MOVEMENT,
   loadout,
   ownedItems,
+  BossAI,
 };
