@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
-import { PlayerController } from './PlayerController.js?v=16';
-import { MOVEMENT } from './movementConfig.js?v=16';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=17';
+import { PlayerController } from './PlayerController.js?v=17';
+import { MOVEMENT } from './movementConfig.js?v=17';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -12,11 +12,12 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
-} from './equipment.js?v=16';
-import { VectorWeapon } from './VectorWeapon.js?v=16';
-import { EuclidWeapon } from './EuclidWeapon.js?v=16';
-import { BossAI } from './bosses/BossAI.js?v=16';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=16';
+} from './equipment.js?v=17';
+import { VectorWeapon } from './VectorWeapon.js?v=17';
+import { EuclidWeapon } from './EuclidWeapon.js?v=17';
+import { ScopeWeapon } from './ScopeWeapon.js?v=17';
+import { BossAI } from './bosses/BossAI.js?v=17';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=17';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -36,6 +37,7 @@ const deathInventory = document.querySelector('#death-inventory');
 const weaponSlotButtons = [
   document.querySelector('#weapon-slot-1'),
   document.querySelector('#weapon-slot-2'),
+  document.querySelector('#weapon-slot-3'),
 ];
 
 const equipmentTabs = document.querySelector('#equipment-tabs');
@@ -99,6 +101,7 @@ const playerDefinition = group([
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
+const scopeWeapon = new ScopeWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -142,6 +145,7 @@ function getActiveWeaponId() {
 function getWeaponInstance(id) {
   if (id === 'vector') return vectorWeapon;
   if (id === 'euclid') return euclidWeapon;
+  if (id === 'scope') return scopeWeapon;
   return null;
 }
 
@@ -168,6 +172,7 @@ function selectWeaponSlot(index) {
 
 weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
 weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
+weaponSlotButtons[2].addEventListener('click', () => selectWeaponSlot(2));
 
 function setDeathMenuVisible(visible, result = 'defeated') {
   encounterResultTitle.textContent = result;
@@ -233,6 +238,7 @@ addEventListener('keydown', (e) => {
 
   if (e.code === 'Digit1') selectWeaponSlot(0);
   if (e.code === 'Digit2') selectWeaponSlot(1);
+  if (e.code === 'Digit3') selectWeaponSlot(2);
 
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -345,6 +351,7 @@ function update(dt) {
     player.reset();
     vectorWeapon.reset();
     euclidWeapon.reset();
+    scopeWeapon.reset();
     activeBoss?.reset?.(world);
   }
 
@@ -382,6 +389,7 @@ function update(dt) {
     getPointerWorld(),
     activeWeaponId === 'vector' && pointer.firing,
     world,
+    activeWeaponId === 'vector',
   );
   vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
 
@@ -394,7 +402,18 @@ function update(dt) {
     activeWeaponId === 'euclid' && pointer.firing,
     activeBoss,
     ART_PIXEL,
+    activeWeaponId === 'euclid',
   );
+
+  scopeWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'scope' && pointer.firing,
+    world,
+    activeWeaponId === 'scope',
+  );
+  scopeWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
 
   if (player.health <= 0) {
     endEncounter('defeated');
@@ -627,11 +646,14 @@ function renderGame() {
     vectorWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
   }
 
-  if (
-    activeWeaponId === 'euclid' ||
-    euclidWeapon.specialActiveTimer > 0
-  ) {
+  if (activeWeaponId === 'euclid') {
     euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+  }
+
+  if (activeWeaponId === 'scope') {
+    scopeWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+  } else {
+    scopeWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
   }
 
   ctx.restore();
@@ -646,6 +668,7 @@ function startPrologue() {
   player.reset();
   vectorWeapon.reset();
   euclidWeapon.reset();
+  scopeWeapon.reset();
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -898,4 +921,5 @@ window.BOSSFIGHTS = {
   prologueBoss,
   vectorWeapon,
   euclidWeapon,
+  scopeWeapon,
 };
