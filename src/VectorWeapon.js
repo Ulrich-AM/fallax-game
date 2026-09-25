@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=14';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -179,6 +179,21 @@ export class VectorWeapon {
 
     for (const bullet of this.bullets) {
       if (bullet.life <= 0) continue;
+
+      const hitProjectile = target.damageProjectileAt?.(
+        bullet.x,
+        bullet.y,
+        radius,
+        bullet.currentDamage,
+      );
+
+      if (hitProjectile) {
+        bullet.life = 0;
+        bullet.opacity = 0;
+        bullet.currentDamage = 0;
+        continue;
+      }
+
       if (!target.hitTest?.(bullet.x, bullet.y, radius)) continue;
 
       target.takeDamage?.(bullet.currentDamage);
