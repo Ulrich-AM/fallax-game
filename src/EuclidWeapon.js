@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=26';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=27';
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
