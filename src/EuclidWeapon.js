@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=17';
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
@@ -23,11 +23,14 @@ export class EuclidWeapon {
   constructor() {
     this.name = 'Euclid';
     this.damagePerSecond = 8;
-    this.specialDamagePerSecond = 42;
+    this.specialDamagePerSecond = 72;
     this.specialCooldown = 18;
-    this.specialCooldownTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
     this.specialDuration = 3;
     this.specialActiveTimer = 0;
+    this.specialTurnRate = Math.PI * 0.52;
+    this.currentAimAngle = 0;
+    this.hasAimAngle = false;
 
     this.orbitRadius = 42;
     this.beamRange = 1700;
@@ -62,8 +65,9 @@ export class EuclidWeapon {
 
   reset() {
     this.firing = false;
-    this.specialCooldownTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
     this.specialActiveTimer = 0;
+    this.hasAimAngle = false;
   }
 
   triggerSpecial() {
@@ -84,10 +88,23 @@ export class EuclidWeapon {
     }];
   }
 
-  getAim(player, pointerWorld) {
-    const dx = pointerWorld.x - player.x;
-    const dy = pointerWorld.y - player.y;
-    const angle = Math.atan2(dy, dx);
+  getTargetAngle(player, pointerWorld) {
+    return Math.atan2(
+      pointerWorld.y - player.y,
+      pointerWorld.x - player.x,
+    );
+  }
+
+  approachAngle(current, target, maxDelta) {
+    const delta =
+      ((target - current + Math.PI * 3) % (Math.PI * 2)) -
+      Math.PI;
+
+    if (Math.abs(delta) <= maxDelta) return target;
+    return current + Math.sign(delta) * maxDelta;
+  }
+
+  getAimFromAngle(player, angle) {
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
 
@@ -100,19 +117,35 @@ export class EuclidWeapon {
     };
   }
 
-  update(dt, player, pointerWorld, firing, target, artPixelSize) {
-    const aim = this.getAim(player, pointerWorld);
-
-    this.specialCooldownTimer = Math.max(
-      0,
-      this.specialCooldownTimer - dt,
-    );
-    this.specialActiveTimer = Math.max(
-      0,
-      this.specialActiveTimer - dt,
-    );
+  update(dt, player, pointerWorld, firing, target, artPixelSize, active = true) {
+    if (active) {
+      this.specialCooldownTimer = Math.max(
+        0,
+        this.specialCooldownTimer - dt,
+      );
+      this.specialActiveTimer = Math.max(
+        0,
+        this.specialActiveTimer - dt,
+      );
+    }
 
     const specialActive = this.specialActiveTimer > 0;
+    const targetAngle = this.getTargetAngle(player, pointerWorld);
+
+    if (!this.hasAimAngle) {
+      this.currentAimAngle = targetAngle;
+      this.hasAimAngle = true;
+    } else if (specialActive) {
+      this.currentAimAngle = this.approachAngle(
+        this.currentAimAngle,
+        targetAngle,
+        this.specialTurnRate * dt,
+      );
+    } else {
+      this.currentAimAngle = targetAngle;
+    }
+
+    const aim = this.getAimFromAngle(player, this.currentAimAngle);
     const effectiveFiring = firing || specialActive;
     const widthMultiplier = specialActive ? 3 : 1;
     const damagePerSecond = specialActive
@@ -175,7 +208,12 @@ export class EuclidWeapon {
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
-    const aim = this.getAim(player, pointerWorld);
+    const aim = this.hasAimAngle
+      ? this.getAimFromAngle(player, this.currentAimAngle)
+      : this.getAimFromAngle(
+          player,
+          this.getTargetAngle(player, pointerWorld),
+        );
     const raster = this.getRaster(aim.angle);
     const dw = raster.width * artPixelSize;
     const dh = raster.height * artPixelSize;
