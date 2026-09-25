@@ -20,6 +20,13 @@ export const ITEM_LIBRARY = {
     description: 'A sustained precision energy weapon.',
     appearance: 'thin black rectangle',
   },
+  horizon: {
+    id: 'horizon',
+    name: 'Horizon',
+    category: 'weapons',
+    description: 'A charged precision weapon with powerful recoil.',
+    appearance: 'long black rectangle',
+  },
 };
 
 export const ownedItems = ['vector', 'euclid'];
