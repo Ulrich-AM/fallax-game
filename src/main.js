@@ -374,7 +374,9 @@ function update(dt) {
     dashTarget: getPointerWorld(),
   };
 
-  const weaponLocksPlayer = !!activeWeapon?.locksPlayer;
+  const weaponLocksPlayer =
+    !!activeWeapon?.locksPlayer ||
+    !!machWeapon.locksPlayer;
   const lockedPlayerX = player.x;
   const lockedPlayerY = player.y;
 
