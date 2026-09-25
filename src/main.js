@@ -93,6 +93,7 @@ const pointer = {
 
 let currentScreen = 'menu';
 let activeEquipmentTab = 'weapons';
+let currentDrag = null;
 
 function showScreen(name) {
   currentScreen = name;
@@ -398,16 +399,24 @@ function createItemCard(itemId, source = null) {
       sourceIndex: card.dataset.sourceIndex ?? null,
     };
 
+    currentDrag = payload;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+  });
+
+  card.addEventListener('dragend', () => {
+    currentDrag = null;
   });
 
   return card;
 }
 
 function readDragPayload(e) {
+  if (currentDrag) return currentDrag;
+
   try {
-    return JSON.parse(e.dataTransfer.getData('text/plain'));
+    const raw = e.dataTransfer.getData('text/plain');
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
