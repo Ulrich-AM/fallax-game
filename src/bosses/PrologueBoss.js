@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=11';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=11';
+import { BossAI } from './BossAI.js?v=12';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=12';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -112,6 +112,22 @@ export class PrologueBoss {
     this.satelliteAttackHit = false;
     this.satelliteMaxRange = 950;
 
+    // Expanding orbit attack.
+    this.satelliteSpiralStartAngle = 0;
+    this.satelliteSpiralMaxRadius = 430;
+
+    // High-damage wall rush.
+    this.wallRushDirection = 1;
+    this.wallRushSpeed = 1550;
+    this.wallRushHitPlayer = false;
+    this.wallRushStartX = this.x;
+    this.wallRushStartY = this.y;
+    this.wallRushImpactX = this.x;
+    this.wallRushImpactY = this.y;
+
+    // Pixelated radial shockwaves created by wall impacts.
+    this.shockwaves = [];
+
     this.definition = group([
       rectangle({
         width: this.size / 4,
@@ -213,6 +229,8 @@ export class PrologueBoss {
             const nextAttack = ai.chooseWeighted([
               { value: 'track', weight: 1.0 },
               { value: 'satelliteLunge', weight: 0.85 },
+              { value: 'satelliteSpiral', weight: 0.90 },
+              { value: 'wallRushPrep', weight: 0.80 },
             ]);
 
             ai.changeState(nextAttack, ctx);
@@ -528,7 +546,258 @@ export class PrologueBoss {
             ai.changeState('idle', ctx);
           }
         },
-      });
+
+
+      .addState('satelliteSpiral', {
+        enter: (owner) => {
+          owner.satelliteMode = 'attack';
+          owner.satelliteAttackHit = false;
+
+          const home = owner.getSatelliteOrbitPosition();
+          owner.satelliteX = home.x;
+          owner.satelliteY = home.y;
+          owner.satelliteSpiralStartAngle =
+            owner.rotation + owner.satelliteOrbitAngle;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const player = ai.targetPlayer(ctx);
+
+          owner.updateFigureEightAbovePlayer(dt, player, 0.68);
+
+          const duration = 1.65;
+          const t = clamp(ai.stateTime / duration, 0, 1);
+
+          // Three revolutions while the orbit blooms outward, then contracts.
+          const angle =
+            owner.satelliteSpiralStartAngle +
+            1080 * smoothstep(t);
+
+          const radialPulse = Math.sin(t * Math.PI);
+          const radius = lerp(
+            owner.satelliteOrbitRadius,
+            owner.satelliteSpiralMaxRadius,
+            radialPulse,
+          );
+
+          const radians = angle * Math.PI / 180;
+          owner.satelliteX = owner.x + Math.cos(radians) * radius;
+          owner.satelliteY = owner.y + Math.sin(radians) * radius;
+
+          if (!owner.satelliteAttackHit && player) {
+            const hitRadius =
+              owner.satelliteSize * 0.5 +
+              Math.max(player.w, player.h) * 0.42;
+
+            if (
+              Math.hypot(
+                owner.satelliteX - player.x,
+                owner.satelliteY - player.y,
+              ) <= hitRadius
+            ) {
+              owner.satelliteAttackHit = player.takeDamage?.(16) ?? true;
+            }
+          }
+
+          if (t >= 1) {
+            owner.satelliteMode = 'orbit';
+            owner.satelliteOrbitAngle =
+              (angle - owner.rotation) % 360;
+
+            const home = owner.getSatelliteOrbitPosition();
+            owner.satelliteX = home.x;
+            owner.satelliteY = home.y;
+
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('wallRushPrep', {
+        enter: (owner, ai, ctx) => {
+          const player = ai.targetPlayer(ctx);
+
+          owner.wallRushDirection =
+            player && player.x < owner.x ? -1 : 1;
+
+          owner.wallRushStartX = owner.x;
+          owner.wallRushStartY = owner.y;
+          owner.trackTargetY = player
+            ? clamp(
+                player.y,
+                owner.halfSize + 18,
+                world.floorY - owner.halfSize - 16,
+              )
+            : owner.y;
+
+          owner.anticipateStartRotation = owner.rotation;
+          owner.lockedRotation = 0;
+          owner.rotationLocked = true;
+          owner.rotationSpeed = 0;
+          owner.satelliteMode = 'orbit';
+        },
+
+        update: (owner, ai) => {
+          const duration = 0.68;
+          const t = clamp(ai.stateTime / duration, 0, 1);
+          const eased = smoothstep(t);
+
+          // Line up with the player while pulling away from the charge direction.
+          owner.y = lerp(
+            owner.wallRushStartY,
+            owner.trackTargetY,
+            eased,
+          );
+
+          owner.x =
+            owner.wallRushStartX -
+            owner.wallRushDirection *
+              Math.sin(t * Math.PI * 0.5) *
+              52;
+
+          owner.rotation = lerpAngle(
+            owner.anticipateStartRotation,
+            owner.lockedRotation,
+            eased,
+          );
+
+          // Horizontal anticipation squash.
+          owner.scaleX = lerp(1, 0.82, eased);
+          owner.scaleY = lerp(1, 1.16, eased);
+
+          if (t >= 1) {
+            owner.rotation = owner.lockedRotation;
+            ai.changeState('wallRush');
+          }
+        },
+      })
+
+      .addState('wallRush', {
+        enter: (owner) => {
+          owner.rotationLocked = true;
+          owner.rotation = owner.lockedRotation;
+          owner.rotationSpeed = 0;
+
+          owner.scaleX = 1.23;
+          owner.scaleY = 0.84;
+
+          owner.wallRushHitPlayer = false;
+          owner.smashTrail.length = 0;
+          owner.smashTrailTimer = 0;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const previousX = owner.x;
+
+          owner.x +=
+            owner.wallRushDirection *
+            owner.wallRushSpeed *
+            dt;
+
+          owner.rotation = owner.lockedRotation;
+
+          owner.smashTrailTimer -= dt;
+          if (owner.smashTrailTimer <= 0) {
+            owner.smashTrail.push({
+              x: owner.x,
+              y: owner.y,
+              rotation: owner.rotation,
+              scaleX: owner.scaleX,
+              scaleY: owner.scaleY,
+              life: 0.16,
+              maxLife: 0.16,
+            });
+
+            if (owner.smashTrail.length > 10) {
+              owner.smashTrail.shift();
+            }
+
+            owner.smashTrailTimer = 0.020;
+          }
+
+          // Piercing swept horizontal collision. The rush continues after a hit.
+          if (!owner.wallRushHitPlayer && ctx.player) {
+            const player = ctx.player;
+            const halfW = owner.halfSize * owner.scaleX;
+            const halfH = owner.halfSize * owner.scaleY;
+            const playerHalfW = player.w / 2;
+            const playerHalfH = player.h / 2;
+
+            const sweepLeft =
+              Math.min(previousX - halfW, owner.x - halfW);
+            const sweepRight =
+              Math.max(previousX + halfW, owner.x + halfW);
+
+            const overlapsX =
+              sweepRight > player.x - playerHalfW &&
+              sweepLeft < player.x + playerHalfW;
+
+            const overlapsY =
+              owner.y + halfH > player.y - playerHalfH &&
+              owner.y - halfH < player.y + playerHalfH;
+
+            if (overlapsX && overlapsY) {
+              owner.wallRushHitPlayer =
+                player.takeDamage?.(55) ?? true;
+            }
+          }
+
+          const hitRight =
+            owner.wallRushDirection > 0 &&
+            owner.x + owner.halfSize >= world.width;
+
+          const hitLeft =
+            owner.wallRushDirection < 0 &&
+            owner.x - owner.halfSize <= 0;
+
+          if (hitRight || hitLeft) {
+            owner.x = hitRight
+              ? world.width - owner.halfSize
+              : owner.halfSize;
+
+            owner.wallRushImpactX = owner.x;
+            owner.wallRushImpactY = owner.y;
+
+            ai.changeState('wallImpact', ctx);
+          }
+        },
+      })
+
+      .addState('wallImpact', {
+        enter: (owner, ai, ctx) => {
+          owner.rotationLocked = true;
+          owner.rotation = owner.lockedRotation;
+          owner.rotationSpeed = 0;
+
+          ctx.shakeCamera?.(28, 0.52);
+          owner.spawnShockwave(
+            owner.wallRushImpactX,
+            owner.wallRushImpactY,
+          );
+        },
+
+        update: (owner, ai) => {
+          const duration = 0.58;
+          const t = clamp(ai.stateTime / duration, 0, 1);
+
+          const recoil =
+            Math.sin(t * Math.PI) *
+            Math.exp(-2.8 * t) *
+            46;
+
+          owner.x =
+            owner.wallRushImpactX -
+            owner.wallRushDirection * recoil;
+
+          const squash = Math.exp(-8 * t);
+          owner.scaleX = 1 - squash * 0.25;
+          owner.scaleY = 1 + squash * 0.18;
+
+          if (t >= 1) {
+            ai.changeState('recover', { world });
+          }
+        },
+      })      });
   }
 
   reset(world) {
@@ -562,6 +831,8 @@ export class PrologueBoss {
     this.satelliteLocalRotation = 0;
     this.satelliteMode = 'orbit';
     this.satelliteAttackHit = false;
+    this.wallRushHitPlayer = false;
+    this.shockwaves.length = 0;
 
     const home = this.getSatelliteOrbitPosition();
     this.satelliteX = home.x;
@@ -595,12 +866,68 @@ export class PrologueBoss {
       this.satelliteY = home.y;
     }
 
+    this.updateShockwaves(dt, context.player);
+
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 7.5);
 
     for (const ghost of this.smashTrail) {
       ghost.life -= dt;
     }
     this.smashTrail = this.smashTrail.filter(ghost => ghost.life > 0);
+  }
+
+  spawnShockwave(x, y) {
+    this.shockwaves.push({
+      x,
+      y,
+      radius: 0,
+      previousRadius: 0,
+      maxRadius: 520,
+      speed: 780,
+      thickness: 30,
+      life: 1,
+      hitPlayer: false,
+    });
+  }
+
+  updateShockwaves(dt, player) {
+    for (const wave of this.shockwaves) {
+      wave.previousRadius = wave.radius;
+      wave.radius = Math.min(
+        wave.maxRadius,
+        wave.radius + wave.speed * dt,
+      );
+      wave.life = 1 - wave.radius / wave.maxRadius;
+
+      if (!wave.hitPlayer && player) {
+        const dx = player.x - wave.x;
+        const dy = player.y - wave.y;
+        const distance = Math.hypot(dx, dy) || 1;
+
+        const playerRadius =
+          Math.max(player.w, player.h) * 0.5;
+
+        const inner = wave.previousRadius - wave.thickness - playerRadius;
+        const outer = wave.radius + wave.thickness + playerRadius;
+
+        if (distance >= Math.max(0, inner) && distance <= outer) {
+          const nx = dx / distance;
+          const ny = dy / distance;
+
+          // Strong radial knockback with a slight upward bias so the wave feels
+          // like a physical blast rather than a flat horizontal shove.
+          player.vx += nx * 760;
+          player.vy += ny * 620 - 180;
+          player.grounded = false;
+
+          wave.hitPlayer = true;
+        }
+      }
+    }
+
+    this.shockwaves = this.shockwaves.filter(
+      wave => wave.radius < wave.maxRadius,
+    );
   }
 
   takeDamage(amount) {
@@ -726,9 +1053,69 @@ export class PrologueBoss {
     ctx.restore();
   }
 
+  drawShockwaves(ctx, cameraX) {
+    for (const wave of this.shockwaves) {
+      if (wave.radius <= 0) continue;
+
+      const circumference =
+        Math.max(24, Math.ceil(wave.radius / 9));
+      const pixelSize = 9;
+      const alpha = Math.max(0, wave.life) * 0.55;
+
+      ctx.save();
+      ctx.fillStyle = `rgba(220,224,232,${alpha})`;
+
+      for (let i = 0; i < circumference; i++) {
+        const angle =
+          (i / circumference) * Math.PI * 2;
+
+        const x =
+          wave.x +
+          Math.cos(angle) * wave.radius -
+          cameraX;
+
+        const y =
+          wave.y +
+          Math.sin(angle) * wave.radius;
+
+        ctx.fillRect(
+          Math.round(x - pixelSize / 2),
+          Math.round(y - pixelSize / 2),
+          pixelSize,
+          pixelSize,
+        );
+      }
+
+      // A second broken inner ring makes the shockwave read as pixel art
+      // rather than a smooth dotted circle.
+      if (wave.radius > 24) {
+        ctx.globalAlpha = 0.42;
+
+        for (let i = 0; i < circumference; i += 2) {
+          const angle =
+            (i / circumference) * Math.PI * 2;
+
+          const r = Math.max(0, wave.radius - 18);
+          const x = wave.x + Math.cos(angle) * r - cameraX;
+          const y = wave.y + Math.sin(angle) * r;
+
+          ctx.fillRect(
+            Math.round(x - 3),
+            Math.round(y - 3),
+            6,
+            6,
+          );
+        }
+      }
+
+      ctx.restore();
+    }
+  }
+
   draw(ctx, cameraX, artPixelSize) {
     if (this.dead) return;
 
+    this.drawShockwaves(ctx, cameraX);
     this.drawSmashTrail(ctx, cameraX, artPixelSize);
 
     const raster = this.getRaster();
