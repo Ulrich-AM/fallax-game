@@ -91,11 +91,12 @@ export class ScopeWeapon {
         0,
         this.specialCooldownTimer - dt,
       );
-      this.specialActiveTimer = Math.max(
-        0,
-        this.specialActiveTimer - dt,
-      );
     }
+
+    this.specialActiveTimer = Math.max(
+      0,
+      this.specialActiveTimer - dt,
+    );
 
     if (active && firing && this.cooldownTimer <= 0) {
       this.fire(player, pointerWorld);
