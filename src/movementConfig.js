@@ -2,13 +2,13 @@
 // adjusted without touching collision/rendering code.
 export const MOVEMENT = {
   // Normal movement vs sprinting.
-  runSpeed: 390,
-  sprintSpeed: 570,
+  runSpeed: 360,
+  sprintSpeed: 610,
 
   // Horizontal response. Ground braking is intentionally a little loose so
   // releasing a direction carries some momentum instead of stopping dead.
   groundAcceleration: 3600,
-  groundSprintAcceleration: 3300,
+  groundSprintAcceleration: 4300,
   groundDeceleration: 1750,
   groundOverspeedDeceleration: 520,
   groundTurnAcceleration: 6100,
@@ -33,9 +33,9 @@ export const MOVEMENT = {
 
   // Shared stamina resource. Sprint drains over time; dash spends a chunk.
   staminaMax: 100,
-  sprintDrainPerSecond: 23,
-  dashStaminaCost: 26,
-  staminaRegenPerSecond: 31,
+  sprintDrainPerSecond: 20,
+  dashStaminaCost: 30,
+  staminaRegenPerSecond: 28,
   staminaRegenDelay: 0.58,
   sprintRecoverThreshold: 18,
 
