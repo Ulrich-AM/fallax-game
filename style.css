@@ -59,12 +59,20 @@ button {
 }
 
 .menu-card h1 {
-  margin: 0 0 18px;
+  margin: 0;
   font-size: 44px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: -2px;
   text-transform: lowercase;
+}
+
+.menu-subtitle {
+  margin: -2px 0 18px;
+  color: #7f8691;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
 }
 
 .menu-button,
@@ -99,8 +107,12 @@ button {
 
 .game-frame {
   position: relative;
-  width: min(100%, 1500px);
-  max-height: 100%;
+  width: min(
+    1500px,
+    calc(100vw - 24px),
+    calc((100vh - 24px) * 16 / 9)
+  );
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid #242832;
   background: #050609;
@@ -109,9 +121,7 @@ button {
 canvas {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: calc(100vh - 24px);
-  object-fit: contain;
+  height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   cursor: crosshair;
