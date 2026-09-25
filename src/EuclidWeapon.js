@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=19';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=20';
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
@@ -52,7 +52,7 @@ export class EuclidWeapon {
       rectangle({
         width: this.bodyLength,
         height: this.bodyThickness,
-        color: '#050505',
+        color: '#6f747c',
       }),
     ], {
       mergeOutlines: true,
