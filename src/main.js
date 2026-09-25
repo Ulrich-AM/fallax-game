@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=25';
-import { PlayerController } from './PlayerController.js?v=25';
-import { MOVEMENT } from './movementConfig.js?v=25';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=26';
+import { PlayerController } from './PlayerController.js?v=26';
+import { MOVEMENT } from './movementConfig.js?v=26';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,15 +14,15 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=25';
-import { VectorWeapon } from './VectorWeapon.js?v=25';
-import { EuclidWeapon } from './EuclidWeapon.js?v=25';
-import { HorizonWeapon } from './HorizonWeapon.js?v=25';
-import { MachWeapon } from './MachWeapon.js?v=25';
-import { BackfireAbility } from './BackfireAbility.js?v=25';
-import { BossAI } from './bosses/BossAI.js?v=25';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=25';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=25';
+} from './equipment.js?v=26';
+import { VectorWeapon } from './VectorWeapon.js?v=26';
+import { EuclidWeapon } from './EuclidWeapon.js?v=26';
+import { HorizonWeapon } from './HorizonWeapon.js?v=26';
+import { MachWeapon } from './MachWeapon.js?v=26';
+import { BackfireAbility } from './BackfireAbility.js?v=26';
+import { BossAI } from './bosses/BossAI.js?v=26';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=26';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=26';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -241,7 +241,10 @@ equipmentBack.addEventListener('click', () => showScreen('menu'));
 shopBack.addEventListener('click', () => showScreen('menu'));
 chapterBack.addEventListener('click', () => showScreen('menu'));
 
-deathRestart.addEventListener('click', () => startPrologue());
+deathRestart.addEventListener('click', () => {
+  if (activeBoss === matrixBoss) startMatrix();
+  else startPrologue();
+});
 deathMenuButton.addEventListener('click', () => {
   encounterOver = false;
   activeBoss = null;
