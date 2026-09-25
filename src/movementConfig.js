@@ -39,9 +39,9 @@ export const MOVEMENT = {
   staminaRegenDelay: 0.58,
   sprintRecoverThreshold: 18,
 
-  // Dash is a mouse-directed blink. The destination is collision-swept so
-  // the player cannot teleport through platforms, floor, ceiling, or walls.
-  dashMomentumRetention: 0.30,
+  // Dash is a mouse-directed blink. Platforms are phase-through, but the
+  // world floor, ceiling, and side walls still stop the blink.
+  dashMomentumRetention: 0.70,
   dashDistance: 360,
   dashSweepStep: 4,
   dashMinimumDistance: 6,
