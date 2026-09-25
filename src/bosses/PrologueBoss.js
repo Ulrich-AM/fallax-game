@@ -377,8 +377,6 @@ export class PrologueBoss {
 
     if (!this.rotationLocked) {
       this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
-    } else {
-      this.rotation = this.lockedRotation;
     }
 
     this.satelliteOrbitAngle =
