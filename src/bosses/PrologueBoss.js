@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=16';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=16';
+import { BossAI } from './BossAI.js?v=17';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=17';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -440,13 +440,11 @@ export class PrologueBoss {
           const t = clamp(ai.stateTime / duration, 0, 1);
           const eased = easeOutBack(t);
 
-          const player = ai.targetPlayer(ctx);
-          const targetCenterX = player
-            ? clamp(player.x, owner.halfSize + owner.figureWidth + 20, world.width - owner.halfSize - owner.figureWidth - 20)
-            : owner.figureCenterX;
-          const targetCenterY = player
-            ? clamp(player.y - 290, 150, 235)
-            : owner.figureCenterY;
+          // Rejoin the already-smoothed idle anchor. Do not rebuild the
+          // recovery destination from the player's instantaneous position,
+          // otherwise a blink dash can yank the boss toward the player.
+          const targetCenterX = owner.figureCenterX;
+          const targetCenterY = owner.figureCenterY;
 
           const idleT = owner.idleClock * 0.94;
           const targetX = targetCenterX + Math.sin(idleT) * owner.figureWidth;
