@@ -274,3 +274,87 @@ canvas {
   font-size: 13px;
   padding: 12px 2px;
 }
+
+
+/* Chapter selection */
+#chapter-screen {
+  background: #0b0c10;
+}
+
+.chapter-shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 22px;
+}
+
+.chapter-topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.chapter-topbar .back-button {
+  width: auto;
+  min-width: 120px;
+}
+
+.chapter-tabs {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.chapter-tab {
+  min-width: 110px;
+  min-height: 42px;
+  border: 1px solid #30343d;
+  background: #111318;
+  color: #8d949f;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.chapter-tab:hover,
+.chapter-tab.active {
+  background: #1a1d23;
+  border-color: #555c68;
+  color: #fff;
+}
+
+.chapter-space {
+  min-height: 0;
+}
+
+.boss-strip {
+  border-top: 1px solid #242832;
+  padding-top: 18px;
+}
+
+.boss-list {
+  display: flex;
+  gap: 12px;
+  min-height: 110px;
+}
+
+.boss-button {
+  width: 210px;
+  min-height: 90px;
+  border: 1px solid #353b46;
+  background: #111318;
+  color: #f2f3f5;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.boss-button:hover {
+  background: #1a1d23;
+  border-color: #606875;
+}
+
+.boss-button.locked {
+  cursor: default;
+  color: #666d78;
+}
