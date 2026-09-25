@@ -242,7 +242,7 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-
+      })
 
       .addState('beamSweep', {
         enter: (owner, ai, ctx) => {
@@ -376,7 +376,7 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-      })      });
+      });
   }
 
   approachAngle(current, target, maxDelta) {
