@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=4';
+import { MOVEMENT as CFG } from './movementConfig.js?v=5';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -65,11 +65,10 @@ export class PlayerController {
     this.dashDirection = moveInput !== 0 ? Math.sign(moveInput) : this.facing;
     this.facing = this.dashDirection;
 
-    // Add the dash to current motion rather than replacing it. A running dash
-    // goes farther, an opposite-direction dash can act as a hard momentum turn,
-    // and vertical velocity is untouched.
+    // Retain only part of the existing horizontal momentum, then add the dash
+    // impulse. Vertical momentum is still preserved completely.
     this.vx = clamp(
-      this.vx + this.dashDirection * CFG.dashImpulse,
+      this.vx * CFG.dashMomentumRetention + this.dashDirection * CFG.dashImpulse,
       -CFG.dashMaxHorizontalSpeed,
       CFG.dashMaxHorizontalSpeed,
     );
