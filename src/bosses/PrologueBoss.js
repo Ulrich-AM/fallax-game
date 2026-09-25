@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=13';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=13';
+import { BossAI } from './BossAI.js?v=14';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=14';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -113,12 +113,15 @@ export class PrologueBoss {
     this.satelliteMaxRange = 950;
 
     // Radial satellite burst attack.
-    this.satelliteBurstFired = false;
+    this.satelliteBurstRowsFired = 0;
+    this.satelliteBurstRows = 3;
+    this.satelliteBurstInterval = 0.16;
+    this.satelliteBurstBaseAngle = 0;
     this.satelliteBullets = [];
-    this.satelliteBulletCount = 24;
+    this.satelliteBulletCount = 20;
     this.satelliteBulletSpeed = 560;
     this.satelliteBulletLife = 2.2;
-    this.satelliteBulletSize = this.satelliteSize * 0.50;
+    this.satelliteBulletSize = this.satelliteSize * 0.25;
 
     // High-damage wall rush.
     this.wallRushDirection = 1;
@@ -556,7 +559,9 @@ export class PrologueBoss {
       .addState('satelliteBurst', {
         enter: (owner) => {
           owner.satelliteMode = 'attack';
-          owner.satelliteBurstFired = false;
+          owner.satelliteBurstRowsFired = 0;
+          owner.satelliteBurstBaseAngle =
+            owner.satelliteOrbitAngle * Math.PI / 180;
 
           const home = owner.getSatelliteOrbitPosition();
           owner.satelliteLungeStartX = home.x;
@@ -570,8 +575,11 @@ export class PrologueBoss {
           owner.updateFigureEightAbovePlayer(dt, player, 0.70);
 
           const pullInEnd = 0.46;
-          const fireEnd = 0.62;
-          const returnEnd = 1.04;
+          const firingEnd =
+            pullInEnd +
+            owner.satelliteBurstInterval * (owner.satelliteBurstRows - 1) +
+            0.18;
+          const returnEnd = firingEnd + 0.42;
           const time = ai.stateTime;
 
           const dx = owner.satelliteLungeStartX - owner.x;
@@ -586,18 +594,35 @@ export class PrologueBoss {
 
             owner.satelliteX = owner.x + Math.cos(startAngle) * radius;
             owner.satelliteY = owner.y + Math.sin(startAngle) * radius;
-          } else if (time < fireEnd) {
+          } else if (time < firingEnd) {
             owner.satelliteX = owner.x + Math.cos(startAngle) * innerRadius;
             owner.satelliteY = owner.y + Math.sin(startAngle) * innerRadius;
 
-            if (!owner.satelliteBurstFired) {
-              owner.satelliteBurstFired = true;
-              owner.spawnSatelliteBurst(owner.satelliteX, owner.satelliteY);
+            const elapsed = time - pullInEnd;
+            const shouldHaveFired =
+              Math.min(
+                owner.satelliteBurstRows,
+                Math.floor(elapsed / owner.satelliteBurstInterval) + 1,
+              );
+
+            while (owner.satelliteBurstRowsFired < shouldHaveFired) {
+              const row = owner.satelliteBurstRowsFired;
+              const angleOffset =
+                owner.satelliteBurstBaseAngle +
+                row * (Math.PI / owner.satelliteBulletCount) * 0.72;
+
+              owner.spawnSatelliteBurst(
+                owner.satelliteX,
+                owner.satelliteY,
+                angleOffset,
+              );
+
+              owner.satelliteBurstRowsFired++;
             }
           } else {
             const home = owner.getSatelliteOrbitPosition();
             const t = easeOutCubic(
-              (time - fireEnd) / (returnEnd - fireEnd),
+              (time - firingEnd) / (returnEnd - firingEnd),
             );
 
             owner.satelliteX = lerp(
@@ -644,7 +669,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai) => {
-          const duration = 0.68;
+          const duration = 0.92;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const eased = smoothstep(t);
 
@@ -655,11 +680,12 @@ export class PrologueBoss {
             eased,
           );
 
+          // Strong backwards wind-up. The boss visibly retreats away from the
+          // charge direction before it commits to the rush.
+          const pullback = Math.sin(t * Math.PI * 0.5) * 165;
           owner.x =
             owner.wallRushStartX -
-            owner.wallRushDirection *
-              Math.sin(t * Math.PI * 0.5) *
-              52;
+            owner.wallRushDirection * pullback;
 
           owner.rotation = lerpAngle(
             owner.anticipateStartRotation,
@@ -668,8 +694,8 @@ export class PrologueBoss {
           );
 
           // Horizontal anticipation squash.
-          owner.scaleX = lerp(1, 0.82, eased);
-          owner.scaleY = lerp(1, 1.16, eased);
+          owner.scaleX = lerp(1, 0.76, eased);
+          owner.scaleY = lerp(1, 1.22, eased);
 
           if (t >= 1) {
             owner.rotation = owner.lockedRotation;
@@ -875,7 +901,7 @@ export class PrologueBoss {
     this.satelliteAttackHit = false;
     this.wallRushHitPlayer = false;
     this.wallRushDraggingPlayer = false;
-    this.satelliteBurstFired = false;
+    this.satelliteBurstRowsFired = 0;
     this.satelliteBullets.length = 0;
     this.shockwaves.length = 0;
 
@@ -922,9 +948,10 @@ export class PrologueBoss {
     this.smashTrail = this.smashTrail.filter(ghost => ghost.life > 0);
   }
 
-  spawnSatelliteBurst(x, y) {
+  spawnSatelliteBurst(x, y, angleOffset = 0) {
     for (let i = 0; i < this.satelliteBulletCount; i++) {
       const angle =
+        angleOffset +
         (i / this.satelliteBulletCount) * Math.PI * 2;
 
       this.satelliteBullets.push({
