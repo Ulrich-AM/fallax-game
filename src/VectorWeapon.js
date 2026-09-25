@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=11';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=12';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
