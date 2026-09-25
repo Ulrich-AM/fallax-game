@@ -261,6 +261,9 @@ export class PrologueBoss {
     this.ai
       .addState('phaseTransition', {
         enter: (owner) => {
+          owner.wallRushDraggingPlayer = false;
+          owner.wallRushEscaped = true;
+
           owner.trackStartX = owner.x;
           owner.trackStartY = owner.y;
           owner.rotationLocked = false;
@@ -969,9 +972,8 @@ export class PrologueBoss {
           ctx.shakeCamera?.(28, 0.52);
 
           if (owner.wallRushDraggingPlayer && ctx.player) {
-            ctx.player.takeDamage?.(
+            ctx.player.takeContinuousDamage?.(
               owner.wallRushImpactDamage,
-              { ignoreDashInvulnerability: true },
             );
             ctx.player.vx = -owner.wallRushDirection * 520;
             ctx.player.vy = -260;
