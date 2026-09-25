@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=20';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=20';
+import { BossAI } from './BossAI.js?v=21';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=21';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -914,6 +914,16 @@ export class PrologueBoss {
               owner.wallRushDraggingPlayer &&
               player.dashSerial !== owner.wallRushGrabDashSerial
             ) {
+              const escapeStartX =
+                owner.x +
+                owner.wallRushDirection *
+                  (halfW + playerHalfW - 5);
+
+              player.spawnGrabEscapeTrail?.(
+                escapeStartX,
+                owner.y,
+              );
+
               owner.wallRushDraggingPlayer = false;
               owner.wallRushEscaped = true;
             }
