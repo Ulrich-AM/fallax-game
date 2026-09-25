@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=12';
-import { PlayerController } from './PlayerController.js?v=12';
-import { MOVEMENT } from './movementConfig.js?v=12';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=13';
+import { PlayerController } from './PlayerController.js?v=13';
+import { MOVEMENT } from './movementConfig.js?v=13';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,10 +11,10 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=12';
-import { VectorWeapon } from './VectorWeapon.js?v=12';
-import { BossAI } from './bosses/BossAI.js?v=12';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=12';
+} from './equipment.js?v=13';
+import { VectorWeapon } from './VectorWeapon.js?v=13';
+import { BossAI } from './bosses/BossAI.js?v=13';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=13';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -26,6 +26,10 @@ const equipmentBack = document.querySelector('#equipment-back');
 const chapterBack = document.querySelector('#chapter-back');
 const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
+const deathMenu = document.querySelector('#death-menu');
+const deathRestart = document.querySelector('#death-restart');
+const deathMenuButton = document.querySelector('#death-menu-button');
+const deathInventory = document.querySelector('#death-inventory');
 
 const equipmentTabs = document.querySelector('#equipment-tabs');
 const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
@@ -116,9 +120,14 @@ const CHAPTERS = [
 ];
 
 let currentScreen = 'menu';
+let encounterOver = false;
 let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
 let currentDrag = null;
+
+function setDeathMenuVisible(visible) {
+  deathMenu.classList.toggle('hidden', !visible);
+}
 
 function showScreen(name) {
   currentScreen = name;
@@ -133,6 +142,7 @@ function showScreen(name) {
     pressed.clear();
     released.clear();
     pointer.firing = false;
+    setDeathMenuVisible(false);
   }
 
   if (name === 'equipment') renderEquipment();
@@ -143,6 +153,18 @@ mainButton.addEventListener('click', () => showScreen('chapters'));
 equipmentButton.addEventListener('click', () => showScreen('equipment'));
 equipmentBack.addEventListener('click', () => showScreen('menu'));
 chapterBack.addEventListener('click', () => showScreen('menu'));
+
+deathRestart.addEventListener('click', () => startPrologue());
+deathMenuButton.addEventListener('click', () => {
+  encounterOver = false;
+  activeBoss = null;
+  showScreen('menu');
+});
+deathInventory.addEventListener('click', () => {
+  encounterOver = false;
+  activeBoss = null;
+  showScreen('equipment');
+});
 
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape') {
@@ -253,6 +275,13 @@ function update(dt) {
     return;
   }
 
+  if (encounterOver) {
+    pressed.clear();
+    released.clear();
+    pointer.firing = false;
+    return;
+  }
+
   if (pressed.has('KeyR')) {
     player.reset();
     vectorWeapon.reset();
@@ -288,6 +317,16 @@ function update(dt) {
     );
 
     vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
+  }
+
+  if (player.health <= 0 && !encounterOver) {
+    encounterOver = true;
+    pointer.firing = false;
+    keys.clear();
+    pressed.clear();
+    released.clear();
+    setDeathMenuVisible(true);
+    return;
   }
 
   pressed.clear();
@@ -484,6 +523,8 @@ function renderGame() {
 }
 
 function startPrologue() {
+  encounterOver = false;
+  setDeathMenuVisible(false);
   player.reset();
   vectorWeapon.reset();
   prologueBoss.reset(world);
