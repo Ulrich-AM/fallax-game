@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=5';
-import { PlayerController } from './PlayerController.js?v=5';
-import { MOVEMENT } from './movementConfig.js?v=5';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=6';
+import { PlayerController } from './PlayerController.js?v=6';
+import { MOVEMENT } from './movementConfig.js?v=6';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,8 +11,8 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=5';
-import { VectorWeapon } from './VectorWeapon.js?v=5';
+} from './equipment.js?v=6';
+import { VectorWeapon } from './VectorWeapon.js?v=6';
 
 const menuScreen = document.querySelector('#menu-screen');
 const gameScreen = document.querySelector('#game-screen');
@@ -207,7 +207,10 @@ function update(dt) {
     vectorWeapon.reset();
   }
 
-  player.update(dt, readInput(), world);
+  player.update(dt, {
+    ...readInput(),
+    dashTarget: getPointerWorld(),
+  }, world);
 
   camera.targetX = player.x - W * 0.38;
   camera.targetX = Math.max(0, Math.min(world.width - W, camera.targetX));
