@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>bossfights</title>
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <div id="app">
@@ -13,6 +13,21 @@
         <h1>bossfights</h1>
         <button id="main-button" class="menu-button">main</button>
         <button id="equipment-button" class="menu-button">equipment</button>
+      </div>
+    </section>
+
+    <section id="chapter-screen" class="screen hidden">
+      <div class="chapter-shell">
+        <div class="chapter-topbar">
+          <button id="chapter-back" class="back-button">← main menu</button>
+          <div id="chapter-tabs" class="chapter-tabs" aria-label="Chapters"></div>
+        </div>
+
+        <div class="chapter-space"></div>
+
+        <div class="boss-strip">
+          <div id="boss-list" class="boss-list"></div>
+        </div>
       </div>
     </section>
 
@@ -50,6 +65,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=6"></script>
+  <script type="module" src="src/main.js?v=7"></script>
 </body>
 </html>
