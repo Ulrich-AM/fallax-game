@@ -51,6 +51,17 @@ export class HorizonWeapon {
     this.weaponKickTimer = 0;
     this.weaponKickDuration = 0.13;
     this.weaponKickDistance = 14;
+
+    this.specialCooldown = 14;
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialProjectileSpeed = 190;
+    this.specialProjectileLife = 5.2;
+    this.specialProjectileSize = 58;
+    this.specialProjectileDamage = 68;
+    this.specialHomingStrength = 1.15;
+    this.specialRecoil = 1350;
+    this.specialWeaponKickDistance = 28;
+    this.specialProjectiles = [];
   }
 
   reset() {
@@ -61,10 +72,25 @@ export class HorizonWeapon {
     this.lockedAngle = 0;
     this.shotApplied = false;
     this.weaponKickTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialProjectiles.length = 0;
+  }
+
+  triggerSpecial() {
+    if (this.specialCooldownTimer > 0) return false;
+
+    this.specialCooldownTimer = this.specialCooldown;
+    return true;
   }
 
   get specialAbilities() {
-    return [];
+    return [{
+      id: 'horizon-star',
+      name: 'star',
+      cooldown: this.specialCooldown,
+      remaining: this.specialCooldownTimer,
+      active: false,
+    }];
   }
 
   get locksPlayer() {
@@ -117,6 +143,13 @@ export class HorizonWeapon {
   ) {
     this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
 
+    if (active) {
+      this.specialCooldownTimer = Math.max(
+        0,
+        this.specialCooldownTimer - dt,
+      );
+    }
+
     if (!active && this.chargeTimer > 0) {
       this.chargeTimer = 0;
     }
@@ -141,6 +174,93 @@ export class HorizonWeapon {
       0,
       this.weaponKickTimer - dt,
     );
+
+    this.updateSpecialProjectiles(dt, target);
+  }
+
+  fireSpecial(player, pointerWorld) {
+    if (this.specialCooldownTimer > 0) return false;
+
+    const angle = this.getTargetAngle(player, pointerWorld);
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+
+    const originX = player.x + dirX * this.orbitRadius;
+    const originY = player.y + dirY * this.orbitRadius;
+
+    this.specialProjectiles.push({
+      x: originX,
+      y: originY,
+      vx: dirX * this.specialProjectileSpeed,
+      vy: dirY * this.specialProjectileSpeed,
+      life: this.specialProjectileLife,
+      maxLife: this.specialProjectileLife,
+      hitTarget: false,
+    });
+
+    this.specialCooldownTimer = this.specialCooldown;
+    this.weaponKickTimer = this.weaponKickDuration;
+    this.weaponKickDistance = this.specialWeaponKickDistance;
+
+    player.vx -= dirX * this.specialRecoil;
+    player.vy -= dirY * this.specialRecoil;
+    player.grounded = false;
+    return true;
+  }
+
+  updateSpecialProjectiles(dt, target) {
+    for (const projectile of this.specialProjectiles) {
+      projectile.life = Math.max(0, projectile.life - dt);
+
+      if (target && !target.dead && projectile.life > 0) {
+        const dx = target.x - projectile.x;
+        const dy = target.y - projectile.y;
+        const distance = Math.hypot(dx, dy) || 1;
+
+        const desiredX =
+          dx / distance * this.specialProjectileSpeed;
+        const desiredY =
+          dy / distance * this.specialProjectileSpeed;
+
+        const steer = Math.min(
+          1,
+          this.specialHomingStrength * dt,
+        );
+
+        projectile.vx +=
+          (desiredX - projectile.vx) * steer;
+        projectile.vy +=
+          (desiredY - projectile.vy) * steer;
+
+        const hitRadius =
+          this.specialProjectileSize * 0.5 +
+          (target.halfSize ?? 48) * 0.82;
+
+        if (
+          !projectile.hitTarget &&
+          distance <= hitRadius
+        ) {
+          target.takeDamage?.(
+            this.specialProjectileDamage *
+            Math.max(
+              0.20,
+              projectile.life / projectile.maxLife,
+            ),
+          );
+
+          projectile.hitTarget = true;
+          projectile.life = 0;
+        }
+      }
+
+      projectile.x += projectile.vx * dt;
+      projectile.y += projectile.vy * dt;
+    }
+
+    this.specialProjectiles =
+      this.specialProjectiles.filter(
+        projectile => projectile.life > 0,
+      );
   }
 
   applyShot(player, target, artPixelSize) {
@@ -181,6 +301,7 @@ export class HorizonWeapon {
       }
     }
 
+    this.weaponKickDistance = 14;
     this.weaponKickTimer = this.weaponKickDuration;
 
     player.vx -= dirX * this.recoil;
@@ -227,12 +348,12 @@ export class HorizonWeapon {
 
     if (this.flashTimer > 0) {
       ctx.globalAlpha = 1;
-      ctx.lineWidth = 10;
+      ctx.lineWidth = this.bodyThicknessPixels;
       ctx.shadowColor = 'rgba(255,255,255,1)';
       ctx.shadowBlur = 24;
     } else {
       ctx.globalAlpha = 0.24;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = this.bodyThicknessPixels;
       ctx.shadowBlur = 0;
     }
 
@@ -246,6 +367,35 @@ export class HorizonWeapon {
       Math.round(endY),
     );
     ctx.stroke();
+    ctx.restore();
+
+    this.drawSpecialProjectiles(ctx, cameraX);
+  }
+
+  drawSpecialProjectiles(ctx, cameraX) {
+    ctx.save();
+
+    for (const projectile of this.specialProjectiles) {
+      const ratio =
+        projectile.life / projectile.maxLife;
+
+      const size =
+        this.specialProjectileSize *
+        (0.84 + ratio * 0.16);
+
+      ctx.globalAlpha = Math.max(0, ratio);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(255,255,255,1)';
+      ctx.shadowBlur = 30;
+
+      ctx.fillRect(
+        Math.round(projectile.x - cameraX - size / 2),
+        Math.round(projectile.y - size / 2),
+        size,
+        size,
+      );
+    }
+
     ctx.restore();
   }
 }
