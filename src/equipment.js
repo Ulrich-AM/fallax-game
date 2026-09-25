@@ -10,14 +10,14 @@ export const ITEM_LIBRARY = {
     id: 'vector',
     name: 'Vector',
     category: 'weapons',
-    description: 'A low-damage burst weapon with 3° inaccuracy.',
+    description: 'A compact burst-fire weapon.',
     appearance: 'black square',
   },
   euclid: {
     id: 'euclid',
     name: 'Euclid',
     category: 'weapons',
-    description: 'A low-damage continuous translucent laser with unlimited use.',
+    description: 'A sustained precision energy weapon.',
     appearance: 'thin black rectangle',
   },
 };
