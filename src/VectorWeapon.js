@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -26,7 +26,18 @@ export class VectorWeapon {
     this.burstCooldown = 0.42;
     this.inaccuracy = degToRad(3);
 
+    this.specialCooldown = 7.5;
+    this.specialCooldownTimer = 0;
+    this.specialShotCount = 20;
+    this.specialShotsRemaining = 0;
+    this.specialShotInterval = 0.028;
+    this.specialShotTimer = 0;
+    this.specialInaccuracy = degToRad(10);
+
     this.cooldownTimer = 0;
+    this.specialCooldownTimer = 0;
+    this.specialShotsRemaining = 0;
+    this.specialShotTimer = 0;
     this.burstShotsRemaining = 0;
     this.burstShotTimer = 0;
     this.bullets = [];
@@ -66,9 +77,22 @@ export class VectorWeapon {
 
   update(dt, player, pointerWorld, firing, world) {
     this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
+    this.specialCooldownTimer = Math.max(0, this.specialCooldownTimer - dt);
+    this.specialShotTimer = Math.max(0, this.specialShotTimer - dt);
     this.burstShotTimer = Math.max(0, this.burstShotTimer - dt);
 
-    if (firing && this.cooldownTimer <= 0 && this.burstShotsRemaining <= 0) {
+    if (this.specialShotsRemaining > 0 && this.specialShotTimer <= 0) {
+      this.fireOne(player, pointerWorld, this.specialInaccuracy);
+      this.specialShotsRemaining--;
+      this.specialShotTimer = this.specialShotInterval;
+    }
+
+    if (
+      firing &&
+      this.specialShotsRemaining <= 0 &&
+      this.cooldownTimer <= 0 &&
+      this.burstShotsRemaining <= 0
+    ) {
       this.burstShotsRemaining = this.burstSize;
       this.burstShotTimer = 0;
       this.cooldownTimer = this.burstCooldown;
@@ -123,9 +147,29 @@ export class VectorWeapon {
     );
   }
 
-  fireOne(player, pointerWorld) {
+  triggerSpecial() {
+    if (this.specialCooldownTimer > 0) return false;
+
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialShotsRemaining = this.specialShotCount;
+    this.specialShotTimer = 0;
+    this.burstShotsRemaining = 0;
+    return true;
+  }
+
+  get specialAbilities() {
+    return [{
+      id: 'vector-volley',
+      name: 'volley',
+      cooldown: this.specialCooldown,
+      remaining: this.specialCooldownTimer,
+      active: this.specialShotsRemaining > 0,
+    }];
+  }
+
+  fireOne(player, pointerWorld, spread = this.inaccuracy) {
     const aim = this.getAim(player, pointerWorld);
-    const shotAngle = aim.angle + randomSpread(this.inaccuracy);
+    const shotAngle = aim.angle + randomSpread(spread);
 
     this.bullets.push({
       x: aim.x + Math.cos(shotAngle) * 12,
