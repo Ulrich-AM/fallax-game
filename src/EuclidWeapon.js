@@ -123,11 +123,12 @@ export class EuclidWeapon {
         0,
         this.specialCooldownTimer - dt,
       );
-      this.specialActiveTimer = Math.max(
-        0,
-        this.specialActiveTimer - dt,
-      );
     }
+
+    this.specialActiveTimer = Math.max(
+      0,
+      this.specialActiveTimer - dt,
+    );
 
     const specialActive = this.specialActiveTimer > 0;
     const targetAngle = this.getTargetAngle(player, pointerWorld);
@@ -146,7 +147,7 @@ export class EuclidWeapon {
     }
 
     const aim = this.getAimFromAngle(player, this.currentAimAngle);
-    const effectiveFiring = firing || specialActive;
+    const effectiveFiring = active && (firing || specialActive);
     const widthMultiplier = specialActive ? 3 : 1;
     const damagePerSecond = specialActive
       ? this.specialDamagePerSecond
