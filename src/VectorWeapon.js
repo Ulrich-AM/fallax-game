@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=5';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=6';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -131,25 +131,13 @@ export class VectorWeapon {
     ctx.save();
     ctx.fillStyle = '#e5e7eb';
 
+    const size = 7;
+    const half = size / 2;
+
     for (const bullet of this.bullets) {
-      const speed = Math.hypot(bullet.vx, bullet.vy) || 1;
-      const nx = bullet.vx / speed;
-      const ny = bullet.vy / speed;
-      const px = -ny;
-      const py = nx;
-
-      const sx = bullet.x - cameraX;
-      const sy = bullet.y;
-      const halfLength = 6;
-      const halfWidth = 2;
-
-      ctx.beginPath();
-      ctx.moveTo(sx + nx * halfLength + px * halfWidth, sy + ny * halfLength + py * halfWidth);
-      ctx.lineTo(sx + nx * halfLength - px * halfWidth, sy + ny * halfLength - py * halfWidth);
-      ctx.lineTo(sx - nx * halfLength - px * halfWidth, sy - ny * halfLength - py * halfWidth);
-      ctx.lineTo(sx - nx * halfLength + px * halfWidth, sy - ny * halfLength + py * halfWidth);
-      ctx.closePath();
-      ctx.fill();
+      const sx = Math.round(bullet.x - cameraX - half);
+      const sy = Math.round(bullet.y - half);
+      ctx.fillRect(sx, sy, size, size);
     }
 
     ctx.restore();
