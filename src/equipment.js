@@ -1,5 +1,5 @@
 export const EQUIPMENT_CATEGORIES = [
-  { id: 'weapons', label: 'Weapons', slotCount: 3, slotLabel: 'Weapon' },
+  { id: 'weapons', label: 'Weapons', slotCount: 2, slotLabel: 'Weapon' },
   { id: 'abilities', label: 'Abilities', slotCount: 3, slotLabel: 'Ability' },
   { id: 'extra', label: 'Extra', slotCount: 2, slotLabel: 'Extra' },
   { id: 'armor', label: 'Armor', slotCount: 2, slotLabel: 'Armor' },
@@ -20,19 +20,12 @@ export const ITEM_LIBRARY = {
     description: 'A sustained precision energy weapon.',
     appearance: 'thin black rectangle',
   },
-  scope: {
-    id: 'scope',
-    name: 'Scope',
-    category: 'weapons',
-    description: 'A heavy spread weapon built around recoil.',
-    appearance: 'wide black rectangle',
-  },
 };
 
-export const ownedItems = ['vector', 'euclid', 'scope'];
+export const ownedItems = ['vector', 'euclid'];
 
 export const loadout = {
-  weapons: ['vector', 'euclid', 'scope'],
+  weapons: ['vector', 'euclid'],
   abilities: [null, null, null],
   extra: [null, null],
   armor: [null, null],
@@ -82,4 +75,14 @@ export function getPrimaryWeaponId() {
 
 export function getWeaponSlotId(index) {
   return loadout.weapons[index] ?? null;
+}
+
+
+export const SHOP_CATALOG = Object.keys(ITEM_LIBRARY);
+
+export function purchaseItem(itemId) {
+  if (!ITEM_LIBRARY[itemId]) return false;
+  if (ownedItems.includes(itemId)) return true;
+  ownedItems.push(itemId);
+  return true;
 }
