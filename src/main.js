@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=20';
-import { PlayerController } from './PlayerController.js?v=20';
-import { MOVEMENT } from './movementConfig.js?v=20';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=21';
+import { PlayerController } from './PlayerController.js?v=21';
+import { MOVEMENT } from './movementConfig.js?v=21';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,12 +14,12 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=20';
-import { VectorWeapon } from './VectorWeapon.js?v=20';
-import { EuclidWeapon } from './EuclidWeapon.js?v=20';
-import { HorizonWeapon } from './HorizonWeapon.js?v=20';
-import { BossAI } from './bosses/BossAI.js?v=20';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=20';
+} from './equipment.js?v=21';
+import { VectorWeapon } from './VectorWeapon.js?v=21';
+import { EuclidWeapon } from './EuclidWeapon.js?v=21';
+import { HorizonWeapon } from './HorizonWeapon.js?v=21';
+import { BossAI } from './bosses/BossAI.js?v=21';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=21';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
