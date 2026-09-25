@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=22';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=23';
 
 function shortestAngleDelta(a, b) {
   return ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -22,7 +22,21 @@ export class MachWeapon {
     this.recoil = 128;
     this.orbitRadius = 43;
 
-    this.bodyWidth = 6;
+    this.specialCooldown = 16;
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialDuration = 0.82;
+    this.specialActiveTimer = 0;
+    this.specialWaveCount = 3;
+    this.specialWavesFired = 0;
+    this.specialWaveInterval = 0.18;
+    this.specialWaveTimer = 0;
+    this.specialDamage = 42;
+    this.specialWaveSpeed = 620;
+    this.specialWaveMaxRadius = 780;
+    this.specialWaveThickness = 38;
+    this.specialWaveHalfAngle = Math.PI * 0.46;
+
+    this.bodyWidth = 9;
     this.bodyHeight = 4;
 
     this.waves = [];
@@ -44,11 +58,35 @@ export class MachWeapon {
 
   reset() {
     this.cooldownTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialActiveTimer = 0;
+    this.specialWavesFired = 0;
+    this.specialWaveTimer = 0;
     this.waves.length = 0;
   }
 
+  triggerSpecial() {
+    if (this.specialCooldownTimer > 0) return false;
+
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialActiveTimer = this.specialDuration;
+    this.specialWavesFired = 0;
+    this.specialWaveTimer = 0;
+    return true;
+  }
+
   get specialAbilities() {
-    return [];
+    return [{
+      id: 'mach-screech',
+      name: 'screech',
+      cooldown: this.specialCooldown,
+      remaining: this.specialCooldownTimer,
+      active: this.specialActiveTimer > 0,
+    }];
+  }
+
+  get locksPlayer() {
+    return this.specialActiveTimer > 0;
   }
 
   getAim(player, pointerWorld) {
@@ -82,14 +120,48 @@ export class MachWeapon {
       this.cooldownTimer - dt,
     );
 
-    if (active && firing && this.cooldownTimer <= 0) {
+    if (active) {
+      this.specialCooldownTimer = Math.max(
+        0,
+        this.specialCooldownTimer - dt,
+      );
+    }
+
+    this.specialActiveTimer = Math.max(
+      0,
+      this.specialActiveTimer - dt,
+    );
+
+    if (this.specialActiveTimer > 0) {
+      player.grantAbilityInvulnerability?.(dt + 0.08);
+      player.vx = 0;
+      player.vy = 0;
+
+      this.specialWaveTimer -= dt;
+
+      if (
+        this.specialWavesFired < this.specialWaveCount &&
+        this.specialWaveTimer <= 0
+      ) {
+        this.emitSpecialWave(player, pointerWorld);
+        this.specialWavesFired++;
+        this.specialWaveTimer = this.specialWaveInterval;
+      }
+    }
+
+    if (
+      active &&
+      this.specialActiveTimer <= 0 &&
+      firing &&
+      this.cooldownTimer <= 0
+    ) {
       this.emitWave(player, pointerWorld);
       this.cooldownTimer = this.fireCooldown;
     }
 
     for (const wave of this.waves) {
       wave.previousRadius = wave.radius;
-      wave.radius += this.waveSpeed * dt;
+      wave.radius += wave.speed * dt;
 
       if (!wave.hitTarget && target && !target.dead) {
         this.tryHitTarget(wave, target);
@@ -97,7 +169,7 @@ export class MachWeapon {
     }
 
     this.waves = this.waves.filter(
-      wave => wave.radius < this.waveMaxRadius,
+      wave => wave.radius < wave.maxRadius,
     );
   }
 
@@ -111,6 +183,12 @@ export class MachWeapon {
       radius: this.waveStartRadius,
       previousRadius: this.waveStartRadius,
       hitTarget: false,
+      special: false,
+      damage: this.baseDamage,
+      speed: this.waveSpeed,
+      maxRadius: this.waveMaxRadius,
+      thickness: this.waveThickness,
+      halfAngle: this.waveHalfAngle,
     });
 
     player.vx -= aim.dirX * this.recoil;
@@ -119,6 +197,25 @@ export class MachWeapon {
     if (aim.dirY > 0.20) {
       player.grounded = false;
     }
+  }
+
+  emitSpecialWave(player, pointerWorld) {
+    const aim = this.getAim(player, pointerWorld);
+
+    this.waves.push({
+      x: aim.x,
+      y: aim.y,
+      angle: aim.angle,
+      radius: 24,
+      previousRadius: 24,
+      hitTarget: false,
+      special: true,
+      damage: this.specialDamage,
+      speed: this.specialWaveSpeed,
+      maxRadius: this.specialWaveMaxRadius,
+      thickness: this.specialWaveThickness,
+      halfAngle: this.specialWaveHalfAngle,
+    });
   }
 
   tryHitTarget(wave, target) {
@@ -131,17 +228,17 @@ export class MachWeapon {
       shortestAngleDelta(wave.angle, targetAngle),
     );
 
-    if (angularError > this.waveHalfAngle) return;
+    if (angularError > wave.halfAngle) return;
 
     const targetRadius = (target.halfSize ?? 48) * 0.92;
     const inner =
       wave.previousRadius -
-      this.waveThickness -
+      wave.thickness -
       targetRadius;
 
     const outer =
       wave.radius +
-      this.waveThickness +
+      wave.thickness +
       targetRadius;
 
     if (
@@ -153,7 +250,7 @@ export class MachWeapon {
 
     const travelRatio = Math.min(
       1,
-      distance / this.waveMaxRadius,
+      distance / wave.maxRadius,
     );
 
     const multiplier =
@@ -162,7 +259,7 @@ export class MachWeapon {
         travelRatio;
 
     target.takeDamage?.(
-      this.baseDamage * multiplier,
+      wave.damage * multiplier,
     );
 
     wave.hitTarget = true;
@@ -210,26 +307,31 @@ export class MachWeapon {
     for (const wave of this.waves) {
       const ratio = Math.min(
         1,
-        wave.radius / this.waveMaxRadius,
+        wave.radius / wave.maxRadius,
       );
 
       const alpha =
         0.62 * (1 - ratio * 0.74);
 
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = wave.special
+        ? Math.min(1, alpha * 1.45)
+        : alpha;
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(
-        2,
-        7 - ratio * 4,
-      );
+      ctx.shadowColor = wave.special
+        ? 'rgba(255,255,255,0.95)'
+        : 'rgba(255,255,255,0)';
+      ctx.shadowBlur = wave.special ? 18 : 0;
+      ctx.lineWidth = wave.special
+        ? Math.max(8, 18 - ratio * 8)
+        : Math.max(2, 7 - ratio * 4);
 
       ctx.beginPath();
       ctx.arc(
         Math.round(wave.x - cameraX),
         Math.round(wave.y),
         wave.radius,
-        wave.angle - this.waveHalfAngle,
-        wave.angle + this.waveHalfAngle,
+        wave.angle - wave.halfAngle,
+        wave.angle + wave.halfAngle,
       );
       ctx.stroke();
 
@@ -242,8 +344,8 @@ export class MachWeapon {
           Math.round(wave.x - cameraX),
           Math.round(wave.y),
           Math.max(0, wave.radius - 16),
-          wave.angle - this.waveHalfAngle,
-          wave.angle + this.waveHalfAngle,
+          wave.angle - wave.halfAngle,
+          wave.angle + wave.halfAngle,
         );
         ctx.stroke();
       }
