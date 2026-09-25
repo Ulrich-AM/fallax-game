@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=17';
-import { PlayerController } from './PlayerController.js?v=17';
-import { MOVEMENT } from './movementConfig.js?v=17';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=18';
+import { PlayerController } from './PlayerController.js?v=18';
+import { MOVEMENT } from './movementConfig.js?v=18';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -12,20 +12,25 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
-} from './equipment.js?v=17';
-import { VectorWeapon } from './VectorWeapon.js?v=17';
-import { EuclidWeapon } from './EuclidWeapon.js?v=17';
-import { ScopeWeapon } from './ScopeWeapon.js?v=17';
-import { BossAI } from './bosses/BossAI.js?v=17';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=17';
+  SHOP_CATALOG,
+  purchaseItem,
+} from './equipment.js?v=18';
+import { VectorWeapon } from './VectorWeapon.js?v=18';
+import { EuclidWeapon } from './EuclidWeapon.js?v=18';
+import { BossAI } from './bosses/BossAI.js?v=18';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=18';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
 const gameScreen = document.querySelector('#game-screen');
 const equipmentScreen = document.querySelector('#equipment-screen');
+const shopScreen = document.querySelector('#shop-screen');
 const mainButton = document.querySelector('#main-button');
 const equipmentButton = document.querySelector('#equipment-button');
+const shopButton = document.querySelector('#shop-button');
 const equipmentBack = document.querySelector('#equipment-back');
+const shopBack = document.querySelector('#shop-back');
+const shopItems = document.querySelector('#shop-items');
 const chapterBack = document.querySelector('#chapter-back');
 const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
@@ -37,7 +42,6 @@ const deathInventory = document.querySelector('#death-inventory');
 const weaponSlotButtons = [
   document.querySelector('#weapon-slot-1'),
   document.querySelector('#weapon-slot-2'),
-  document.querySelector('#weapon-slot-3'),
 ];
 
 const equipmentTabs = document.querySelector('#equipment-tabs');
@@ -101,7 +105,6 @@ const playerDefinition = group([
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
-const scopeWeapon = new ScopeWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -145,7 +148,6 @@ function getActiveWeaponId() {
 function getWeaponInstance(id) {
   if (id === 'vector') return vectorWeapon;
   if (id === 'euclid') return euclidWeapon;
-  if (id === 'scope') return scopeWeapon;
   return null;
 }
 
@@ -172,7 +174,6 @@ function selectWeaponSlot(index) {
 
 weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
 weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
-weaponSlotButtons[2].addEventListener('click', () => selectWeaponSlot(2));
 
 function setDeathMenuVisible(visible, result = 'defeated') {
   encounterResultTitle.textContent = result;
@@ -197,6 +198,7 @@ function showScreen(name) {
   chapterScreen.classList.toggle('hidden', name !== 'chapters');
   gameScreen.classList.toggle('hidden', name !== 'game');
   equipmentScreen.classList.toggle('hidden', name !== 'equipment');
+  shopScreen.classList.toggle('hidden', name !== 'shop');
 
   if (name !== 'game') {
     keys.clear();
@@ -207,12 +209,15 @@ function showScreen(name) {
   }
 
   if (name === 'equipment') renderEquipment();
+  if (name === 'shop') renderShop();
   if (name === 'chapters') renderChapterSelect();
 }
 
 mainButton.addEventListener('click', () => showScreen('chapters'));
 equipmentButton.addEventListener('click', () => showScreen('equipment'));
+shopButton.addEventListener('click', () => showScreen('shop'));
 equipmentBack.addEventListener('click', () => showScreen('menu'));
+shopBack.addEventListener('click', () => showScreen('menu'));
 chapterBack.addEventListener('click', () => showScreen('menu'));
 
 deathRestart.addEventListener('click', () => startPrologue());
@@ -238,7 +243,6 @@ addEventListener('keydown', (e) => {
 
   if (e.code === 'Digit1') selectWeaponSlot(0);
   if (e.code === 'Digit2') selectWeaponSlot(1);
-  if (e.code === 'Digit3') selectWeaponSlot(2);
 
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -351,7 +355,6 @@ function update(dt) {
     player.reset();
     vectorWeapon.reset();
     euclidWeapon.reset();
-    scopeWeapon.reset();
     activeBoss?.reset?.(world);
   }
 
@@ -404,16 +407,6 @@ function update(dt) {
     ART_PIXEL,
     activeWeaponId === 'euclid',
   );
-
-  scopeWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'scope' && pointer.firing,
-    world,
-    activeWeaponId === 'scope',
-  );
-  scopeWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
 
   if (player.health <= 0) {
     endEncounter('defeated');
@@ -650,12 +643,6 @@ function renderGame() {
     euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
 
-  if (activeWeaponId === 'scope') {
-    scopeWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
-  } else {
-    scopeWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
-  }
-
   ctx.restore();
 
   drawBossBar();
@@ -668,7 +655,6 @@ function startPrologue() {
   player.reset();
   vectorWeapon.reset();
   euclidWeapon.reset();
-  scopeWeapon.reset();
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -857,6 +843,46 @@ function renderInventory() {
   }
 }
 
+
+function renderShop() {
+  shopItems.innerHTML = '';
+
+  for (const itemId of SHOP_CATALOG) {
+    const item = getItem(itemId);
+    if (!item) continue;
+
+    const card = document.createElement('div');
+    card.className = 'shop-item-card';
+
+    const owned = ownedItems.includes(item.id);
+
+    card.innerHTML = `
+      <div class="item-title">
+        <span class="item-icon" aria-hidden="true"></span>
+        <span>${item.name}</span>
+      </div>
+      <div class="item-description">${item.description}</div>
+      <div class="shop-item-actions"></div>
+    `;
+
+    const actions = card.querySelector('.shop-item-actions');
+    const buy = document.createElement('button');
+    buy.className = 'shop-buy-button';
+    buy.textContent = owned ? 'owned' : 'free';
+    buy.disabled = owned;
+
+    buy.addEventListener('click', () => {
+      if (purchaseItem(item.id)) {
+        renderShop();
+        renderEquipment();
+      }
+    });
+
+    actions.appendChild(buy);
+    shopItems.appendChild(card);
+  }
+}
+
 function renderEquipment() {
   renderTabs();
   renderSlots();
@@ -921,5 +947,4 @@ window.BOSSFIGHTS = {
   prologueBoss,
   vectorWeapon,
   euclidWeapon,
-  scopeWeapon,
 };
