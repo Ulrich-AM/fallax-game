@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=25';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=26';
 
 function shortestAngleDelta(a, b) {
   return ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
