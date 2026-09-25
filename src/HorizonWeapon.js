@@ -76,11 +76,9 @@ export class HorizonWeapon {
     this.specialProjectiles.length = 0;
   }
 
-  triggerSpecial() {
-    if (this.specialCooldownTimer > 0) return false;
-
-    this.specialCooldownTimer = this.specialCooldown;
-    return true;
+  triggerSpecial({ player, pointerWorld } = {}) {
+    if (!player || !pointerWorld) return false;
+    return this.fireSpecial(player, pointerWorld);
   }
 
   get specialAbilities() {
@@ -241,11 +239,7 @@ export class HorizonWeapon {
           distance <= hitRadius
         ) {
           target.takeDamage?.(
-            this.specialProjectileDamage *
-            Math.max(
-              0.20,
-              projectile.life / projectile.maxLife,
-            ),
+            this.specialProjectileDamage,
           );
 
           projectile.hitTarget = true;
