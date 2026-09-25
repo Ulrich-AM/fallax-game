@@ -13,12 +13,19 @@ export const ITEM_LIBRARY = {
     description: 'A low-damage burst weapon with 3° inaccuracy.',
     appearance: 'black square',
   },
+  euclid: {
+    id: 'euclid',
+    name: 'Euclid',
+    category: 'weapons',
+    description: 'A low-damage continuous translucent laser with unlimited use.',
+    appearance: 'thin black rectangle',
+  },
 };
 
-export const ownedItems = ['vector'];
+export const ownedItems = ['vector', 'euclid'];
 
 export const loadout = {
-  weapons: ['vector', null],
+  weapons: ['vector', 'euclid'],
   abilities: [null, null, null],
   extra: [null, null],
   armor: [null, null],
@@ -64,4 +71,8 @@ export function unequipSlot(categoryId, slotIndex) {
 
 export function getPrimaryWeaponId() {
   return loadout.weapons.find(Boolean) ?? null;
+}
+
+export function getWeaponSlotId(index) {
+  return loadout.weapons[index] ?? null;
 }
