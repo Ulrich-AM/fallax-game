@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=20';
+import { MOVEMENT as CFG } from './movementConfig.js?v=21';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -194,6 +194,34 @@ export class PlayerController {
       blocked,
       distance: Math.hypot(endX - startX, endY - startY),
     };
+  }
+
+  spawnGrabEscapeTrail(startX, startY) {
+    const endX = this.x;
+    const endY = this.y;
+    const distance = Math.hypot(endX - startX, endY - startY);
+    const count = Math.max(
+      8,
+      Math.min(22, Math.ceil(distance / 18)),
+    );
+
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0 : i / (count - 1);
+
+      this.afterimages.push({
+        x: startX + (endX - startX) * t,
+        y: startY + (endY - startY) * t,
+        life: 0.22 - t * 0.05,
+        maxLife: 0.22,
+      });
+    }
+
+    if (this.afterimages.length > 30) {
+      this.afterimages.splice(
+        0,
+        this.afterimages.length - 30,
+      );
+    }
   }
 
   spawnDashTrail(startX, startY, endX, endY) {
