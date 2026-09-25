@@ -1,13 +1,9 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=5';
+import { MOVEMENT as CFG } from './movementConfig.js?v=6';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
   if (value > target) return Math.max(value - amount, target);
   return target;
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 export class PlayerController {
@@ -39,12 +35,9 @@ export class PlayerController {
     this.dashCooldownTimer = 0;
     this.dashInvulnerabilityTimer = 0;
     this.dashVisualTimer = 0;
-    this.dashDirection = 1;
 
     this.landingSquashTimer = 0;
-    this.dashStretchTimer = 0;
     this.afterimages = [];
-    this.afterimageTimer = 0;
   }
 
   queueJump() {
@@ -58,28 +51,161 @@ export class PlayerController {
     return true;
   }
 
-  tryDash(moveInput) {
+  isDashPositionValid(x, y, world) {
+    const halfW = this.w / 2;
+    const halfH = this.h / 2;
+
+    if (x - halfW < 0) return false;
+    if (x + halfW > world.width) return false;
+    if (y - halfH < 0) return false;
+    if (y + halfH > world.floorY) return false;
+
+    for (const p of world.platforms) {
+      const overlaps =
+        x + halfW > p.x &&
+        x - halfW < p.x + p.w &&
+        y + halfH > p.y &&
+        y - halfH < p.y + p.h;
+
+      if (overlaps) return false;
+    }
+
+    return true;
+  }
+
+  resolveDashDestination(target, world) {
+    let dx = target.x - this.x;
+    let dy = target.y - this.y;
+    let length = Math.hypot(dx, dy);
+
+    if (length < 0.001) {
+      dx = this.facing;
+      dy = 0;
+      length = 1;
+    }
+
+    const nx = dx / length;
+    const ny = dy / length;
+    const startX = this.x;
+    const startY = this.y;
+    const steps = Math.max(1, Math.ceil(CFG.dashDistance / CFG.dashSweepStep));
+
+    let lastSafeT = 0;
+    let blocked = false;
+
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const testX = startX + nx * CFG.dashDistance * t;
+      const testY = startY + ny * CFG.dashDistance * t;
+
+      if (!this.isDashPositionValid(testX, testY, world)) {
+        blocked = true;
+
+        // Refine the final safe point so the blink stops close to the surface
+        // instead of visibly several pixels away from it.
+        let lo = lastSafeT;
+        let hi = t;
+
+        for (let j = 0; j < 8; j++) {
+          const mid = (lo + hi) * 0.5;
+          const mx = startX + nx * CFG.dashDistance * mid;
+          const my = startY + ny * CFG.dashDistance * mid;
+
+          if (this.isDashPositionValid(mx, my, world)) lo = mid;
+          else hi = mid;
+        }
+
+        lastSafeT = lo;
+        break;
+      }
+
+      lastSafeT = t;
+    }
+
+    return {
+      x: startX + nx * CFG.dashDistance * lastSafeT,
+      y: startY + ny * CFG.dashDistance * lastSafeT,
+      nx,
+      ny,
+      blocked,
+      distance: CFG.dashDistance * lastSafeT,
+    };
+  }
+
+  spawnDashTrail(startX, startY, endX, endY) {
+    const distance = Math.hypot(endX - startX, endY - startY);
+    const count = Math.max(2, Math.min(12, Math.ceil(distance / 34)));
+
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0 : i / (count - 1);
+      this.afterimages.push({
+        x: startX + (endX - startX) * t,
+        y: startY + (endY - startY) * t,
+        life: 0.17 - t * 0.035,
+        maxLife: 0.17,
+      });
+    }
+
+    if (this.afterimages.length > 20) {
+      this.afterimages.splice(0, this.afterimages.length - 20);
+    }
+  }
+
+  tryDash(target, world) {
     if (this.dashCooldownTimer > 0) return false;
+    if (this.stamina < CFG.dashStaminaCost) return false;
+
+    const result = this.resolveDashDestination(target, world);
+    if (result.distance < CFG.dashMinimumDistance) return false;
     if (!this.spendStamina(CFG.dashStaminaCost)) return false;
 
-    this.dashDirection = moveInput !== 0 ? Math.sign(moveInput) : this.facing;
-    this.facing = this.dashDirection;
+    const startX = this.x;
+    const startY = this.y;
 
-    // Retain only part of the existing horizontal momentum, then add the dash
-    // impulse. Vertical momentum is still preserved completely.
-    this.vx = clamp(
-      this.vx * CFG.dashMomentumRetention + this.dashDirection * CFG.dashImpulse,
-      -CFG.dashMaxHorizontalSpeed,
-      CFG.dashMaxHorizontalSpeed,
-    );
+    this.x = result.x;
+    this.y = result.y;
+    this.prevY = this.y;
+
+    if (Math.abs(result.nx) > 0.08) {
+      this.facing = Math.sign(result.nx);
+    }
+
+    // Blink first, then retain only a small fraction of prior motion.
+    // If the blink was stopped by geometry, kill momentum so the next frame
+    // cannot immediately shove the player into the obstacle.
+    if (result.blocked) {
+      this.vx = 0;
+      this.vy = 0;
+    } else {
+      this.vx *= CFG.dashMomentumRetention;
+      this.vy *= CFG.dashMomentumRetention;
+    }
+
+    this.grounded = this.isStandingOnSurface(world);
+    if (this.grounded && this.vy > 0) this.vy = 0;
 
     this.dashCooldownTimer = CFG.dashCooldown;
     this.dashInvulnerabilityTimer = CFG.dashInvulnerability;
     this.dashVisualTimer = CFG.dashVisualTime;
-    this.dashStretchTimer = CFG.dashStretchTime;
-    this.afterimageTimer = 0;
-    this.spawnAfterimage(true);
+
+    this.spawnDashTrail(startX, startY, this.x, this.y);
     return true;
+  }
+
+  isStandingOnSurface(world) {
+    const halfW = this.w / 2;
+    const halfH = this.h / 2;
+    const bottom = this.y + halfH;
+    const tolerance = 1.5;
+
+    if (Math.abs(bottom - world.floorY) <= tolerance) return true;
+
+    for (const p of world.platforms) {
+      const overlapsX = this.x + halfW > p.x && this.x - halfW < p.x + p.w;
+      if (overlapsX && Math.abs(bottom - p.y) <= tolerance) return true;
+    }
+
+    return false;
   }
 
   releaseJump() {
@@ -98,12 +224,14 @@ export class PlayerController {
     this.dashInvulnerabilityTimer = Math.max(0, this.dashInvulnerabilityTimer - dt);
     this.dashVisualTimer = Math.max(0, this.dashVisualTimer - dt);
     this.landingSquashTimer = Math.max(0, this.landingSquashTimer - dt);
-    this.dashStretchTimer = Math.max(0, this.dashStretchTimer - dt);
     this.staminaRegenDelayTimer = Math.max(0, this.staminaRegenDelayTimer - dt);
 
     if (input.jumpPressed) this.queueJump();
     if (input.jumpReleased) this.releaseJump();
-    if (input.dashPressed) this.tryDash(move);
+
+    if (input.dashPressed && input.dashTarget) {
+      this.tryDash(input.dashTarget, world);
+    }
 
     this.updateStamina(dt, input, move);
 
@@ -113,11 +241,7 @@ export class PlayerController {
     this.updateGravity(dt, input.jumpHeld);
 
     this.moveAndCollide(dt, world);
-
-    // Consume a buffered jump on the exact physics tick that landing occurs.
     this.tryBufferedJump();
-
-    this.updateDashVisuals(dt);
     this.updateAfterimages(dt);
   }
 
@@ -133,6 +257,7 @@ export class PlayerController {
     if (this.isSprinting) {
       this.stamina = Math.max(0, this.stamina - CFG.sprintDrainPerSecond * dt);
       this.staminaRegenDelayTimer = CFG.staminaRegenDelay;
+
       if (this.stamina <= 0) {
         this.stamina = 0;
         this.sprintExhausted = true;
@@ -143,16 +268,6 @@ export class PlayerController {
         CFG.staminaMax,
         this.stamina + CFG.staminaRegenPerSecond * dt,
       );
-    }
-  }
-
-  updateDashVisuals(dt) {
-    if (this.dashVisualTimer <= 0) return;
-
-    this.afterimageTimer -= dt;
-    if (this.afterimageTimer <= 0) {
-      this.spawnAfterimage(false);
-      this.afterimageTimer = CFG.dashAfterimageInterval;
     }
   }
 
@@ -177,7 +292,6 @@ export class PlayerController {
           : CFG.airAcceleration;
         this.vx = approach(this.vx, direction * targetSpeed, accel * dt);
       } else if (speed > targetSpeed) {
-        // Preserve dash / downhill-style momentum and bleed it off gently.
         const coast = grounded
           ? CFG.groundOverspeedDeceleration
           : CFG.airOverspeedDeceleration;
@@ -214,7 +328,6 @@ export class PlayerController {
   }
 
   moveAndCollide(dt, world) {
-    // Physics coordinates remain continuous. Only artwork is rasterized.
     this.x += this.vx * dt;
 
     const halfW = this.w / 2;
@@ -239,13 +352,18 @@ export class PlayerController {
       for (const p of world.platforms) {
         const overlapsX = this.x + halfW > p.x && this.x - halfW < p.x + p.w;
         const crossedTop = previousBottom <= p.y && currentBottom >= p.y;
+
         if (overlapsX && crossedTop && p.y < landingY) {
           landingY = p.y;
           landed = true;
         }
       }
 
-      if (previousBottom <= world.floorY && currentBottom >= world.floorY && world.floorY < landingY) {
+      if (
+        previousBottom <= world.floorY &&
+        currentBottom >= world.floorY &&
+        world.floorY < landingY
+      ) {
         landingY = world.floorY;
         landed = true;
       }
@@ -270,17 +388,6 @@ export class PlayerController {
     }
   }
 
-  spawnAfterimage(force = false) {
-    if (!force && this.afterimages.length >= 12) this.afterimages.shift();
-    this.afterimages.push({
-      x: this.x,
-      y: this.y,
-      life: 0.15,
-      maxLife: 0.15,
-      facing: this.facing,
-    });
-  }
-
   updateAfterimages(dt) {
     for (const a of this.afterimages) a.life -= dt;
     this.afterimages = this.afterimages.filter(a => a.life > 0);
@@ -299,11 +406,6 @@ export class PlayerController {
   }
 
   get visualScale() {
-    if (this.dashStretchTimer > 0) {
-      const t = this.dashStretchTimer / CFG.dashStretchTime;
-      return { x: 1 + 0.20 * t, y: 1 - 0.10 * t };
-    }
-
     if (this.landingSquashTimer > 0) {
       const t = this.landingSquashTimer / CFG.landingSquashTime;
       return { x: 1 + 0.12 * t, y: 1 - 0.12 * t };
