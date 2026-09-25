@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=9';
-import { PlayerController } from './PlayerController.js?v=9';
-import { MOVEMENT } from './movementConfig.js?v=9';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=10';
+import { PlayerController } from './PlayerController.js?v=10';
+import { MOVEMENT } from './movementConfig.js?v=10';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,10 +11,10 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=9';
-import { VectorWeapon } from './VectorWeapon.js?v=9';
-import { BossAI } from './bosses/BossAI.js?v=9';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=9';
+} from './equipment.js?v=10';
+import { VectorWeapon } from './VectorWeapon.js?v=10';
+import { BossAI } from './bosses/BossAI.js?v=10';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=10';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -49,7 +49,7 @@ const COLORS = {
   platform: '#343945',
   platformTop: '#5d6472',
   player: '#f0d34f',
-  outline: '#050609',
+  playerOutline: '#8f7b20',
   text: '#f0f1f4',
   dim: '#9ca2ad',
   stamina: '#d7dbe2',
@@ -80,7 +80,7 @@ const playerDefinition = group([
   }),
 ], {
   mergeOutlines: true,
-  outline: { enabled: true, color: COLORS.outline, thickness: 1 },
+  outline: { enabled: true, color: COLORS.playerOutline, thickness: 1 },
 });
 
 const playerRaster = rasterize(playerDefinition);
@@ -88,7 +88,14 @@ const vectorWeapon = new VectorWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
-const camera = { x: 0, targetX: 0 };
+const camera = {
+  x: 0,
+  targetX: 0,
+  shakeTime: 0,
+  shakeDuration: 0,
+  shakeIntensity: 0,
+  shakePhase: 0,
+};
 const keys = new Set();
 const pressed = new Set();
 const released = new Set();
@@ -209,6 +216,28 @@ function readInput() {
   };
 }
 
+function triggerCameraShake(intensity = 10, duration = 0.22) {
+  camera.shakeIntensity = Math.max(camera.shakeIntensity, intensity);
+  camera.shakeDuration = Math.max(camera.shakeDuration, duration);
+  camera.shakeTime = Math.max(camera.shakeTime, duration);
+}
+
+function updateCameraShake(dt) {
+  if (camera.shakeTime <= 0) return;
+  camera.shakeTime = Math.max(0, camera.shakeTime - dt);
+  camera.shakePhase += dt * 47;
+}
+
+function getCameraShakeOffset() {
+  if (camera.shakeTime <= 0 || camera.shakeDuration <= 0) return { x: 0, y: 0 };
+
+  const strength = camera.shakeIntensity * (camera.shakeTime / camera.shakeDuration);
+  return {
+    x: Math.sin(camera.shakePhase * 1.37) * strength,
+    y: Math.cos(camera.shakePhase * 1.91) * strength * 0.72,
+  };
+}
+
 function getPointerWorld() {
   return {
     x: pointer.screenX + camera.x,
@@ -243,7 +272,10 @@ function update(dt) {
   activeBoss?.update?.(dt, {
     player,
     world,
+    shakeCamera: triggerCameraShake,
   });
+
+  updateCameraShake(dt);
 
   if (getPrimaryWeaponId() === 'vector') {
     vectorWeapon.update(
@@ -417,6 +449,11 @@ function drawBossBar() {
 }
 
 function renderGame() {
+  const shake = getCameraShakeOffset();
+
+  ctx.save();
+  ctx.translate(Math.round(shake.x), Math.round(shake.y));
+
   drawGrid();
   drawPlatforms();
 
@@ -426,6 +463,8 @@ function renderGame() {
   if (getPrimaryWeaponId() === 'vector') {
     vectorWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
+
+  ctx.restore();
 
   drawBossBar();
   drawHUD();
@@ -438,6 +477,9 @@ function startPrologue() {
   activeBoss = prologueBoss;
   camera.x = 0;
   camera.targetX = 0;
+  camera.shakeTime = 0;
+  camera.shakeDuration = 0;
+  camera.shakeIntensity = 0;
   showScreen('game');
 }
 
