@@ -1,6 +1,32 @@
-import { rectangle, polygon, group, rasterize } from './pixelShapes.js?v=4';
-import { PlayerController } from './PlayerController.js?v=4';
-import { MOVEMENT } from './movementConfig.js?v=4';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=5';
+import { PlayerController } from './PlayerController.js?v=5';
+import { MOVEMENT } from './movementConfig.js?v=5';
+import {
+  EQUIPMENT_CATEGORIES,
+  ownedItems,
+  loadout,
+  getCategory,
+  getItem,
+  findEquippedItem,
+  equipItem,
+  unequipSlot,
+  getPrimaryWeaponId,
+} from './equipment.js?v=5';
+import { VectorWeapon } from './VectorWeapon.js?v=5';
+
+const menuScreen = document.querySelector('#menu-screen');
+const gameScreen = document.querySelector('#game-screen');
+const equipmentScreen = document.querySelector('#equipment-screen');
+const mainButton = document.querySelector('#main-button');
+const equipmentButton = document.querySelector('#equipment-button');
+const equipmentBack = document.querySelector('#equipment-back');
+
+const equipmentTabs = document.querySelector('#equipment-tabs');
+const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
+const equipmentSlotSummary = document.querySelector('#equipment-slot-summary');
+const equipmentSlots = document.querySelector('#equipment-slots');
+const equipmentInventory = document.querySelector('#equipment-inventory');
+const inventoryDropZone = document.querySelector('#inventory-drop-zone');
 
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
@@ -20,11 +46,9 @@ const COLORS = {
   outline: '#050609',
   text: '#f0f1f4',
   dim: '#9ca2ad',
-  panel: 'rgba(10, 11, 15, 0.86)',
   stamina: '#d7dbe2',
-  staminaLow: '#a2a7b0',
-  rotateFill: '#76b7ff',
-  rotateAccent: '#ff8276',
+  staminaLow: '#969da8',
+  dash: '#f0d34f',
 };
 
 const world = {
@@ -52,78 +76,64 @@ const playerDefinition = group([
   mergeOutlines: true,
   outline: { enabled: true, color: COLORS.outline, thickness: 1 },
 });
+
 const playerRaster = rasterize(playerDefinition);
-
-// Clickable rotation test. It deliberately combines rectangles and polygons
-// into one merged silhouette so rotating/re-rasterizing artifacts are easy to see.
-const rotationTest = {
-  x: 760,
-  y: 330,
-  angle: 0,
-  clickStep: 15,
-  hitRadius: 78,
-};
-
-const rotationTestDefinition = group([
-  rectangle({ width: 15, height: 9, color: COLORS.rotateFill }),
-  rectangle({ width: 5, height: 5, x: -7, y: -6, color: COLORS.rotateFill }),
-  polygon({
-    points: [[0, -5], [7, 0], [0, 5]],
-    x: 11,
-    y: 0,
-    color: COLORS.rotateAccent,
-  }),
-  polygon({
-    points: [[-4, 0], [0, -6], [4, 0]],
-    x: 1,
-    y: -8,
-    color: COLORS.rotateAccent,
-  }),
-], {
-  mergeOutlines: true,
-  outline: { enabled: true, color: COLORS.outline, thickness: 1 },
-  padding: 3,
-});
-
-let rotationTestRaster = rasterize(rotationTestDefinition, rotationTest.angle);
-
-// Reusable examples remain available in the console for future boss composition.
-export const shapeExamples = {
-  merged: group([
-    rectangle({ width: 12, height: 8, x: 0, y: 0, color: '#7bc4ff' }),
-    polygon({ points: [[-3, 0], [0, -5], [3, 0]], x: 0, y: -6, color: '#ff8375' }),
-  ], {
-    mergeOutlines: true,
-    outline: { enabled: true, color: '#050609', thickness: 1 },
-  }),
-  separate: group([
-    rectangle({ width: 12, height: 8, color: '#7bc4ff' }),
-    polygon({
-      points: [[-3, 0], [0, -5], [3, 0]],
-      y: -6,
-      color: '#ff8375',
-      outline: { enabled: true, color: '#050609', thickness: 1 },
-    }),
-  ], {
-    mergeOutlines: false,
-    outline: { enabled: true, color: '#050609', thickness: 1 },
-  }),
-  noOutline: group([
-    polygon({ points: [[0, -6], [6, 5], [-6, 5]], color: '#b58cff' }),
-  ], { mergeOutlines: true, outline: false }),
-};
+const vectorWeapon = new VectorWeapon();
 
 const camera = { x: 0, targetX: 0 };
 const keys = new Set();
 const pressed = new Set();
 const released = new Set();
 
+const pointer = {
+  screenX: W * 0.72,
+  screenY: H * 0.5,
+  firing: false,
+};
+
+let currentScreen = 'menu';
+let activeEquipmentTab = 'weapons';
+
+function showScreen(name) {
+  currentScreen = name;
+
+  menuScreen.classList.toggle('hidden', name !== 'menu');
+  gameScreen.classList.toggle('hidden', name !== 'game');
+  equipmentScreen.classList.toggle('hidden', name !== 'equipment');
+
+  if (name !== 'game') {
+    keys.clear();
+    pressed.clear();
+    released.clear();
+    pointer.firing = false;
+  }
+
+  if (name === 'equipment') renderEquipment();
+}
+
+mainButton.addEventListener('click', () => showScreen('game'));
+equipmentButton.addEventListener('click', () => showScreen('equipment'));
+equipmentBack.addEventListener('click', () => showScreen('menu'));
+
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') {
+    if (currentScreen !== 'menu') showScreen('menu');
+    return;
+  }
+
+  if (currentScreen !== 'game') return;
+
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
+
   if ([
-    'Space', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
-    'ArrowLeft', 'ArrowRight',
+    'Space',
+    'ShiftLeft',
+    'ShiftRight',
+    'ControlLeft',
+    'ControlRight',
+    'ArrowLeft',
+    'ArrowRight',
   ].includes(e.code)) {
     e.preventDefault();
   }
@@ -142,21 +152,31 @@ function canvasPointFromEvent(e) {
   };
 }
 
-canvas.addEventListener('pointerdown', (e) => {
+canvas.addEventListener('pointermove', (e) => {
   const p = canvasPointFromEvent(e);
-  const worldX = p.x + camera.x;
-  const dx = worldX - rotationTest.x;
-  const dy = p.y - rotationTest.y;
-
-  if (Math.abs(dx) <= rotationTest.hitRadius && Math.abs(dy) <= rotationTest.hitRadius) {
-    rotationTest.angle = (rotationTest.angle + rotationTest.clickStep) % 360;
-    rotationTestRaster = rasterize(rotationTestDefinition, rotationTest.angle);
-  }
+  pointer.screenX = p.x;
+  pointer.screenY = p.y;
 });
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || currentScreen !== 'game') return;
+  const p = canvasPointFromEvent(e);
+  pointer.screenX = p.x;
+  pointer.screenY = p.y;
+  pointer.firing = true;
+  e.preventDefault();
+});
+
+addEventListener('pointerup', (e) => {
+  if (e.button === 0) pointer.firing = false;
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 function readInput() {
   const right = keys.has('KeyD') || keys.has('ArrowRight');
   const left = keys.has('KeyA') || keys.has('ArrowLeft');
+
   return {
     move: (right ? 1 : 0) - (left ? 1 : 0),
     jumpHeld: keys.has('Space'),
@@ -167,8 +187,24 @@ function readInput() {
   };
 }
 
+function getPointerWorld() {
+  return {
+    x: pointer.screenX + camera.x,
+    y: pointer.screenY,
+  };
+}
+
 function update(dt) {
-  if (pressed.has('KeyR')) player.reset();
+  if (currentScreen !== 'game') {
+    pressed.clear();
+    released.clear();
+    return;
+  }
+
+  if (pressed.has('KeyR')) {
+    player.reset();
+    vectorWeapon.reset();
+  }
 
   player.update(dt, readInput(), world);
 
@@ -177,6 +213,16 @@ function update(dt) {
 
   const follow = 1 - Math.exp(-9 * dt);
   camera.x += (camera.targetX - camera.x) * follow;
+
+  if (getPrimaryWeaponId() === 'vector') {
+    vectorWeapon.update(
+      dt,
+      player,
+      getPointerWorld(),
+      pointer.firing,
+      world,
+    );
+  }
 
   pressed.clear();
   released.clear();
@@ -242,102 +288,249 @@ function drawPlayer() {
   for (const a of player.afterimages) {
     drawRasterAt(playerRaster, a.x, a.y, (a.life / a.maxLife) * 0.23);
   }
+
   drawRasterAt(playerRaster, player.x, player.y, 1, player.visualScale);
 }
 
-function drawRotationTest() {
-  const screenX = rotationTest.x - camera.x;
-  if (screenX < -120 || screenX > W + 120) return;
-
-  // A faint interaction box makes the test object obvious without changing
-  // the procedural/pixel-art renderer being tested.
+function drawResourceBar(label, value, max, x, y, width, color, rightText = '') {
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.setLineDash([5, 5]);
-  ctx.strokeRect(Math.round(screenX - 82) + 0.5, rotationTest.y - 82 + 0.5, 164, 164);
-  ctx.setLineDash([]);
-  ctx.restore();
-
-  drawRasterAt(rotationTestRaster, rotationTest.x, rotationTest.y);
-
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = '13px Arial, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 12px Arial, sans-serif';
   ctx.fillStyle = COLORS.text;
-  ctx.fillText('rotation test', Math.round(screenX), rotationTest.y + 68);
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText(`click to rotate  •  ${rotationTest.angle}°`, Math.round(screenX), rotationTest.y + 87);
+  ctx.fillText(label, x, y - 18);
+
+  ctx.fillStyle = '#1b1f27';
+  ctx.fillRect(x, y, width, 12);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, width * Math.max(0, Math.min(1, value / max)), 12);
+  ctx.strokeStyle = '#343a46';
+  ctx.strokeRect(x + 0.5, y + 0.5, width, 12);
+
+  if (rightText) {
+    ctx.font = '12px Arial, sans-serif';
+    ctx.fillStyle = COLORS.dim;
+    ctx.fillText(rightText, x + width + 12, y - 1);
+  }
+
   ctx.restore();
 }
 
 function drawHUD() {
-  ctx.save();
-  ctx.textBaseline = 'top';
-
-  // Compact debug panel.
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(18, 18, 310, 92);
-  ctx.strokeStyle = '#2c313c';
-  ctx.strokeRect(18.5, 18.5, 310, 92);
-
-  ctx.fillStyle = COLORS.text;
-  ctx.font = 'bold 15px Arial, sans-serif';
-  ctx.fillText('Movement test  v0.4', 32, 31);
-
-  ctx.font = '13px Arial, sans-serif';
-  ctx.fillStyle = COLORS.dim;
-  const movementState = player.isSprinting ? 'SPRINTING' : (player.grounded ? 'grounded' : 'airborne');
-  ctx.fillText(`speed ${Math.abs(player.vx).toFixed(0)}   vertical ${player.vy.toFixed(0)}   ${movementState}`, 32, 57);
-  ctx.fillText('Shift: sprint    Ctrl: dash', 32, 80);
-
-  // Large, always-visible stamina and dash bars.
   const bx = 24;
-  const by = H - 74;
-  const bw = 270;
-  const bh = 12;
+  const bw = 260;
+  const staminaY = H - 66;
+  const dashY = H - 32;
 
-  ctx.font = 'bold 12px Arial, sans-serif';
-  ctx.fillStyle = COLORS.text;
-  ctx.fillText('STAMINA', bx, by - 18);
-  ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(bx, by, bw, bh);
-  ctx.fillStyle = player.staminaRatio < 0.25 ? COLORS.staminaLow : COLORS.stamina;
-  ctx.fillRect(bx, by, bw * player.staminaRatio, bh);
-  ctx.strokeStyle = '#343a46';
-  ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+  drawResourceBar(
+    'STAMINA',
+    player.stamina,
+    MOVEMENT.staminaMax,
+    bx,
+    staminaY,
+    bw,
+    player.staminaRatio < 0.25 ? COLORS.staminaLow : COLORS.stamina,
+    `${Math.ceil(player.stamina)} / ${MOVEMENT.staminaMax}`,
+  );
 
-  const dashY = by + 34;
-  ctx.fillStyle = COLORS.text;
-  ctx.fillText('DASH COOLDOWN', bx, dashY - 18);
-  ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(bx, dashY, bw, bh);
-
-  const dashUsable = player.stamina >= MOVEMENT.dashStaminaCost;
-  ctx.fillStyle = player.dashReady ? COLORS.player : '#8e8246';
-  ctx.fillRect(bx, dashY, bw * player.dashCooldownRatio, bh);
-  ctx.strokeStyle = '#343a46';
-  ctx.strokeRect(bx + 0.5, dashY + 0.5, bw, bh);
-
-  ctx.font = '12px Arial, sans-serif';
-  ctx.fillStyle = COLORS.dim;
-  const staminaText = `${Math.ceil(player.stamina)} / ${MOVEMENT.staminaMax}`;
-  ctx.fillText(staminaText, bx + bw + 12, by - 1);
-
+  const dashRatio = player.dashCooldownRatio;
   let dashText = 'READY';
   if (player.dashCooldownTimer > 0) dashText = `${player.dashCooldownTimer.toFixed(2)}s`;
-  else if (!dashUsable) dashText = `needs ${MOVEMENT.dashStaminaCost} stamina`;
-  ctx.fillText(dashText, bx + bw + 12, dashY - 1);
+  else if (player.stamina < MOVEMENT.dashStaminaCost) dashText = `needs ${MOVEMENT.dashStaminaCost} stamina`;
 
+  drawResourceBar(
+    'DASH',
+    dashRatio,
+    1,
+    bx,
+    dashY,
+    bw,
+    player.dashReady ? COLORS.dash : '#8e8246',
+    dashText,
+  );
+
+  ctx.save();
+  ctx.font = '12px Arial, sans-serif';
+  ctx.fillStyle = COLORS.dim;
+  ctx.textAlign = 'right';
+  ctx.fillText('A/D move   Space jump   Shift sprint   Ctrl dash   LMB fire', W - 20, H - 24);
+  ctx.fillText(getPrimaryWeaponId() ? 'Vector' : 'No weapon equipped', W - 20, H - 44);
   ctx.restore();
 }
 
-function render() {
+function renderGame() {
   drawGrid();
   drawPlatforms();
-  drawRotationTest();
   drawPlayer();
+
+  if (getPrimaryWeaponId() === 'vector') {
+    vectorWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+  }
+
   drawHUD();
 }
+
+function createItemCard(itemId, source = null) {
+  const item = getItem(itemId);
+  if (!item) return null;
+
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  card.draggable = true;
+  card.dataset.itemId = item.id;
+
+  if (source) {
+    card.dataset.sourceCategory = source.category;
+    card.dataset.sourceIndex = String(source.index);
+  }
+
+  card.innerHTML = `
+    <div class="item-title">
+      <span class="item-icon" aria-hidden="true"></span>
+      <span>${item.name}</span>
+    </div>
+    <div class="item-description">${item.description}</div>
+  `;
+
+  card.addEventListener('dragstart', (e) => {
+    const payload = {
+      itemId: item.id,
+      sourceCategory: card.dataset.sourceCategory ?? null,
+      sourceIndex: card.dataset.sourceIndex ?? null,
+    };
+
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+  });
+
+  return card;
+}
+
+function readDragPayload(e) {
+  try {
+    return JSON.parse(e.dataTransfer.getData('text/plain'));
+  } catch {
+    return null;
+  }
+}
+
+function renderTabs() {
+  equipmentTabs.innerHTML = '';
+
+  for (const category of EQUIPMENT_CATEGORIES) {
+    const button = document.createElement('button');
+    button.className = 'tab-button';
+    button.textContent = category.label.toLowerCase();
+    button.classList.toggle('active', category.id === activeEquipmentTab);
+
+    button.addEventListener('click', () => {
+      activeEquipmentTab = category.id;
+      renderEquipment();
+    });
+
+    equipmentTabs.appendChild(button);
+  }
+}
+
+function renderSlots() {
+  const category = getCategory(activeEquipmentTab);
+  equipmentCategoryTitle.textContent = category.label.toLowerCase();
+  equipmentSlotSummary.textContent = `${category.slotCount} slot${category.slotCount === 1 ? '' : 's'}`;
+  equipmentSlots.innerHTML = '';
+
+  loadout[category.id].forEach((itemId, index) => {
+    const slot = document.createElement('div');
+    slot.className = 'equipment-slot';
+    slot.dataset.category = category.id;
+    slot.dataset.index = String(index);
+
+    const label = document.createElement('div');
+    label.className = 'slot-label';
+    label.textContent = `${category.slotLabel} ${index + 1}`;
+    slot.appendChild(label);
+
+    if (itemId) {
+      slot.appendChild(createItemCard(itemId, { category: category.id, index }));
+    }
+
+    slot.addEventListener('dragover', (e) => {
+      const payload = readDragPayload(e);
+      const item = payload ? getItem(payload.itemId) : null;
+      if (!item || item.category !== category.id) return;
+
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    });
+
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+
+    slot.addEventListener('drop', (e) => {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      const payload = readDragPayload(e);
+      if (!payload) return;
+
+      if (equipItem(payload.itemId, category.id, index)) {
+        renderEquipment();
+      }
+    });
+
+    equipmentSlots.appendChild(slot);
+  });
+}
+
+function renderInventory() {
+  equipmentInventory.innerHTML = '';
+
+  const available = ownedItems
+    .map(getItem)
+    .filter(Boolean)
+    .filter(item => item.category === activeEquipmentTab)
+    .filter(item => !findEquippedItem(item.id));
+
+  if (!available.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-note';
+    empty.textContent = activeEquipmentTab === 'weapons'
+      ? 'All owned weapons are equipped.'
+      : 'No items in this category yet.';
+    equipmentInventory.appendChild(empty);
+    return;
+  }
+
+  for (const item of available) {
+    equipmentInventory.appendChild(createItemCard(item.id));
+  }
+}
+
+function renderEquipment() {
+  renderTabs();
+  renderSlots();
+  renderInventory();
+}
+
+inventoryDropZone.addEventListener('dragover', (e) => {
+  const payload = readDragPayload(e);
+  if (!payload?.sourceCategory) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  inventoryDropZone.classList.add('drag-over');
+});
+
+inventoryDropZone.addEventListener('dragleave', () => {
+  inventoryDropZone.classList.remove('drag-over');
+});
+
+inventoryDropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  inventoryDropZone.classList.remove('drag-over');
+
+  const payload = readDragPayload(e);
+  if (!payload?.sourceCategory) return;
+
+  unequipSlot(payload.sourceCategory, Number(payload.sourceIndex));
+  renderEquipment();
+});
 
 let last = performance.now();
 let accumulator = 0;
@@ -354,11 +547,16 @@ function frame(now) {
     accumulator -= STEP;
   }
 
-  render();
+  if (currentScreen === 'game') renderGame();
   requestAnimationFrame(frame);
 }
 
+renderEquipment();
+showScreen('menu');
 requestAnimationFrame(frame);
 
-// Expose tuning values for quick inspection in the browser console.
-window.BOSSFIGHTS_MOVEMENT = MOVEMENT;
+window.BOSSFIGHTS = {
+  MOVEMENT,
+  loadout,
+  ownedItems,
+};
