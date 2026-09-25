@@ -120,14 +120,20 @@ export class MatrixBoss {
           owner.rotation += 12 * dt;
           owner.coreRotation -= 68 * dt;
 
-          // Simple left-to-right hover. Matrix keeps a fixed altitude instead
-          // of following a looping or figure-eight path.
+          // Constant-speed horizontal ping-pong. Matrix starts in the center,
+          // moves right, crosses back through center, then reaches the left.
           const travel = 360;
-          const cycle = owner.idleClock * 0.42;
-          owner.x =
-            owner.spawnX +
-            Math.sin(cycle) * travel;
+          const speed = 125;
+          const pathLength = travel * 4;
+          const distance =
+            (travel + owner.idleClock * speed) % pathLength;
 
+          const offset =
+            distance <= travel * 2
+              ? -travel + distance
+              : travel * 3 - distance;
+
+          owner.x = owner.spawnX + offset;
           owner.y = owner.spawnY;
 
           if (ai.timerDone('attackDelay')) {
