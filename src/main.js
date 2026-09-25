@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=14';
-import { PlayerController } from './PlayerController.js?v=14';
-import { MOVEMENT } from './movementConfig.js?v=14';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
+import { PlayerController } from './PlayerController.js?v=15';
+import { MOVEMENT } from './movementConfig.js?v=15';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -12,11 +12,11 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
-} from './equipment.js?v=14';
-import { VectorWeapon } from './VectorWeapon.js?v=14';
-import { EuclidWeapon } from './EuclidWeapon.js?v=14';
-import { BossAI } from './bosses/BossAI.js?v=14';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=14';
+} from './equipment.js?v=15';
+import { VectorWeapon } from './VectorWeapon.js?v=15';
+import { EuclidWeapon } from './EuclidWeapon.js?v=15';
+import { BossAI } from './bosses/BossAI.js?v=15';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=15';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -29,6 +29,7 @@ const chapterBack = document.querySelector('#chapter-back');
 const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
 const deathMenu = document.querySelector('#death-menu');
+const encounterResultTitle = document.querySelector('#encounter-result-title');
 const deathRestart = document.querySelector('#death-restart');
 const deathMenuButton = document.querySelector('#death-menu-button');
 const deathInventory = document.querySelector('#death-inventory');
@@ -157,8 +158,20 @@ function selectWeaponSlot(index) {
 weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
 weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
 
-function setDeathMenuVisible(visible) {
+function setDeathMenuVisible(visible, result = 'defeated') {
+  encounterResultTitle.textContent = result;
   deathMenu.classList.toggle('hidden', !visible);
+}
+
+function endEncounter(result) {
+  if (encounterOver) return;
+
+  encounterOver = true;
+  pointer.firing = false;
+  keys.clear();
+  pressed.clear();
+  released.clear();
+  setDeathMenuVisible(true, result);
 }
 
 function showScreen(name) {
@@ -174,7 +187,7 @@ function showScreen(name) {
     pressed.clear();
     released.clear();
     pointer.firing = false;
-    setDeathMenuVisible(false);
+    setDeathMenuVisible(false, 'defeated');
   }
 
   if (name === 'equipment') renderEquipment();
@@ -364,15 +377,16 @@ function update(dt) {
     getPointerWorld(),
     activeWeaponId === 'euclid' && pointer.firing,
     activeBoss,
+    ART_PIXEL,
   );
 
-  if (player.health <= 0 && !encounterOver) {
-    encounterOver = true;
-    pointer.firing = false;
-    keys.clear();
-    pressed.clear();
-    released.clear();
-    setDeathMenuVisible(true);
+  if (player.health <= 0) {
+    endEncounter('defeated');
+    return;
+  }
+
+  if (activeBoss?.dead || activeBoss?.health <= 0) {
+    endEncounter('victory');
     return;
   }
 
@@ -581,7 +595,7 @@ function renderGame() {
 
 function startPrologue() {
   encounterOver = false;
-  setDeathMenuVisible(false);
+  setDeathMenuVisible(false, 'defeated');
   player.reset();
   vectorWeapon.reset();
   euclidWeapon.reset();
