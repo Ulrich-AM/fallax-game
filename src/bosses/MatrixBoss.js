@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=27';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=27';
+import { BossAI } from './BossAI.js?v=28';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=28';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -98,6 +98,27 @@ export class MatrixBoss {
     this.fireInterval = 0.075;
     this.fireTimer = 0;
 
+    this.lastAttack = null;
+
+    // Slow-tracking sustained core laser.
+    this.beamActive = false;
+    this.beamTelegraph = 0;
+    this.beamAngle = 0;
+    this.beamTurnSpeed = 80 * Math.PI / 180;
+    this.beamLength = 1750;
+    this.beamWidth = 18;
+    this.beamDamagePerSecond = 34;
+
+    // Core burst.
+    this.coreBurstFired = false;
+    this.coreFlash = 0;
+    this.burstBulletCount = 8;
+    this.burstBulletSize = 30;
+    this.burstBulletDamage = 22;
+    this.burstBulletSpeed = 300;
+    this.burstBulletLife = 3.2;
+    this.burstBulletHealth = 10;
+
     this.ai = new BossAI(this, {
       initialState: 'idle',
       phases: [
@@ -149,7 +170,19 @@ export class MatrixBoss {
           owner.y = owner.spawnY;
 
           if (ai.timerDone('attackDelay')) {
-            ai.changeState('swirl');
+            const choices = [
+              'swirl',
+              'beamSweep',
+              'coreBurst',
+            ].filter(name => name !== owner.lastAttack);
+
+            const next =
+              choices[
+                Math.floor(Math.random() * choices.length)
+              ];
+
+            owner.lastAttack = next;
+            ai.changeState(next);
           }
         },
       })
@@ -209,7 +242,211 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-      });
+
+
+      .addState('beamSweep', {
+        enter: (owner, ai, ctx) => {
+          owner.attackAnchorY = owner.y;
+          owner.beamActive = false;
+          owner.beamTelegraph = 0;
+
+          const player = ai.targetPlayer(ctx);
+          owner.beamAngle = Math.atan2(
+            (player?.y ?? owner.y) - owner.y,
+            (player?.x ?? owner.x + 1) - owner.x,
+          );
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const telegraphEnd = 0.45;
+          const fireEnd = 2.85;
+          const end = 3.25;
+          const time = ai.stateTime;
+          const player = ai.targetPlayer(ctx);
+
+          owner.coreRotation -= 95 * dt;
+
+          if (time < telegraphEnd) {
+            const t = smoothstep(time / telegraphEnd);
+            owner.shellOpen = lerp(0, 0.78, t);
+            owner.beamTelegraph = t;
+            owner.beamActive = false;
+            owner.y = lerp(
+              owner.attackAnchorY,
+              owner.attackAnchorY - 16,
+              t,
+            );
+          } else if (time < fireEnd) {
+            owner.shellOpen = 0.78;
+            owner.beamTelegraph = 1;
+            owner.beamActive = true;
+            owner.y = owner.attackAnchorY - 16;
+
+            if (player) {
+              const desired = Math.atan2(
+                player.y - owner.y,
+                player.x - owner.x,
+              );
+
+              owner.beamAngle = owner.approachAngle(
+                owner.beamAngle,
+                desired,
+                owner.beamTurnSpeed * dt,
+              );
+
+              owner.damagePlayerWithBeam(player, dt);
+            }
+          } else {
+            const t = smoothstep(
+              (time - fireEnd) / (end - fireEnd),
+            );
+
+            owner.beamActive = false;
+            owner.beamTelegraph = 1 - t;
+            owner.shellOpen = lerp(0.78, 0, t);
+            owner.y = lerp(
+              owner.attackAnchorY - 16,
+              owner.attackAnchorY,
+              easeOutCubic(t),
+            );
+          }
+
+          if (time >= end) {
+            owner.beamActive = false;
+            owner.beamTelegraph = 0;
+            owner.shellOpen = 0;
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('coreBurst', {
+        enter: (owner) => {
+          owner.attackAnchorY = owner.y;
+          owner.coreBurstFired = false;
+          owner.coreFlash = 0;
+          owner.beamActive = false;
+          owner.beamTelegraph = 0;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const closeEnd = 0.34;
+          const holdEnd = 0.50;
+          const burstEnd = 0.72;
+          const end = 1.16;
+          const time = ai.stateTime;
+
+          owner.rotation += 36 * dt;
+          owner.coreRotation -= 150 * dt;
+
+          if (time < closeEnd) {
+            const t = smoothstep(time / closeEnd);
+
+            // Negative shellOpen compresses the slit fully shut.
+            owner.shellOpen = -t;
+            owner.y =
+              owner.attackAnchorY +
+              Math.sin(t * Math.PI) * 8;
+          } else if (time < holdEnd) {
+            owner.shellOpen = -1;
+            owner.y = owner.attackAnchorY;
+          } else if (time < burstEnd) {
+            const t = smoothstep(
+              (time - holdEnd) / (burstEnd - holdEnd),
+            );
+
+            owner.shellOpen = lerp(-1, 0.92, t);
+
+            if (!owner.coreBurstFired && t >= 0.34) {
+              owner.coreBurstFired = true;
+              owner.coreFlash = 1;
+              owner.fireCoreBurst();
+              ctx.shakeCamera?.(18, 0.24);
+            }
+          } else {
+            const t = smoothstep(
+              (time - burstEnd) / (end - burstEnd),
+            );
+
+            owner.shellOpen = lerp(0.92, 0, t);
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            ai.changeState('idle', ctx);
+          }
+        },
+      })      });
+  }
+
+  approachAngle(current, target, maxDelta) {
+    const delta =
+      ((target - current + Math.PI * 3) % (Math.PI * 2)) -
+      Math.PI;
+
+    if (Math.abs(delta) <= maxDelta) return target;
+
+    return current + Math.sign(delta) * maxDelta;
+  }
+
+  damagePlayerWithBeam(player, dt) {
+    const dirX = Math.cos(this.beamAngle);
+    const dirY = Math.sin(this.beamAngle);
+
+    const relX = player.x - this.x;
+    const relY = player.y - this.y;
+
+    const along =
+      relX * dirX +
+      relY * dirY;
+
+    if (along < 0 || along > this.beamLength) return;
+
+    const closestX =
+      this.x + dirX * along;
+    const closestY =
+      this.y + dirY * along;
+
+    const playerRadius =
+      Math.max(player.w, player.h) * 0.42;
+
+    const distance = Math.hypot(
+      player.x - closestX,
+      player.y - closestY,
+    );
+
+    if (
+      distance <=
+      this.beamWidth * 0.5 + playerRadius
+    ) {
+      player.takeContinuousDamage?.(
+        this.beamDamagePerSecond * dt,
+      );
+    }
+  }
+
+  fireCoreBurst() {
+    for (let i = 0; i < this.burstBulletCount; i++) {
+      const angle =
+        (i / this.burstBulletCount) *
+        Math.PI *
+        2;
+
+      this.spawnBullet(
+        this.x,
+        this.y,
+        Math.cos(angle),
+        Math.sin(angle),
+        {
+          size: this.burstBulletSize,
+          damage: this.burstBulletDamage,
+          speed: this.burstBulletSpeed,
+          life: this.burstBulletLife,
+          health: this.burstBulletHealth,
+          kind: 'burst',
+        },
+      );
+    }
   }
 
   fireSwirlPair() {
@@ -235,16 +472,32 @@ export class MatrixBoss {
     );
   }
 
-  spawnBullet(x, y, dirX, dirY) {
+  spawnBullet(
+    x,
+    y,
+    dirX,
+    dirY,
+    {
+      size = this.bulletSize,
+      damage = this.bulletDamage,
+      speed = this.bulletSpeed,
+      life = this.bulletLife,
+      health = this.bulletHealth,
+      kind = 'swirl',
+    } = {},
+  ) {
     this.bullets.push({
       x,
       y,
-      vx: dirX * this.bulletSpeed,
-      vy: dirY * this.bulletSpeed,
-      life: this.bulletLife,
-      maxLife: this.bulletLife,
-      health: this.bulletHealth,
-      maxHealth: this.bulletHealth,
+      vx: dirX * speed,
+      vy: dirY * speed,
+      life,
+      maxLife: life,
+      health,
+      maxHealth: health,
+      size,
+      damage,
+      kind,
       hitPlayer: false,
     });
   }
@@ -264,6 +517,12 @@ export class MatrixBoss {
 
     this.bullets.length = 0;
     this.fireTimer = 0;
+    this.lastAttack = null;
+    this.beamActive = false;
+    this.beamTelegraph = 0;
+    this.beamAngle = 0;
+    this.coreBurstFired = false;
+    this.coreFlash = 0;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -288,6 +547,11 @@ export class MatrixBoss {
       0,
       this.hurtFlash - dt * 7.5,
     );
+
+    this.coreFlash = Math.max(
+      0,
+      this.coreFlash - dt * 5.8,
+    );
   }
 
   updateBullets(dt, player, world) {
@@ -305,7 +569,7 @@ export class MatrixBoss {
         bullet.health > 0
       ) {
         const radius =
-          this.bulletSize * 0.5 +
+          bullet.size * 0.5 +
           Math.max(player.w, player.h) * 0.40;
 
         if (
@@ -316,7 +580,7 @@ export class MatrixBoss {
         ) {
           if (
             player.takeDamage?.(
-              this.bulletDamage,
+              bullet.damage,
             )
           ) {
             bullet.hitPlayer = true;
@@ -350,9 +614,6 @@ export class MatrixBoss {
   ) {
     if (damage <= 0) return false;
 
-    const bulletRadius =
-      this.bulletSize * 0.5;
-
     for (const bullet of this.bullets) {
       if (
         bullet.life <= 0 ||
@@ -365,7 +626,7 @@ export class MatrixBoss {
         Math.hypot(
           bullet.x - x,
           bullet.y - y,
-        ) <= bulletRadius + radius
+        ) <= bullet.size * 0.5 + radius
       ) {
         bullet.health = Math.max(
           0,
@@ -391,8 +652,6 @@ export class MatrixBoss {
     if (damage <= 0) return 0;
 
     let hits = 0;
-    const bulletRadius =
-      this.bulletSize * 0.5;
 
     for (const bullet of this.bullets) {
       if (
@@ -429,7 +688,7 @@ export class MatrixBoss {
 
       if (
         distance <=
-        bulletRadius + beamRadius
+        bullet.size * 0.5 + beamRadius
       ) {
         bullet.health = Math.max(
           0,
@@ -484,10 +743,18 @@ export class MatrixBoss {
     const ry = this.shellRadiusY / px;
 
     const gap =
-      lerp(
-        this.shellGap,
-        this.attackGap,
-        openAmount,
+      (
+        openAmount < 0
+          ? lerp(
+              this.shellGap,
+              0,
+              -openAmount,
+            )
+          : lerp(
+              this.shellGap,
+              this.attackGap,
+              openAmount,
+            )
       ) / px;
 
     const innerY = 7 / px;
@@ -550,7 +817,7 @@ export class MatrixBoss {
 
     const openStep =
       Math.round(
-        clamp(openAmount, 0, 1) * 8,
+        clamp(openAmount, -1, 1) * 8,
       ) / 8;
 
     const key =
@@ -688,12 +955,31 @@ export class MatrixBoss {
       artPixelSize,
       1,
     );
+
+    if (this.coreFlash > 0) {
+      this.drawRaster(
+        ctx,
+        raster,
+        this.x,
+        this.y,
+        cameraX,
+        artPixelSize * 1.62,
+        this.coreFlash * 0.46,
+      );
+
+      this.drawRaster(
+        ctx,
+        raster,
+        this.x,
+        this.y,
+        cameraX,
+        artPixelSize * 1.28,
+        this.coreFlash * 0.88,
+      );
+    }
   }
 
   drawBullets(ctx, cameraX) {
-    const half =
-      this.bulletSize / 2;
-
     ctx.save();
     ctx.fillStyle = '#ffffff';
 
@@ -702,13 +988,20 @@ export class MatrixBoss {
         bullet.life /
         bullet.maxLife;
 
+      const half = bullet.size / 2;
+
       ctx.globalAlpha =
         Math.max(0, alpha);
 
       ctx.shadowColor =
-        'rgba(255,255,255,0.75)';
+        bullet.kind === 'burst'
+          ? 'rgba(255,255,255,1)'
+          : 'rgba(255,255,255,0.75)';
 
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur =
+        bullet.kind === 'burst'
+          ? 18
+          : 8;
 
       ctx.fillRect(
         Math.round(
@@ -720,9 +1013,63 @@ export class MatrixBoss {
           bullet.y -
           half,
         ),
-        this.bulletSize,
-        this.bulletSize,
+        bullet.size,
+        bullet.size,
       );
+    }
+
+    ctx.restore();
+  }
+
+  drawBeam(ctx, cameraX) {
+    if (
+      !this.beamActive &&
+      this.beamTelegraph <= 0
+    ) {
+      return;
+    }
+
+    const dirX = Math.cos(this.beamAngle);
+    const dirY = Math.sin(this.beamAngle);
+
+    const startX = this.x - cameraX;
+    const startY = this.y;
+    const endX =
+      startX + dirX * this.beamLength;
+    const endY =
+      startY + dirY * this.beamLength;
+
+    ctx.save();
+    ctx.lineCap = 'butt';
+
+    if (this.beamActive) {
+      ctx.globalAlpha = 0.34;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = this.beamWidth * 2.4;
+      ctx.shadowColor = 'rgba(255,255,255,0.92)';
+      ctx.shadowBlur = 26;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = this.beamWidth;
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    } else {
+      ctx.globalAlpha =
+        0.12 + this.beamTelegraph * 0.18;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
     }
 
     ctx.restore();
@@ -777,6 +1124,12 @@ export class MatrixBoss {
     // Matrix bullets intentionally render last so they sit above the shell/core
     // instead of disappearing behind the boss at spawn.
     this.drawBullets(
+      ctx,
+      cameraX,
+    );
+
+    // The sustained beam is the top-most Matrix attack layer.
+    this.drawBeam(
       ctx,
       cameraX,
     );
