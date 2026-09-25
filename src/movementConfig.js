@@ -41,6 +41,7 @@ export const MOVEMENT = {
 
   // Dash is an impulse, not a replacement velocity. Existing horizontal and
   // vertical momentum remain intact.
+  dashMomentumRetention: 0.30,
   dashImpulse: 610,
   dashMaxHorizontalSpeed: 1280,
   dashCooldown: 0.42,
