@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>bossfights</title>
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=18" />
 </head>
 <body>
   <div id="app">
@@ -13,6 +13,7 @@
         <h1>bossfights</h1>
         <button id="main-button" class="menu-button">main</button>
         <button id="equipment-button" class="menu-button">equipment</button>
+        <button id="shop-button" class="menu-button">shop</button>
       </div>
     </section>
 
@@ -39,7 +40,6 @@
         <div class="weapon-switcher" aria-label="Weapon slots">
           <button id="weapon-slot-1" class="weapon-slot-button"></button>
           <button id="weapon-slot-2" class="weapon-slot-button"></button>
-          <button id="weapon-slot-3" class="weapon-slot-button"></button>
         </div>
 
         <div id="death-menu" class="death-menu hidden">
@@ -51,6 +51,24 @@
           </div>
         </div>
       </div>
+    </section>
+
+
+    <section id="shop-screen" class="screen hidden">
+      <aside class="equipment-sidebar">
+        <button id="shop-back" class="back-button">← main menu</button>
+        <h2>shop</h2>
+      </aside>
+
+      <main class="equipment-main">
+        <section class="equipment-panel">
+          <div class="section-heading">
+            <h3>shop</h3>
+            <span>everything is free for now</span>
+          </div>
+          <div id="shop-items" class="inventory-grid"></div>
+        </section>
+      </main>
     </section>
 
     <section id="equipment-screen" class="screen hidden">
@@ -80,6 +98,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=17"></script>
+  <script type="module" src="src/main.js?v=18"></script>
 </body>
 </html>
