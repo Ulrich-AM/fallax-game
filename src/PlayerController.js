@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=23';
+import { MOVEMENT as CFG } from './movementConfig.js?v=24';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -33,6 +33,7 @@ export class PlayerController {
     this.abilityInvulnerabilityTimer = 0;
     this.hurtFlashTimer = 0;
     this.dashSerial = 0;
+    this.lastDash = null;
 
     this.stamina = CFG.staminaMax;
     this.staminaRegenDelayTimer = 0;
@@ -40,6 +41,7 @@ export class PlayerController {
     this.isSprinting = false;
 
     this.dashCooldownTimer = 0;
+    this.dashCooldownDuration = CFG.dashCooldown;
     this.dashInvulnerabilityTimer = 0;
     this.dashVisualTimer = 0;
 
@@ -244,7 +246,7 @@ export class PlayerController {
     }
   }
 
-  tryDash(target, world) {
+  tryDash(target, world, cooldownMultiplier = 1) {
     if (this.dashCooldownTimer > 0) return false;
     if (this.stamina < CFG.dashStaminaCost) return false;
 
@@ -277,9 +279,22 @@ export class PlayerController {
     this.grounded = this.isStandingOnSurface(world);
     if (this.grounded && this.vy > 0) this.vy = 0;
 
-    this.dashCooldownTimer = CFG.dashCooldown;
+    this.dashCooldownDuration =
+      CFG.dashCooldown * Math.max(1, cooldownMultiplier);
+
+    this.dashCooldownTimer = this.dashCooldownDuration;
     this.dashInvulnerabilityTimer = CFG.dashInvulnerability;
     this.dashSerial++;
+
+    this.lastDash = {
+      startX,
+      startY,
+      endX: this.x,
+      endY: this.y,
+      nx: result.nx,
+      ny: result.ny,
+      serial: this.dashSerial,
+    };
     this.dashVisualTimer = CFG.dashVisualTime;
 
     this.spawnDashTrail(startX, startY, this.x, this.y);
@@ -330,7 +345,11 @@ export class PlayerController {
     if (input.jumpReleased) this.releaseJump();
 
     if (input.dashPressed && input.dashTarget) {
-      this.tryDash(input.dashTarget, world);
+      this.tryDash(
+        input.dashTarget,
+        world,
+        input.dashCooldownMultiplier ?? 1,
+      );
     }
 
     this.updateStamina(dt, input, move);
@@ -531,7 +550,10 @@ export class PlayerController {
   }
 
   get dashCooldownRatio() {
-    return 1 - Math.min(1, this.dashCooldownTimer / CFG.dashCooldown);
+    return 1 - Math.min(
+      1,
+      this.dashCooldownTimer / this.dashCooldownDuration,
+    );
   }
 
   get staminaRatio() {
