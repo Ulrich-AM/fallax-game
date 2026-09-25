@@ -388,3 +388,38 @@ canvas {
 .death-card .menu-button {
   width: 100%;
 }
+
+
+/* Active weapon selector */
+.weapon-switcher {
+  position: absolute;
+  left: 22px;
+  bottom: 126px;
+  display: flex;
+  gap: 6px;
+  z-index: 4;
+}
+
+.weapon-slot-button {
+  min-width: 88px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid #343a46;
+  background: rgba(13, 15, 19, 0.90);
+  color: #8d949f;
+  font-size: 11px;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+.weapon-slot-button:hover:not(:disabled),
+.weapon-slot-button.active {
+  color: #ffffff;
+  border-color: #69717f;
+  background: rgba(25, 29, 35, 0.96);
+}
+
+.weapon-slot-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
