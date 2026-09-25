@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=10';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=10';
+import { BossAI } from './BossAI.js?v=11';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=11';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -14,9 +14,19 @@ function smoothstep(t) {
   return t * t * (3 - 2 * t);
 }
 
+function easeInCubic(t) {
+  t = clamp(t, 0, 1);
+  return t * t * t;
+}
+
 function easeInQuart(t) {
   t = clamp(t, 0, 1);
   return t * t * t * t;
+}
+
+function easeOutCubic(t) {
+  t = clamp(t, 0, 1);
+  return 1 - Math.pow(1 - t, 3);
 }
 
 function easeOutBack(t) {
@@ -40,7 +50,6 @@ export class PrologueBoss {
     this.maxHealth = 650;
     this.health = this.maxHealth;
 
-    // Considerably larger than the original prototype.
     this.size = 132;
     this.halfSize = this.size / 2;
     this.baseColor = '#777b82';
@@ -60,12 +69,15 @@ export class PrologueBoss {
     this.scaleX = 1;
     this.scaleY = 1;
     this.dead = false;
+    this.hurtFlash = 0;
 
+    // The idle infinity cycle now follows the player rather than covering the
+    // entire room.
     this.idleClock = 0;
     this.figureCenterX = 650;
     this.figureCenterY = 205;
-    this.figureWidth = 325;
-    this.figureHeight = 74;
+    this.figureWidth = 205;
+    this.figureHeight = 66;
 
     this.trackStartX = this.x;
     this.trackStartY = this.y;
@@ -75,19 +87,30 @@ export class PrologueBoss {
     this.smashStartY = this.y;
     this.smashTargetY = world.floorY - this.halfSize;
     this.lockedSmashX = this.x;
+    this.smashHitPlayer = false;
 
-    // Smash motion trail.
     this.smashTrail = [];
     this.smashTrailTimer = 0;
 
-    // Small glowing satellite square. It orbits around Prologue's center and
-    // also spins around its own local center.
+    // The satellite is now only 50% smaller than Prologue's own body.
+    this.satelliteSize = this.size * 0.50;
     this.satelliteOrbitAngle = 0;
     this.satelliteLocalRotation = 0;
-    this.satelliteOrbitSpeed = 54;
-    this.satelliteSpinSpeed = 210;
-    this.satelliteOrbitRadius = this.halfSize + 34;
-    this.satelliteArtSize = 3;
+    this.satelliteOrbitSpeed = 56;
+    this.satelliteSpinSpeed = 220;
+    this.satelliteOrbitRadius = this.halfSize + this.satelliteSize * 0.72;
+
+    this.satelliteMode = 'orbit';
+    this.satelliteX = this.x + this.satelliteOrbitRadius;
+    this.satelliteY = this.y;
+    this.satelliteLungeStartX = this.satelliteX;
+    this.satelliteLungeStartY = this.satelliteY;
+    this.satelliteTargetX = this.satelliteX;
+    this.satelliteTargetY = this.satelliteY;
+    this.satelliteDirX = 1;
+    this.satelliteDirY = 0;
+    this.satelliteAttackHit = false;
+    this.satelliteMaxRange = 950;
 
     this.definition = group([
       rectangle({
@@ -101,7 +124,20 @@ export class PrologueBoss {
       padding: 2,
     });
 
+    this.flashDefinition = group([
+      rectangle({
+        width: this.size / 4,
+        height: this.size / 4,
+        color: '#ffffff',
+      }),
+    ], {
+      mergeOutlines: true,
+      outline: false,
+      padding: 2,
+    });
+
     this.rasterCache = new Map();
+    this.flashRasterCache = new Map();
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -113,6 +149,50 @@ export class PrologueBoss {
     this.installStates(world);
   }
 
+  updateFigureEightAbovePlayer(dt, player, speedMultiplier = 1) {
+    if (!player) return;
+
+    this.idleClock += dt * speedMultiplier;
+
+    const desiredCenterX = clamp(
+      player.x,
+      this.halfSize + this.figureWidth + 20,
+      2700 - this.halfSize - this.figureWidth - 20,
+    );
+    const desiredCenterY = clamp(player.y - 290, 150, 235);
+
+    const centerFollow = 1 - Math.exp(-2.7 * dt);
+    this.figureCenterX = lerp(this.figureCenterX, desiredCenterX, centerFollow);
+    this.figureCenterY = lerp(this.figureCenterY, desiredCenterY, centerFollow);
+
+    const t = this.idleClock * 0.94;
+    const targetX =
+      this.figureCenterX +
+      Math.sin(t) * this.figureWidth;
+    const targetY =
+      this.figureCenterY +
+      Math.sin(t * 2) * this.figureHeight +
+      Math.sin(t * 0.55) * 8;
+
+    const follow = 1 - Math.exp(-4.0 * dt);
+    this.x = lerp(this.x, targetX, follow);
+    this.y = lerp(this.y, targetY, follow);
+
+    const breathe = Math.sin(this.idleClock * 2.3) * 0.014;
+    this.scaleX = 1 + breathe;
+    this.scaleY = 1 - breathe;
+  }
+
+  getSatelliteOrbitPosition() {
+    const orbitRadians =
+      (this.rotation + this.satelliteOrbitAngle) * Math.PI / 180;
+
+    return {
+      x: this.x + Math.cos(orbitRadians) * this.satelliteOrbitRadius,
+      y: this.y + Math.sin(orbitRadians) * this.satelliteOrbitRadius,
+    };
+  }
+
   installStates(world) {
     this.ai
       .addState('idle', {
@@ -121,29 +201,21 @@ export class PrologueBoss {
           owner.scaleY = 1;
           owner.rotationLocked = false;
           owner.rotationSpeed = 52;
-          ai.setTimer('attackDelay', 3.6 + Math.random() * 2.2);
+          owner.satelliteMode = 'orbit';
+          ai.setTimer('attackDelay', 2.8 + Math.random() * 1.8);
         },
 
         update: (owner, ai, dt, ctx) => {
-          owner.idleClock += dt;
-
-          const t = owner.idleClock * 0.78;
-          const targetX = owner.figureCenterX + Math.sin(t) * owner.figureWidth;
-          const targetY =
-            owner.figureCenterY +
-            Math.sin(t * 2) * owner.figureHeight +
-            Math.sin(t * 0.53) * 10;
-
-          const follow = 1 - Math.exp(-4.2 * dt);
-          owner.x = lerp(owner.x, targetX, follow);
-          owner.y = lerp(owner.y, targetY, follow);
-
-          const breathe = Math.sin(owner.idleClock * 2.2) * 0.015;
-          owner.scaleX = 1 + breathe;
-          owner.scaleY = 1 - breathe;
+          const player = ai.targetPlayer(ctx);
+          owner.updateFigureEightAbovePlayer(dt, player);
 
           if (ai.timerDone('attackDelay')) {
-            ai.changeState('track', ctx);
+            const nextAttack = ai.chooseWeighted([
+              { value: 'track', weight: 1.0 },
+              { value: 'satelliteLunge', weight: 0.85 },
+            ]);
+
+            ai.changeState(nextAttack, ctx);
           }
         },
       })
@@ -194,8 +266,6 @@ export class PrologueBoss {
           owner.trackStartX = owner.x;
           owner.trackStartY = owner.y;
 
-          // Ease toward the nearest straight/cardinal orientation before the
-          // actual drop so the boss never hits the floor at a weird angle.
           owner.anticipateStartRotation = owner.rotation;
           owner.lockedRotation = Math.round(owner.rotation / 90) * 90;
           owner.rotationLocked = true;
@@ -239,12 +309,15 @@ export class PrologueBoss {
 
           owner.smashTrail.length = 0;
           owner.smashTrailTimer = 0;
+          owner.smashHitPlayer = false;
         },
 
         update: (owner, ai, dt, ctx) => {
           const duration = 0.31;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const fall = easeInQuart(t);
+
+          const previousY = owner.y;
 
           owner.x = owner.lockedSmashX;
           owner.y = lerp(owner.smashStartY, owner.smashTargetY, fall);
@@ -269,6 +342,30 @@ export class PrologueBoss {
             owner.smashTrailTimer = 0.024;
           }
 
+          // Swept, piercing collision. The boss never stops when it hits the
+          // player, and the vertical sweep prevents tunneling between frames.
+          if (!owner.smashHitPlayer && ctx.player) {
+            const player = ctx.player;
+            const halfW = owner.halfSize * owner.scaleX;
+            const halfH = owner.halfSize * owner.scaleY;
+            const playerHalfW = player.w / 2;
+            const playerHalfH = player.h / 2;
+
+            const overlapsX =
+              owner.x + halfW > player.x - playerHalfW &&
+              owner.x - halfW < player.x + playerHalfW;
+
+            const sweepTop = Math.min(previousY - halfH, owner.y - halfH);
+            const sweepBottom = Math.max(previousY + halfH, owner.y + halfH);
+            const overlapsY =
+              sweepBottom > player.y - playerHalfH &&
+              sweepTop < player.y + playerHalfH;
+
+            if (overlapsX && overlapsY) {
+              owner.smashHitPlayer = player.takeDamage?.(30) ?? true;
+            }
+          }
+
           if (t >= 1) {
             ai.changeState('impact', ctx);
           }
@@ -281,7 +378,6 @@ export class PrologueBoss {
           owner.rotation = owner.lockedRotation;
           owner.rotationSpeed = 0;
 
-          // The world shakes, but the HUD does not.
           ctx.shakeCamera?.(14, 0.28);
         },
 
@@ -312,16 +408,22 @@ export class PrologueBoss {
           owner.rotationSpeed = 18;
         },
 
-        update: (owner, ai) => {
+        update: (owner, ai, dt, ctx) => {
           const duration = 0.90;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const eased = easeOutBack(t);
 
-          const idleT = owner.idleClock * 0.78;
-          const targetX = owner.figureCenterX + Math.sin(idleT) * owner.figureWidth;
-          const targetY =
-            owner.figureCenterY +
-            Math.sin(idleT * 2) * owner.figureHeight;
+          const player = ai.targetPlayer(ctx);
+          const targetCenterX = player
+            ? clamp(player.x, owner.halfSize + owner.figureWidth + 20, world.width - owner.halfSize - owner.figureWidth - 20)
+            : owner.figureCenterX;
+          const targetCenterY = player
+            ? clamp(player.y - 290, 150, 235)
+            : owner.figureCenterY;
+
+          const idleT = owner.idleClock * 0.94;
+          const targetX = targetCenterX + Math.sin(idleT) * owner.figureWidth;
+          const targetY = targetCenterY + Math.sin(idleT * 2) * owner.figureHeight;
 
           owner.x = lerp(owner.trackStartX, targetX, eased);
           owner.y = lerp(owner.trackStartY, targetY, eased);
@@ -331,7 +433,99 @@ export class PrologueBoss {
           owner.rotationSpeed = lerp(18, 52, smoothstep(t));
 
           if (t >= 1) {
-            ai.changeState('idle');
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('satelliteLunge', {
+        enter: (owner, ai, ctx) => {
+          const player = ai.targetPlayer(ctx);
+          const home = owner.getSatelliteOrbitPosition();
+
+          owner.satelliteMode = 'attack';
+          owner.satelliteX = home.x;
+          owner.satelliteY = home.y;
+          owner.satelliteLungeStartX = home.x;
+          owner.satelliteLungeStartY = home.y;
+          owner.satelliteAttackHit = false;
+
+          const targetX = player?.x ?? owner.x;
+          const targetY = player?.y ?? owner.y;
+          let dx = targetX - home.x;
+          let dy = targetY - home.y;
+          const distance = Math.hypot(dx, dy) || 1;
+
+          owner.satelliteDirX = dx / distance;
+          owner.satelliteDirY = dy / distance;
+
+          const travel = Math.min(distance, owner.satelliteMaxRange);
+          owner.satelliteTargetX = home.x + owner.satelliteDirX * travel;
+          owner.satelliteTargetY = home.y + owner.satelliteDirY * travel;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const player = ai.targetPlayer(ctx);
+
+          // Prologue itself keeps circling above the player while the satellite
+          // attacks, which makes the whole encounter feel less passive.
+          owner.updateFigureEightAbovePlayer(dt, player, 0.74);
+
+          const anticipationEnd = 0.20;
+          const lungeEnd = 0.48;
+          const holdEnd = 0.58;
+          const returnEnd = 1.06;
+          const time = ai.stateTime;
+
+          if (time < anticipationEnd) {
+            const t = smoothstep(time / anticipationEnd);
+            owner.satelliteX =
+              owner.satelliteLungeStartX - owner.satelliteDirX * 28 * t;
+            owner.satelliteY =
+              owner.satelliteLungeStartY - owner.satelliteDirY * 28 * t;
+          } else if (time < lungeEnd) {
+            const t = easeInCubic(
+              (time - anticipationEnd) / (lungeEnd - anticipationEnd),
+            );
+
+            const pullbackX =
+              owner.satelliteLungeStartX - owner.satelliteDirX * 28;
+            const pullbackY =
+              owner.satelliteLungeStartY - owner.satelliteDirY * 28;
+
+            owner.satelliteX = lerp(pullbackX, owner.satelliteTargetX, t);
+            owner.satelliteY = lerp(pullbackY, owner.satelliteTargetY, t);
+          } else if (time < holdEnd) {
+            const t = (time - lungeEnd) / (holdEnd - lungeEnd);
+            const overshoot = Math.sin(t * Math.PI) * 18;
+
+            owner.satelliteX =
+              owner.satelliteTargetX + owner.satelliteDirX * overshoot;
+            owner.satelliteY =
+              owner.satelliteTargetY + owner.satelliteDirY * overshoot;
+          } else {
+            const home = owner.getSatelliteOrbitPosition();
+            const t = easeOutCubic(
+              (time - holdEnd) / (returnEnd - holdEnd),
+            );
+
+            owner.satelliteX = lerp(owner.satelliteTargetX, home.x, t);
+            owner.satelliteY = lerp(owner.satelliteTargetY, home.y, t);
+          }
+
+          if (!owner.satelliteAttackHit && player && time >= anticipationEnd && time <= holdEnd) {
+            const radius = owner.satelliteSize * 0.5 + Math.max(player.w, player.h) * 0.42;
+            if (Math.hypot(owner.satelliteX - player.x, owner.satelliteY - player.y) <= radius) {
+              owner.satelliteAttackHit = player.takeDamage?.(18) ?? true;
+            }
+          }
+
+          if (time >= returnEnd) {
+            owner.satelliteMode = 'orbit';
+            const home = owner.getSatelliteOrbitPosition();
+            owner.satelliteX = home.x;
+            owner.satelliteY = home.y;
+            ai.changeState('idle', ctx);
           }
         },
       });
@@ -340,6 +534,7 @@ export class PrologueBoss {
   reset(world) {
     this.health = this.maxHealth;
     this.dead = false;
+    this.hurtFlash = 0;
 
     this.x = 650;
     this.y = 210;
@@ -355,12 +550,22 @@ export class PrologueBoss {
     this.scaleY = 1;
 
     this.idleClock = 0;
+    this.figureCenterX = 650;
+    this.figureCenterY = 205;
+
     this.smashTargetY = world.floorY - this.halfSize;
     this.smashTrail.length = 0;
     this.smashTrailTimer = 0;
+    this.smashHitPlayer = false;
 
     this.satelliteOrbitAngle = 0;
     this.satelliteLocalRotation = 0;
+    this.satelliteMode = 'orbit';
+    this.satelliteAttackHit = false;
+
+    const home = this.getSatelliteOrbitPosition();
+    this.satelliteX = home.x;
+    this.satelliteY = home.y;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -384,6 +589,14 @@ export class PrologueBoss {
     this.satelliteLocalRotation =
       (this.satelliteLocalRotation + this.satelliteSpinSpeed * dt) % 360;
 
+    if (this.satelliteMode === 'orbit') {
+      const home = this.getSatelliteOrbitPosition();
+      this.satelliteX = home.x;
+      this.satelliteY = home.y;
+    }
+
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt * 7.5);
+
     for (const ghost of this.smashTrail) {
       ghost.life -= dt;
     }
@@ -394,6 +607,7 @@ export class PrologueBoss {
     if (this.dead || amount <= 0) return;
 
     this.health = Math.max(0, this.health - amount);
+    this.hurtFlash = 1;
 
     if (this.health <= 0) {
       this.dead = true;
@@ -422,6 +636,19 @@ export class PrologueBoss {
     }
 
     return this.rasterCache.get(cacheAngle);
+  }
+
+  getFlashRaster(angle = this.rotation) {
+    const cacheAngle = ((Math.round(angle / 3) * 3) % 360 + 360) % 360;
+
+    if (!this.flashRasterCache.has(cacheAngle)) {
+      this.flashRasterCache.set(
+        cacheAngle,
+        rasterize(this.flashDefinition, cacheAngle),
+      );
+    }
+
+    return this.flashRasterCache.get(cacheAngle);
   }
 
   drawRasterInstance(
@@ -472,38 +699,30 @@ export class PrologueBoss {
     }
   }
 
-  drawSatellite(ctx, cameraX, artPixelSize) {
-    // Orbit around the boss center. Adding the boss rotation means the satellite
-    // feels attached to Prologue's orientation while the independent orbit angle
-    // keeps it floating even when the boss itself is locked straight.
-    const orbitRadians =
-      (this.rotation + this.satelliteOrbitAngle) * Math.PI / 180;
-
-    const satelliteX =
-      this.x + Math.cos(orbitRadians) * this.satelliteOrbitRadius;
-    const satelliteY =
-      this.y + Math.sin(orbitRadians) * this.satelliteOrbitRadius;
-
-    const size = this.satelliteArtSize * artPixelSize;
+  drawSatellite(ctx, cameraX) {
+    const size = this.satelliteSize;
 
     ctx.save();
     ctx.translate(
-      Math.round(satelliteX - cameraX),
-      Math.round(satelliteY),
+      Math.round(this.satelliteX - cameraX),
+      Math.round(this.satelliteY),
     );
     ctx.rotate(this.satelliteLocalRotation * Math.PI / 180);
 
-    // No outline. The glow is presentation only and can be smooth even though
-    // the square itself remains hard-edged.
-    ctx.shadowColor = 'rgba(255,255,255,0.95)';
-    ctx.shadowBlur = 11;
+    // Layered glow for a much stronger white aura.
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    ctx.shadowColor = 'rgba(255,255,255,1)';
+    ctx.shadowBlur = 42;
+    ctx.fillRect(-size * 0.54, -size * 0.54, size * 1.08, size * 1.08);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    ctx.shadowBlur = 26;
+    ctx.fillRect(-size * 0.51, -size * 0.51, size * 1.02, size * 1.02);
+
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(
-      Math.round(-size / 2),
-      Math.round(-size / 2),
-      size,
-      size,
-    );
+    ctx.shadowBlur = 14;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+
     ctx.restore();
   }
 
@@ -525,7 +744,21 @@ export class PrologueBoss {
       1,
     );
 
-    // Draw last so it visually floats in front of the boss.
-    this.drawSatellite(ctx, cameraX, artPixelSize);
+    if (this.hurtFlash > 0) {
+      const flashRaster = this.getFlashRaster();
+      this.drawRasterInstance(
+        ctx,
+        flashRaster,
+        this.x,
+        this.y,
+        cameraX,
+        artPixelSize,
+        this.scaleX,
+        this.scaleY,
+        this.hurtFlash,
+      );
+    }
+
+    this.drawSatellite(ctx, cameraX);
   }
 }
