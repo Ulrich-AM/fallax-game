@@ -19,7 +19,8 @@ export class MachWeapon {
     this.waveHalfAngle = Math.PI * 0.34;
     this.waveStartRadius = 18;
 
-    this.recoil = 128;
+    this.recoil = 190;
+    this.jetpackRecoil = 560;
     this.orbitRadius = 43;
 
     this.specialCooldown = 16;
@@ -191,8 +192,13 @@ export class MachWeapon {
       halfAngle: this.waveHalfAngle,
     });
 
-    player.vx -= aim.dirX * this.recoil;
-    player.vy -= aim.dirY * this.recoil;
+    const recoil =
+      aim.dirY > 0.20
+        ? this.jetpackRecoil
+        : this.recoil;
+
+    player.vx -= aim.dirX * recoil;
+    player.vy -= aim.dirY * recoil;
 
     if (aim.dirY > 0.20) {
       player.grounded = false;
