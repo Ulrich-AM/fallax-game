@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=8';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=9';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -16,6 +16,7 @@ export class VectorWeapon {
     this.bulletSpeed = 1020;
     this.bulletLife = 1.6;
     this.bodyArtSize = 4;
+    this.bodyOutlineThickness = 1;
     this.bulletTrailLife = 0.14;
     this.bulletTrailInterval = 0.018;
     this.bulletTrailMaxGhosts = 7;
@@ -106,7 +107,12 @@ export class VectorWeapon {
 
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
-      bullet.life -= dt;
+      bullet.life = Math.max(0, bullet.life - dt);
+
+      // Projectile strength and visibility are the same curve. A shot that has
+      // faded to 40% opacity also deals 40% of its original damage.
+      bullet.opacity = Math.max(0, bullet.life / bullet.maxLife);
+      bullet.currentDamage = bullet.baseDamage * bullet.opacity;
     }
 
     this.bullets = this.bullets.filter(bullet =>
@@ -127,8 +133,11 @@ export class VectorWeapon {
       y: aim.y + Math.sin(shotAngle) * 12,
       vx: Math.cos(shotAngle) * this.bulletSpeed,
       vy: Math.sin(shotAngle) * this.bulletSpeed,
-      damage: this.damage,
+      baseDamage: this.damage,
+      currentDamage: this.damage,
       life: this.bulletLife,
+      maxLife: this.bulletLife,
+      opacity: 1,
       trailTimer: 0,
       trail: [],
     });
@@ -156,19 +165,43 @@ export class VectorWeapon {
     this.drawBullets(ctx, cameraX, artPixelSize);
   }
 
+  getBulletRenderSize(artPixelSize) {
+    // Match the visible Vector square, including its 1-art-pixel outline,
+    // then make the projectile exactly one SCREEN pixel smaller.
+    const visibleWeaponSize =
+      (this.bodyArtSize + this.bodyOutlineThickness * 2) * artPixelSize;
+
+    return Math.max(1, visibleWeaponSize - 1);
+  }
+
+  applyHitsToTarget(target, artPixelSize) {
+    if (!target || target.dead) return;
+
+    const size = this.getBulletRenderSize(artPixelSize);
+    const radius = size * 0.5;
+
+    for (const bullet of this.bullets) {
+      if (bullet.life <= 0) continue;
+      if (!target.hitTest?.(bullet.x, bullet.y, radius)) continue;
+
+      target.takeDamage?.(bullet.currentDamage);
+      bullet.life = 0;
+      bullet.opacity = 0;
+      bullet.currentDamage = 0;
+    }
+  }
+
   drawBullets(ctx, cameraX, artPixelSize) {
     ctx.save();
 
-    // Vector body is bodyArtSize * artPixelSize screen pixels.
-    // Bullets are exactly one screen pixel smaller.
-    const size = Math.max(1, this.bodyArtSize * artPixelSize - 1);
+    const size = this.getBulletRenderSize(artPixelSize);
     const half = size / 2;
 
     for (const bullet of this.bullets) {
-      // Phantom trail: square afterimages that fade behind the projectile.
+      // Phantom trail inherits the projectile fade, then fades again by age.
       for (const ghost of bullet.trail) {
-        const alpha = Math.max(0, ghost.life / ghost.maxLife) * 0.24;
-        ctx.globalAlpha = alpha;
+        const ageAlpha = Math.max(0, ghost.life / ghost.maxLife);
+        ctx.globalAlpha = ageAlpha * bullet.opacity * 0.26;
         ctx.fillStyle = '#e5e7eb';
         ctx.fillRect(
           Math.round(ghost.x - cameraX - half),
@@ -178,7 +211,7 @@ export class VectorWeapon {
         );
       }
 
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = bullet.opacity;
       ctx.fillStyle = '#e5e7eb';
       ctx.fillRect(
         Math.round(bullet.x - cameraX - half),
