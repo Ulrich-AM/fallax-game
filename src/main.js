@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
-import { PlayerController } from './PlayerController.js?v=15';
-import { MOVEMENT } from './movementConfig.js?v=15';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
+import { PlayerController } from './PlayerController.js?v=16';
+import { MOVEMENT } from './movementConfig.js?v=16';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -12,11 +12,11 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
-} from './equipment.js?v=15';
-import { VectorWeapon } from './VectorWeapon.js?v=15';
-import { EuclidWeapon } from './EuclidWeapon.js?v=15';
-import { BossAI } from './bosses/BossAI.js?v=15';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=15';
+} from './equipment.js?v=16';
+import { VectorWeapon } from './VectorWeapon.js?v=16';
+import { EuclidWeapon } from './EuclidWeapon.js?v=16';
+import { BossAI } from './bosses/BossAI.js?v=16';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=16';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -67,6 +67,7 @@ const COLORS = {
   stamina: '#d7dbe2',
   staminaLow: '#969da8',
   dash: '#f0d34f',
+  special: '#f0f1f4',
 };
 
 const world = {
@@ -136,6 +137,16 @@ let currentDrag = null;
 
 function getActiveWeaponId() {
   return getWeaponSlotId(activeWeaponSlot);
+}
+
+function getWeaponInstance(id) {
+  if (id === 'vector') return vectorWeapon;
+  if (id === 'euclid') return euclidWeapon;
+  return null;
+}
+
+function getActiveWeaponInstance() {
+  return getWeaponInstance(getActiveWeaponId());
 }
 
 function refreshWeaponButtons() {
@@ -357,6 +368,11 @@ function update(dt) {
   updateCameraShake(dt);
 
   const activeWeaponId = getActiveWeaponId();
+  const activeWeapon = getActiveWeaponInstance();
+
+  if (pressed.has('KeyQ')) {
+    activeWeapon?.triggerSpecial?.();
+  }
 
   // Vector projectiles keep moving after switching weapons, but it only begins
   // new bursts while its slot is active.
@@ -485,8 +501,36 @@ function drawHUD() {
   const bx = 24;
   const bw = 260;
   const healthY = H - 100;
+  const specialY = H - 134;
   const staminaY = H - 66;
   const dashY = H - 32;
+
+  const activeWeapon = getActiveWeaponInstance();
+  const specials = activeWeapon?.specialAbilities ?? [];
+
+  if (specials.length > 0) {
+    const special = specials[0];
+    const readyRatio =
+      special.cooldown > 0
+        ? 1 - Math.min(1, special.remaining / special.cooldown)
+        : 1;
+
+    const specialText =
+      special.remaining <= 0
+        ? 'READY [Q]'
+        : `${special.remaining.toFixed(1)}s`;
+
+    drawResourceBar(
+      'SPECIAL ABILITY',
+      readyRatio,
+      1,
+      bx,
+      specialY,
+      bw,
+      COLORS.special,
+      specialText,
+    );
+  }
 
   drawResourceBar(
     'HEALTH',
@@ -530,7 +574,7 @@ function drawHUD() {
   ctx.font = '12px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.textAlign = 'right';
-  ctx.fillText('A/D move   Space jump   Shift sprint   Ctrl dash   LMB fire', W - 20, H - 24);
+  ctx.fillText('A/D move   Space jump   Shift sprint   Ctrl dash   Q special   LMB fire', W - 20, H - 24);
   const activeItem = getItem(getActiveWeaponId());
   ctx.fillText(activeItem ? activeItem.name : 'No weapon equipped', W - 20, H - 44);
   ctx.restore();
