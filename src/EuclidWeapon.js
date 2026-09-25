@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=14';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
@@ -25,7 +25,6 @@ export class EuclidWeapon {
     this.damagePerSecond = 8;
     this.orbitRadius = 42;
     this.beamRange = 1700;
-    this.beamWidth = 3;
     this.bodyLength = 5;
     this.bodyThickness = 3;
 
@@ -75,13 +74,25 @@ export class EuclidWeapon {
     };
   }
 
-  update(dt, player, pointerWorld, firing, target) {
+  update(dt, player, pointerWorld, firing, target, artPixelSize) {
     const aim = this.getAim(player, pointerWorld);
     this.firing = firing;
 
     let beamDistance = this.beamRange;
 
     if (firing && target && !target.dead) {
+      const beamRadius = (this.bodyThickness * artPixelSize) * 0.5;
+
+      target.damageProjectilesAlongRay?.(
+        aim.x,
+        aim.y,
+        aim.dirX,
+        aim.dirY,
+        this.beamRange,
+        beamRadius,
+        this.damagePerSecond * dt,
+      );
+
       const radius = (target.halfSize ?? 48) * 0.94;
       const hitDistance = rayCircleHit(
         aim.x,
@@ -141,7 +152,7 @@ export class EuclidWeapon {
     ctx.save();
     ctx.globalAlpha = 0.42;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = this.beamWidth;
+    ctx.lineWidth = this.bodyThickness * artPixelSize;
     ctx.lineCap = 'butt';
     ctx.shadowColor = 'rgba(255,255,255,0.65)';
     ctx.shadowBlur = 7;
