@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=14';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=14';
+import { BossAI } from './BossAI.js?v=15';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=15';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -115,13 +115,14 @@ export class PrologueBoss {
     // Radial satellite burst attack.
     this.satelliteBurstRowsFired = 0;
     this.satelliteBurstRows = 3;
-    this.satelliteBurstInterval = 0.16;
+    this.satelliteBurstInterval = 0.36;
     this.satelliteBurstBaseAngle = 0;
     this.satelliteBullets = [];
     this.satelliteBulletCount = 20;
-    this.satelliteBulletSpeed = 560;
-    this.satelliteBulletLife = 2.2;
+    this.satelliteBulletSpeed = 390;
+    this.satelliteBulletLife = 2.8;
     this.satelliteBulletSize = this.satelliteSize * 0.25;
+    this.satelliteBulletHealth = 6;
 
     // High-damage wall rush.
     this.wallRushDirection = 1;
@@ -961,6 +962,8 @@ export class PrologueBoss {
         vy: Math.sin(angle) * this.satelliteBulletSpeed,
         life: this.satelliteBulletLife,
         maxLife: this.satelliteBulletLife,
+        health: this.satelliteBulletHealth,
+        maxHealth: this.satelliteBulletHealth,
         hitPlayer: false,
       });
     }
@@ -999,7 +1002,69 @@ export class PrologueBoss {
     }
 
     this.satelliteBullets =
-      this.satelliteBullets.filter(bullet => bullet.life > 0);
+      this.satelliteBullets.filter(
+        bullet => bullet.life > 0 && bullet.health > 0,
+      );
+  }
+
+
+  damageProjectileAt(x, y, radius, damage) {
+    if (damage <= 0) return false;
+
+    const bulletRadius = this.satelliteBulletSize * 0.5;
+
+    for (const bullet of this.satelliteBullets) {
+      if (bullet.life <= 0 || bullet.health <= 0) continue;
+
+      if (
+        Math.hypot(bullet.x - x, bullet.y - y) <=
+        bulletRadius + radius
+      ) {
+        bullet.health = Math.max(0, bullet.health - damage);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  damageProjectilesAlongRay(
+    originX,
+    originY,
+    dirX,
+    dirY,
+    maxDistance,
+    beamRadius,
+    damage,
+  ) {
+    if (damage <= 0) return 0;
+
+    let hits = 0;
+    const bulletRadius = this.satelliteBulletSize * 0.5;
+
+    for (const bullet of this.satelliteBullets) {
+      if (bullet.life <= 0 || bullet.health <= 0) continue;
+
+      const relX = bullet.x - originX;
+      const relY = bullet.y - originY;
+      const along = relX * dirX + relY * dirY;
+
+      if (along < 0 || along > maxDistance) continue;
+
+      const closestX = originX + dirX * along;
+      const closestY = originY + dirY * along;
+      const distance = Math.hypot(
+        bullet.x - closestX,
+        bullet.y - closestY,
+      );
+
+      if (distance <= bulletRadius + beamRadius) {
+        bullet.health = Math.max(0, bullet.health - damage);
+        hits++;
+      }
+    }
+
+    return hits;
   }
 
   spawnShockwave(x, y) {
