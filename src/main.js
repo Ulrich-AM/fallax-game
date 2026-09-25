@@ -57,7 +57,7 @@ const playerRaster = rasterize(playerDefinition);
 // Clickable rotation test. It deliberately combines rectangles and polygons
 // into one merged silhouette so rotating/re-rasterizing artifacts are easy to see.
 const rotationTest = {
-  x: world.width / 2,
+  x: 760,
   y: 330,
   angle: 0,
   clickStep: 15,
@@ -249,6 +249,15 @@ function drawRotationTest() {
   const screenX = rotationTest.x - camera.x;
   if (screenX < -120 || screenX > W + 120) return;
 
+  // A faint interaction box makes the test object obvious without changing
+  // the procedural/pixel-art renderer being tested.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(Math.round(screenX - 82) + 0.5, rotationTest.y - 82 + 0.5, 164, 164);
+  ctx.setLineDash([]);
+  ctx.restore();
+
   drawRasterAt(rotationTestRaster, rotationTest.x, rotationTest.y);
 
   ctx.save();
@@ -264,39 +273,61 @@ function drawRotationTest() {
 function drawHUD() {
   ctx.save();
   ctx.textBaseline = 'top';
+
+  // Compact debug panel.
   ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(18, 18, 306, 140);
+  ctx.fillRect(18, 18, 310, 92);
   ctx.strokeStyle = '#2c313c';
-  ctx.strokeRect(18.5, 18.5, 306, 140);
+  ctx.strokeRect(18.5, 18.5, 310, 92);
 
   ctx.fillStyle = COLORS.text;
   ctx.font = 'bold 15px Arial, sans-serif';
-  ctx.fillText('Movement test', 32, 31);
+  ctx.fillText('Movement test  v0.3', 32, 31);
 
   ctx.font = '13px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
-  const movementState = player.isSprinting ? 'sprinting' : (player.grounded ? 'grounded' : 'airborne');
-  ctx.fillText(`speed ${Math.abs(player.vx).toFixed(0)}   vertical ${player.vy.toFixed(0)}`, 32, 57);
-  ctx.fillText(movementState, 32, 78);
+  const movementState = player.isSprinting ? 'SPRINTING' : (player.grounded ? 'grounded' : 'airborne');
+  ctx.fillText(`speed ${Math.abs(player.vx).toFixed(0)}   vertical ${player.vy.toFixed(0)}   ${movementState}`, 32, 57);
+  ctx.fillText('Shift: sprint    Ctrl: dash', 32, 80);
 
-  ctx.fillText('stamina', 32, 101);
+  // Large, always-visible stamina and dash bars.
+  const bx = 24;
+  const by = H - 74;
+  const bw = 270;
+  const bh = 12;
+
+  ctx.font = 'bold 12px Arial, sans-serif';
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText('STAMINA', bx, by - 18);
   ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(89, 104, 154, 7);
+  ctx.fillRect(bx, by, bw, bh);
   ctx.fillStyle = player.staminaRatio < 0.25 ? COLORS.staminaLow : COLORS.stamina;
-  ctx.fillRect(89, 104, 154 * player.staminaRatio, 7);
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText(`${Math.ceil(player.stamina)}`, 252, 97);
+  ctx.fillRect(bx, by, bw * player.staminaRatio, bh);
+  ctx.strokeStyle = '#343a46';
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh);
 
-  ctx.fillText('dash', 32, 126);
+  const dashY = by + 34;
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText('DASH COOLDOWN', bx, dashY - 18);
   ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(68, 129, 130, 6);
-  ctx.fillStyle = player.dashReady ? COLORS.player : '#9e8d43';
-  ctx.fillRect(68, 129, 130 * player.dashCooldownRatio, 6);
+  ctx.fillRect(bx, dashY, bw, bh);
+
+  const dashUsable = player.stamina >= MOVEMENT.dashStaminaCost;
+  ctx.fillStyle = player.dashReady ? COLORS.player : '#8e8246';
+  ctx.fillRect(bx, dashY, bw * player.dashCooldownRatio, bh);
+  ctx.strokeStyle = '#343a46';
+  ctx.strokeRect(bx + 0.5, dashY + 0.5, bw, bh);
+
+  ctx.font = '12px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
-  let dashText = 'ready';
-  if (player.dashCooldownTimer > 0) dashText = 'cooldown';
-  else if (player.stamina < MOVEMENT.dashStaminaCost) dashText = 'no stamina';
-  ctx.fillText(dashText, 210, 122);
+  const staminaText = `${Math.ceil(player.stamina)} / ${MOVEMENT.staminaMax}`;
+  ctx.fillText(staminaText, bx + bw + 12, by - 1);
+
+  let dashText = 'READY';
+  if (player.dashCooldownTimer > 0) dashText = `${player.dashCooldownTimer.toFixed(2)}s`;
+  else if (!dashUsable) dashText = `needs ${MOVEMENT.dashStaminaCost} stamina`;
+  ctx.fillText(dashText, bx + bw + 12, dashY - 1);
+
   ctx.restore();
 }
 
