@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=10';
-import { PlayerController } from './PlayerController.js?v=10';
-import { MOVEMENT } from './movementConfig.js?v=10';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=11';
+import { PlayerController } from './PlayerController.js?v=11';
+import { MOVEMENT } from './movementConfig.js?v=11';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,10 +11,10 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=10';
-import { VectorWeapon } from './VectorWeapon.js?v=10';
-import { BossAI } from './bosses/BossAI.js?v=10';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=10';
+} from './equipment.js?v=11';
+import { VectorWeapon } from './VectorWeapon.js?v=11';
+import { BossAI } from './bosses/BossAI.js?v=11';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=11';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -52,6 +52,7 @@ const COLORS = {
   playerOutline: '#8f7b20',
   text: '#f0f1f4',
   dim: '#9ca2ad',
+  health: '#c76565',
   stamina: '#d7dbe2',
   staminaLow: '#969da8',
   dash: '#f0d34f',
@@ -383,8 +384,20 @@ function drawResourceBar(label, value, max, x, y, width, color, rightText = '') 
 function drawHUD() {
   const bx = 24;
   const bw = 260;
+  const healthY = H - 100;
   const staminaY = H - 66;
   const dashY = H - 32;
+
+  drawResourceBar(
+    'HEALTH',
+    player.health,
+    player.maxHealth,
+    bx,
+    healthY,
+    bw,
+    COLORS.health,
+    `${Math.ceil(player.health)} / ${player.maxHealth}`,
+  );
 
   drawResourceBar(
     'STAMINA',
