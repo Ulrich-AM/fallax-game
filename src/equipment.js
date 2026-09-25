@@ -11,21 +11,28 @@ export const ITEM_LIBRARY = {
     name: 'Vector',
     category: 'weapons',
     description: 'A compact burst-fire weapon.',
-    appearance: 'black square',
+    appearance: 'gray square',
   },
   euclid: {
     id: 'euclid',
     name: 'Euclid',
     category: 'weapons',
     description: 'A sustained precision energy weapon.',
-    appearance: 'thin black rectangle',
+    appearance: 'thin gray rectangle',
   },
   horizon: {
     id: 'horizon',
     name: 'Horizon',
     category: 'weapons',
     description: 'A charged precision weapon with powerful recoil.',
-    appearance: 'long black rectangle',
+    appearance: 'long gray rectangle',
+  },
+  mach: {
+    id: 'mach',
+    name: 'Mach',
+    category: 'weapons',
+    description: 'A pressure-wave weapon with strong sustained recoil.',
+    appearance: 'wide gray rectangle',
   },
 };
 
