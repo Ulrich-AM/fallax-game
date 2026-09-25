@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=13';
-import { PlayerController } from './PlayerController.js?v=13';
-import { MOVEMENT } from './movementConfig.js?v=13';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=14';
+import { PlayerController } from './PlayerController.js?v=14';
+import { MOVEMENT } from './movementConfig.js?v=14';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,10 +11,12 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=13';
-import { VectorWeapon } from './VectorWeapon.js?v=13';
-import { BossAI } from './bosses/BossAI.js?v=13';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=13';
+  getWeaponSlotId,
+} from './equipment.js?v=14';
+import { VectorWeapon } from './VectorWeapon.js?v=14';
+import { EuclidWeapon } from './EuclidWeapon.js?v=14';
+import { BossAI } from './bosses/BossAI.js?v=14';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=14';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -30,6 +32,10 @@ const deathMenu = document.querySelector('#death-menu');
 const deathRestart = document.querySelector('#death-restart');
 const deathMenuButton = document.querySelector('#death-menu-button');
 const deathInventory = document.querySelector('#death-inventory');
+const weaponSlotButtons = [
+  document.querySelector('#weapon-slot-1'),
+  document.querySelector('#weapon-slot-2'),
+];
 
 const equipmentTabs = document.querySelector('#equipment-tabs');
 const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
@@ -90,6 +96,7 @@ const playerDefinition = group([
 
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
+const euclidWeapon = new EuclidWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -121,9 +128,34 @@ const CHAPTERS = [
 
 let currentScreen = 'menu';
 let encounterOver = false;
+let activeWeaponSlot = 0;
 let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
 let currentDrag = null;
+
+function getActiveWeaponId() {
+  return getWeaponSlotId(activeWeaponSlot);
+}
+
+function refreshWeaponButtons() {
+  weaponSlotButtons.forEach((button, index) => {
+    const id = getWeaponSlotId(index);
+    const item = getItem(id);
+
+    button.textContent = item ? item.name.toLowerCase() : 'empty';
+    button.disabled = !item;
+    button.classList.toggle('active', index === activeWeaponSlot && !!item);
+  });
+}
+
+function selectWeaponSlot(index) {
+  if (!getWeaponSlotId(index)) return;
+  activeWeaponSlot = index;
+  refreshWeaponButtons();
+}
+
+weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
+weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
 
 function setDeathMenuVisible(visible) {
   deathMenu.classList.toggle('hidden', !visible);
@@ -174,6 +206,9 @@ addEventListener('keydown', (e) => {
   }
 
   if (currentScreen !== 'game') return;
+
+  if (e.code === 'Digit1') selectWeaponSlot(0);
+  if (e.code === 'Digit2') selectWeaponSlot(1);
 
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -285,6 +320,7 @@ function update(dt) {
   if (pressed.has('KeyR')) {
     player.reset();
     vectorWeapon.reset();
+    euclidWeapon.reset();
     activeBoss?.reset?.(world);
   }
 
@@ -307,17 +343,28 @@ function update(dt) {
 
   updateCameraShake(dt);
 
-  if (getPrimaryWeaponId() === 'vector') {
-    vectorWeapon.update(
-      dt,
-      player,
-      getPointerWorld(),
-      pointer.firing,
-      world,
-    );
+  const activeWeaponId = getActiveWeaponId();
 
-    vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
-  }
+  // Vector projectiles keep moving after switching weapons, but it only begins
+  // new bursts while its slot is active.
+  vectorWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'vector' && pointer.firing,
+    world,
+  );
+  vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
+
+  // Euclid has no ammo, heat, or charge depletion. Holding fire simply keeps
+  // the low-damage beam active for as long as this weapon is selected.
+  euclidWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'euclid' && pointer.firing,
+    activeBoss,
+  );
 
   if (player.health <= 0 && !encounterOver) {
     encounterOver = true;
@@ -470,7 +517,8 @@ function drawHUD() {
   ctx.fillStyle = COLORS.dim;
   ctx.textAlign = 'right';
   ctx.fillText('A/D move   Space jump   Shift sprint   Ctrl dash   LMB fire', W - 20, H - 24);
-  ctx.fillText(getPrimaryWeaponId() ? 'Vector' : 'No weapon equipped', W - 20, H - 44);
+  const activeItem = getItem(getActiveWeaponId());
+  ctx.fillText(activeItem ? activeItem.name : 'No weapon equipped', W - 20, H - 44);
   ctx.restore();
 }
 
@@ -512,8 +560,17 @@ function renderGame() {
   activeBoss?.draw?.(ctx, camera.x, ART_PIXEL);
   drawPlayer();
 
-  if (getPrimaryWeaponId() === 'vector') {
+  const activeWeaponId = getActiveWeaponId();
+
+  if (activeWeaponId === 'vector') {
     vectorWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+  } else {
+    // Existing Vector rounds remain visible after changing weapons.
+    vectorWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
+  }
+
+  if (activeWeaponId === 'euclid') {
+    euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
 
   ctx.restore();
@@ -527,6 +584,7 @@ function startPrologue() {
   setDeathMenuVisible(false);
   player.reset();
   vectorWeapon.reset();
+  euclidWeapon.reset();
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -719,6 +777,7 @@ function renderEquipment() {
   renderTabs();
   renderSlots();
   renderInventory();
+  refreshWeaponButtons();
 }
 
 inventoryDropZone.addEventListener('dragover', (e) => {
@@ -763,6 +822,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+refreshWeaponButtons();
 renderEquipment();
 renderChapterSelect();
 showScreen('menu');
@@ -775,4 +835,6 @@ window.BOSSFIGHTS = {
   BossAI,
   PrologueBoss,
   prologueBoss,
+  vectorWeapon,
+  euclidWeapon,
 };
