@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=23';
-import { PlayerController } from './PlayerController.js?v=23';
-import { MOVEMENT } from './movementConfig.js?v=23';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=24';
+import { PlayerController } from './PlayerController.js?v=24';
+import { MOVEMENT } from './movementConfig.js?v=24';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,13 +14,14 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=23';
-import { VectorWeapon } from './VectorWeapon.js?v=23';
-import { EuclidWeapon } from './EuclidWeapon.js?v=23';
-import { HorizonWeapon } from './HorizonWeapon.js?v=23';
-import { MachWeapon } from './MachWeapon.js?v=23';
-import { BossAI } from './bosses/BossAI.js?v=23';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=23';
+} from './equipment.js?v=24';
+import { VectorWeapon } from './VectorWeapon.js?v=24';
+import { EuclidWeapon } from './EuclidWeapon.js?v=24';
+import { HorizonWeapon } from './HorizonWeapon.js?v=24';
+import { MachWeapon } from './MachWeapon.js?v=24';
+import { BackfireAbility } from './BackfireAbility.js?v=24';
+import { BossAI } from './bosses/BossAI.js?v=24';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=24';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -109,6 +110,7 @@ const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
+const backfireAbility = new BackfireAbility();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -159,6 +161,10 @@ function getWeaponInstance(id) {
 
 function getActiveWeaponInstance() {
   return getWeaponInstance(getActiveWeaponId());
+}
+
+function isAbilityEquipped(id) {
+  return loadout.abilities.includes(id);
 }
 
 function refreshWeaponButtons() {
@@ -363,15 +369,21 @@ function update(dt) {
     euclidWeapon.reset();
     horizonWeapon.reset();
     machWeapon.reset();
+    backfireAbility.reset(player);
     activeBoss?.reset?.(world);
   }
 
   const activeWeaponId = getActiveWeaponId();
   const activeWeapon = getActiveWeaponInstance();
 
+  const backfireEquipped = isAbilityEquipped('backfire');
+
   const playerInput = {
     ...readInput(),
     dashTarget: getPointerWorld(),
+    dashCooldownMultiplier: backfireEquipped
+      ? backfireAbility.dashCooldownMultiplier
+      : 1,
   };
 
   const weaponLocksPlayer =
@@ -406,6 +418,14 @@ function update(dt) {
 
   const follow = 1 - Math.exp(-9 * dt);
   camera.x += (camera.targetX - camera.x) * follow;
+
+  backfireAbility.update(
+    dt,
+    player,
+    world,
+    activeBoss,
+    backfireEquipped,
+  );
 
   activeBoss?.update?.(dt, {
     player,
@@ -728,6 +748,8 @@ function renderGame() {
     machWeapon.drawWaves(ctx, camera.x);
   }
 
+  backfireAbility.draw(ctx, camera.x);
+
   ctx.restore();
 
   drawBossBar();
@@ -742,6 +764,7 @@ function startPrologue() {
   euclidWeapon.reset();
   horizonWeapon.reset();
   machWeapon.reset();
+  backfireAbility.reset(player);
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -1036,4 +1059,5 @@ window.BOSSFIGHTS = {
   euclidWeapon,
   horizonWeapon,
   machWeapon,
+  backfireAbility,
 };
