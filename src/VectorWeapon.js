@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=9';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=10';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -16,7 +16,6 @@ export class VectorWeapon {
     this.bulletSpeed = 1020;
     this.bulletLife = 1.6;
     this.bodyArtSize = 4;
-    this.bodyOutlineThickness = 1;
     this.bulletTrailLife = 0.14;
     this.bulletTrailInterval = 0.018;
     this.bulletTrailMaxGhosts = 7;
@@ -40,7 +39,7 @@ export class VectorWeapon {
       }),
     ], {
       mergeOutlines: true,
-      outline: { enabled: true, color: '#c8ccd4', thickness: 1 },
+      outline: false,
       padding: 1,
     });
 
@@ -166,11 +165,9 @@ export class VectorWeapon {
   }
 
   getBulletRenderSize(artPixelSize) {
-    // Match the visible Vector square, including its 1-art-pixel outline,
-    // then make the projectile exactly one SCREEN pixel smaller.
-    const visibleWeaponSize =
-      (this.bodyArtSize + this.bodyOutlineThickness * 2) * artPixelSize;
-
+    // Vector itself is a plain black square with no outline. The projectile
+    // is exactly one physical screen pixel smaller than that visible square.
+    const visibleWeaponSize = this.bodyArtSize * artPixelSize;
     return Math.max(1, visibleWeaponSize - 1);
   }
 
