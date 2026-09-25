@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=6';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=7';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -131,7 +131,7 @@ export class VectorWeapon {
     ctx.save();
     ctx.fillStyle = '#e5e7eb';
 
-    const size = 7;
+    const size = 8;
     const half = size / 2;
 
     for (const bullet of this.bullets) {
