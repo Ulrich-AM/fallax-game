@@ -627,7 +627,10 @@ function renderGame() {
     vectorWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
   }
 
-  if (activeWeaponId === 'euclid') {
+  if (
+    activeWeaponId === 'euclid' ||
+    euclidWeapon.specialActiveTimer > 0
+  ) {
     euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
 
