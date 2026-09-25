@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=18';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=18';
+import { BossAI } from './BossAI.js?v=19';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=19';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -70,6 +70,8 @@ export class PrologueBoss {
     this.scaleY = 1;
     this.dead = false;
     this.hurtFlash = 0;
+    this.phase2Transition = 0;
+    this.phase2TransitionDuration = 1.15;
 
     // The idle infinity cycle now follows the player rather than covering the
     // entire room.
@@ -134,6 +136,10 @@ export class PrologueBoss {
     this.wallRushSpeed = 1550;
     this.wallRushHitPlayer = false;
     this.wallRushDraggingPlayer = false;
+    this.wallRushEscaped = false;
+    this.wallRushGrabDashSerial = 0;
+    this.wallRushDrainPerSecond = 10;
+    this.wallRushImpactDamage = 55;
     this.wallRushStartX = this.x;
     this.wallRushStartY = this.y;
     this.wallRushImpactX = this.x;
@@ -176,11 +182,13 @@ export class PrologueBoss {
         {
           id: 'phase2',
           atOrBelow: 0.5,
-          onEnter(owner, ai) {
-            ai.setTimer(
-              'attackDelay',
-              Math.min(ai.getTimer('attackDelay'), 0.65),
-            );
+          onEnter(owner, ai, ctx) {
+            owner.phase2Transition = 0;
+            owner.satelliteMode = 'orbit';
+            const home = owner.getSatelliteOrbitPosition();
+            owner.satelliteX = home.x;
+            owner.satelliteY = home.y;
+            ai.changeState('phaseTransition', ctx);
           },
         },
       ],
@@ -231,6 +239,10 @@ export class PrologueBoss {
     return this.isPhase2 ? this.phase2Speed : 1;
   }
 
+  get phaseLabel() {
+    return this.isPhase2 ? 'phase 2' : 'phase 1';
+  }
+
   getSatelliteOrbitPosition(angleOffsetDegrees = 0) {
     const orbitRadians =
       (
@@ -247,6 +259,40 @@ export class PrologueBoss {
 
   installStates(world) {
     this.ai
+      .addState('phaseTransition', {
+        enter: (owner) => {
+          owner.trackStartX = owner.x;
+          owner.trackStartY = owner.y;
+          owner.rotationLocked = false;
+          owner.rotationSpeed = 34;
+          owner.scaleX = 1;
+          owner.scaleY = 1;
+        },
+
+        update: (owner, ai) => {
+          const t = clamp(
+            ai.stateTime / owner.phase2TransitionDuration,
+            0,
+            1,
+          );
+
+          owner.phase2Transition = smoothstep(t);
+          owner.x = owner.trackStartX;
+          owner.y =
+            owner.trackStartY -
+            Math.sin(t * Math.PI) * 12;
+
+          const pulse = Math.sin(t * Math.PI) * 0.08;
+          owner.scaleX = 1 + pulse;
+          owner.scaleY = 1 + pulse;
+
+          if (t >= 1) {
+            owner.phase2Transition = 1;
+            ai.changeState('idle');
+          }
+        },
+      })
+
       .addState('idle', {
         enter: (owner, ai) => {
           owner.scaleX = 1;
@@ -449,6 +495,10 @@ export class PrologueBoss {
           owner.rotationSpeed = 0;
 
           ctx.shakeCamera?.(14, 0.28);
+          owner.spawnGroundSpray(
+            owner.x,
+            world.floorY - 8,
+          );
         },
 
         update: (owner, ai) => {
@@ -783,6 +833,8 @@ export class PrologueBoss {
 
           owner.wallRushHitPlayer = false;
           owner.wallRushDraggingPlayer = false;
+          owner.wallRushEscaped = false;
+          owner.wallRushGrabDashSerial = 0;
           owner.smashTrail.length = 0;
           owner.smashTrailTimer = 0;
         },
@@ -842,16 +894,29 @@ export class PrologueBoss {
               owner.y + halfH > player.y - playerHalfH &&
               owner.y - halfH < player.y + playerHalfH;
 
-            if (!owner.wallRushDraggingPlayer && overlapsX && overlapsY) {
+            if (
+              !owner.wallRushDraggingPlayer &&
+              !owner.wallRushEscaped &&
+              overlapsX &&
+              overlapsY
+            ) {
               owner.wallRushDraggingPlayer = true;
+              owner.wallRushGrabDashSerial = player.dashSerial;
+            }
 
-              if (!owner.wallRushHitPlayer) {
-                owner.wallRushHitPlayer =
-                  player.takeDamage?.(55) ?? true;
-              }
+            if (
+              owner.wallRushDraggingPlayer &&
+              player.dashSerial !== owner.wallRushGrabDashSerial
+            ) {
+              owner.wallRushDraggingPlayer = false;
+              owner.wallRushEscaped = true;
             }
 
             if (owner.wallRushDraggingPlayer) {
+              player.takeContinuousDamage?.(
+                owner.wallRushDrainPerSecond * dt,
+              );
+
               const frontX =
                 owner.x +
                 owner.wallRushDirection *
@@ -904,6 +969,10 @@ export class PrologueBoss {
           ctx.shakeCamera?.(28, 0.52);
 
           if (owner.wallRushDraggingPlayer && ctx.player) {
+            ctx.player.takeDamage?.(
+              owner.wallRushImpactDamage,
+              { ignoreDashInvulnerability: true },
+            );
             ctx.player.vx = -owner.wallRushDirection * 520;
             ctx.player.vy = -260;
             ctx.player.grounded = false;
@@ -944,6 +1013,7 @@ export class PrologueBoss {
     this.health = this.maxHealth;
     this.dead = false;
     this.hurtFlash = 0;
+    this.phase2Transition = 0;
 
     this.x = 650;
     this.y = 210;
@@ -973,6 +1043,8 @@ export class PrologueBoss {
     this.satelliteAttackHit = false;
     this.wallRushHitPlayer = false;
     this.wallRushDraggingPlayer = false;
+    this.wallRushEscaped = false;
+    this.wallRushGrabDashSerial = 0;
     this.satelliteBurstRowsFired = 0;
     this.satelliteBullets.length = 0;
     this.shockwaves.length = 0;
@@ -1027,6 +1099,28 @@ export class PrologueBoss {
       ghost.life -= dt;
     }
     this.smashTrail = this.smashTrail.filter(ghost => ghost.life > 0);
+  }
+
+  spawnGroundSpray(x, y) {
+    const count = this.isPhase2 ? 18 : 14;
+    const speed = this.isPhase2 ? 500 : 440;
+
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0.5 : i / (count - 1);
+      const angle = Math.PI + t * Math.PI;
+
+      this.satelliteBullets.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 2.0,
+        maxLife: 2.0,
+        health: this.satelliteBulletHealth,
+        maxHealth: this.satelliteBulletHealth,
+        hitPlayer: false,
+      });
+    }
   }
 
   spawnSatelliteBurst(x, y, angleOffset = 0) {
@@ -1359,13 +1453,25 @@ export class PrologueBoss {
     );
 
     if (this.isPhase2) {
-      const second = this.getSatelliteOrbitPosition(180);
+      const secondTarget = this.getSatelliteOrbitPosition(180);
+      const emerge = this.phase2Transition;
+
+      const secondX = lerp(
+        this.satelliteX,
+        secondTarget.x,
+        emerge,
+      );
+      const secondY = lerp(
+        this.satelliteY,
+        secondTarget.y,
+        emerge,
+      );
 
       this.drawSatelliteAt(
         ctx,
         cameraX,
-        second.x,
-        second.y,
+        secondX,
+        secondY,
         -this.satelliteLocalRotation,
       );
     }
