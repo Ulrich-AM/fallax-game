@@ -39,15 +39,15 @@ export const MOVEMENT = {
   staminaRegenDelay: 0.58,
   sprintRecoverThreshold: 18,
 
-  // Dash is an impulse, not a replacement velocity. Existing horizontal and
-  // vertical momentum remain intact.
+  // Dash is a mouse-directed blink. The destination is collision-swept so
+  // the player cannot teleport through platforms, floor, ceiling, or walls.
   dashMomentumRetention: 0.30,
-  dashImpulse: 610,
-  dashMaxHorizontalSpeed: 1280,
+  dashDistance: 360,
+  dashSweepStep: 4,
+  dashMinimumDistance: 6,
   dashCooldown: 0.42,
   dashInvulnerability: 0.11,
   dashVisualTime: 0.115,
-  dashAfterimageInterval: 0.020,
 
   // Presentation only.
   landingSquashTime: 0.085,
