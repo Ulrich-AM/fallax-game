@@ -173,7 +173,16 @@ export class PrologueBoss {
       initialState: 'idle',
       phases: [
         { id: 'phase1', atOrBelow: 1.0 },
-        { id: 'phase2', atOrBelow: 0.5 },
+        {
+          id: 'phase2',
+          atOrBelow: 0.5,
+          onEnter(owner, ai) {
+            ai.setTimer(
+              'attackDelay',
+              Math.min(ai.getTimer('attackDelay'), 0.65),
+            );
+          },
+        },
       ],
     });
 
