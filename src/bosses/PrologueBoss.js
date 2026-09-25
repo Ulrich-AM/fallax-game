@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=19';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=19';
+import { BossAI } from './BossAI.js?v=20';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=20';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -498,10 +498,13 @@ export class PrologueBoss {
           owner.rotationSpeed = 0;
 
           ctx.shakeCamera?.(14, 0.28);
-          owner.spawnGroundSpray(
-            owner.x,
-            world.floorY - 8,
-          );
+
+          if (owner.isPhase2) {
+            owner.spawnGroundSpray(
+              owner.x,
+              world.floorY - 8,
+            );
+          }
         },
 
         update: (owner, ai) => {
