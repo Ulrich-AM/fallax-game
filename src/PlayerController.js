@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=6';
+import { MOVEMENT as CFG } from './movementConfig.js?v=7';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -51,26 +51,66 @@ export class PlayerController {
     return true;
   }
 
-  isDashPositionValid(x, y, world) {
+  isDashBoundaryValid(x, y, world) {
     const halfW = this.w / 2;
     const halfH = this.h / 2;
 
+    // Platforms are intentionally ignored here. Dash can phase through them.
+    // Only hard world boundaries stop the blink.
     if (x - halfW < 0) return false;
     if (x + halfW > world.width) return false;
     if (y - halfH < 0) return false;
     if (y + halfH > world.floorY) return false;
 
-    for (const p of world.platforms) {
-      const overlaps =
-        x + halfW > p.x &&
-        x - halfW < p.x + p.w &&
-        y + halfH > p.y &&
-        y - halfH < p.y + p.h;
+    return true;
+  }
 
-      if (overlaps) return false;
+  overlapsPlatform(x, y, world) {
+    const halfW = this.w / 2;
+    const halfH = this.h / 2;
+
+    return world.platforms.some(p =>
+      x + halfW > p.x &&
+      x - halfW < p.x + p.w &&
+      y + halfH > p.y &&
+      y - halfH < p.y + p.h
+    );
+  }
+
+  resolvePlatformEndpoint(x, y, nx, ny, world) {
+    if (!this.overlapsPlatform(x, y, world)) {
+      return { x, y };
     }
 
-    return true;
+    // If the intended endpoint lands inside a platform, keep moving a little
+    // farther in the dash direction until the player is fully through it.
+    // This preserves the phase-through feel without leaving the player embedded.
+    const step = 4;
+    const maxExtra = 180;
+
+    for (let extra = step; extra <= maxExtra; extra += step) {
+      const tx = x + nx * extra;
+      const ty = y + ny * extra;
+
+      if (!this.isDashBoundaryValid(tx, ty, world)) break;
+      if (!this.overlapsPlatform(tx, ty, world)) {
+        return { x: tx, y: ty };
+      }
+    }
+
+    // If there is no safe point ahead before a hard boundary, retreat from the
+    // endpoint until we find a non-overlapping position.
+    for (let back = step; back <= maxExtra; back += step) {
+      const tx = x - nx * back;
+      const ty = y - ny * back;
+
+      if (!this.isDashBoundaryValid(tx, ty, world)) continue;
+      if (!this.overlapsPlatform(tx, ty, world)) {
+        return { x: tx, y: ty };
+      }
+    }
+
+    return null;
   }
 
   resolveDashDestination(target, world) {
@@ -98,7 +138,7 @@ export class PlayerController {
       const testX = startX + nx * CFG.dashDistance * t;
       const testY = startY + ny * CFG.dashDistance * t;
 
-      if (!this.isDashPositionValid(testX, testY, world)) {
+      if (!this.isDashBoundaryValid(testX, testY, world)) {
         blocked = true;
 
         // Refine the final safe point so the blink stops close to the surface
@@ -111,7 +151,7 @@ export class PlayerController {
           const mx = startX + nx * CFG.dashDistance * mid;
           const my = startY + ny * CFG.dashDistance * mid;
 
-          if (this.isDashPositionValid(mx, my, world)) lo = mid;
+          if (this.isDashBoundaryValid(mx, my, world)) lo = mid;
           else hi = mid;
         }
 
@@ -122,13 +162,31 @@ export class PlayerController {
       lastSafeT = t;
     }
 
+    let endX = startX + nx * CFG.dashDistance * lastSafeT;
+    let endY = startY + ny * CFG.dashDistance * lastSafeT;
+
+    const corrected = this.resolvePlatformEndpoint(endX, endY, nx, ny, world);
+    if (!corrected) {
+      return {
+        x: startX,
+        y: startY,
+        nx,
+        ny,
+        blocked: true,
+        distance: 0,
+      };
+    }
+
+    endX = corrected.x;
+    endY = corrected.y;
+
     return {
-      x: startX + nx * CFG.dashDistance * lastSafeT,
-      y: startY + ny * CFG.dashDistance * lastSafeT,
+      x: endX,
+      y: endY,
       nx,
       ny,
       blocked,
-      distance: CFG.dashDistance * lastSafeT,
+      distance: Math.hypot(endX - startX, endY - startY),
     };
   }
 
@@ -170,9 +228,9 @@ export class PlayerController {
       this.facing = Math.sign(result.nx);
     }
 
-    // Blink first, then retain only a small fraction of prior motion.
-    // If the blink was stopped by geometry, kill momentum so the next frame
-    // cannot immediately shove the player into the obstacle.
+    // Blink first, then keep 70% of the player's previous momentum.
+    // If a hard boundary stopped the blink, kill momentum so the next frame
+    // cannot immediately shove the player into the wall or floor.
     if (result.blocked) {
       this.vx = 0;
       this.vy = 0;
