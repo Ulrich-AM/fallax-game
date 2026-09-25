@@ -48,6 +48,9 @@ export class HorizonWeapon {
     this.wasFiring = false;
     this.lockedAngle = 0;
     this.shotApplied = false;
+    this.weaponKickTimer = 0;
+    this.weaponKickDuration = 0.13;
+    this.weaponKickDistance = 14;
   }
 
   reset() {
@@ -57,6 +60,7 @@ export class HorizonWeapon {
     this.wasFiring = false;
     this.lockedAngle = 0;
     this.shotApplied = false;
+    this.weaponKickTimer = 0;
   }
 
   get specialAbilities() {
@@ -133,6 +137,10 @@ export class HorizonWeapon {
     }
 
     this.flashTimer = Math.max(0, this.flashTimer - dt);
+    this.weaponKickTimer = Math.max(
+      0,
+      this.weaponKickTimer - dt,
+    );
   }
 
   applyShot(player, target, artPixelSize) {
@@ -173,6 +181,8 @@ export class HorizonWeapon {
       }
     }
 
+    this.weaponKickTimer = this.weaponKickDuration;
+
     player.vx -= dirX * this.recoil;
     player.vy -= dirY * this.recoil;
     player.grounded = false;
@@ -181,10 +191,22 @@ export class HorizonWeapon {
   draw(ctx, player, pointerWorld, cameraX) {
     const aim = this.getAim(player, pointerWorld);
 
+    const kickRatio =
+      this.weaponKickDuration > 0
+        ? this.weaponKickTimer / this.weaponKickDuration
+        : 0;
+
+    const kick =
+      Math.sin(kickRatio * Math.PI * 0.5) *
+      this.weaponKickDistance;
+
+    const weaponX = aim.x - aim.dirX * kick;
+    const weaponY = aim.y - aim.dirY * kick;
+
     ctx.save();
     ctx.translate(
-      Math.round(aim.x - cameraX),
-      Math.round(aim.y),
+      Math.round(weaponX - cameraX),
+      Math.round(weaponY),
     );
     ctx.rotate(aim.angle);
     ctx.fillStyle = '#6f747c';
