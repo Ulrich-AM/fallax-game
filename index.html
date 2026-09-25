@@ -3,29 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bossfights - Movement Foundation</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <title>bossfights</title>
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
-  <main class="shell">
-    <header>
-      <div>
-        <h1>Bossfights</h1>
-        <p>movement, stamina and procedural shape foundation</p>
+  <div id="app">
+    <section id="menu-screen" class="screen">
+      <div class="menu-card">
+        <h1>bossfights</h1>
+        <button id="main-button" class="menu-button">main</button>
+        <button id="equipment-button" class="menu-button">equipment</button>
       </div>
-      <div class="controls" aria-label="Controls">
-        <span><b>A / D</b> move</span>
-        <span><b>Space</b> jump</span>
-        <span><b>Shift</b> sprint</span>
-        <span><b>Ctrl</b> dash</span>
-        <span><b>R</b> reset</span>
-        <span><b>Click test shape</b> rotate</span>
-      </div>
-    </header>
-    <section class="stage-wrap">
-      <canvas id="game" width="1280" height="720" aria-label="Bossfights movement test"></canvas>
     </section>
-  </main>
-  <script type="module" src="src/main.js?v=4"></script>
+
+    <section id="game-screen" class="screen hidden">
+      <div class="game-frame">
+        <canvas id="game" width="1280" height="720" aria-label="Bossfights game"></canvas>
+        <div class="game-hint">Esc: menu</div>
+      </div>
+    </section>
+
+    <section id="equipment-screen" class="screen hidden">
+      <aside class="equipment-sidebar">
+        <button id="equipment-back" class="back-button">← main menu</button>
+        <h2>equipment</h2>
+        <nav id="equipment-tabs" class="equipment-tabs" aria-label="Equipment categories"></nav>
+      </aside>
+
+      <main class="equipment-main">
+        <section class="equipment-panel">
+          <div class="section-heading">
+            <h3 id="equipment-category-title">weapons</h3>
+            <span id="equipment-slot-summary"></span>
+          </div>
+          <div id="equipment-slots" class="equipment-slots"></div>
+        </section>
+
+        <section id="inventory-drop-zone" class="equipment-panel inventory-panel">
+          <div class="section-heading">
+            <h3>inventory</h3>
+            <span>drag items between inventory and slots</span>
+          </div>
+          <div id="equipment-inventory" class="inventory-grid"></div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <script type="module" src="src/main.js?v=5"></script>
 </body>
 </html>
