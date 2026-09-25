@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=6';
-import { PlayerController } from './PlayerController.js?v=6';
-import { MOVEMENT } from './movementConfig.js?v=6';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=7';
+import { PlayerController } from './PlayerController.js?v=7';
+import { MOVEMENT } from './movementConfig.js?v=7';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -11,15 +11,19 @@ import {
   equipItem,
   unequipSlot,
   getPrimaryWeaponId,
-} from './equipment.js?v=6';
-import { VectorWeapon } from './VectorWeapon.js?v=6';
+} from './equipment.js?v=7';
+import { VectorWeapon } from './VectorWeapon.js?v=7';
 
 const menuScreen = document.querySelector('#menu-screen');
+const chapterScreen = document.querySelector('#chapter-screen');
 const gameScreen = document.querySelector('#game-screen');
 const equipmentScreen = document.querySelector('#equipment-screen');
 const mainButton = document.querySelector('#main-button');
 const equipmentButton = document.querySelector('#equipment-button');
 const equipmentBack = document.querySelector('#equipment-back');
+const chapterBack = document.querySelector('#chapter-back');
+const chapterTabs = document.querySelector('#chapter-tabs');
+const bossList = document.querySelector('#boss-list');
 
 const equipmentTabs = document.querySelector('#equipment-tabs');
 const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
@@ -91,7 +95,16 @@ const pointer = {
   firing: false,
 };
 
+const CHAPTERS = [
+  { id: 'genesis', label: 'genesis', bosses: [{ id: 'prologue', label: 'prologue', playable: true }] },
+  { id: 'unknown-2', label: '?', bosses: [{ id: 'unknown-2-boss', label: '?', playable: false }] },
+  { id: 'unknown-3', label: '?', bosses: [{ id: 'unknown-3-boss', label: '?', playable: false }] },
+  { id: 'unknown-4', label: '?', bosses: [{ id: 'unknown-4-boss', label: '?', playable: false }] },
+  { id: 'unknown-5', label: '?', bosses: [{ id: 'unknown-5-boss', label: '?', playable: false }] },
+];
+
 let currentScreen = 'menu';
+let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
 let currentDrag = null;
 
@@ -99,6 +112,7 @@ function showScreen(name) {
   currentScreen = name;
 
   menuScreen.classList.toggle('hidden', name !== 'menu');
+  chapterScreen.classList.toggle('hidden', name !== 'chapters');
   gameScreen.classList.toggle('hidden', name !== 'game');
   equipmentScreen.classList.toggle('hidden', name !== 'equipment');
 
@@ -110,15 +124,18 @@ function showScreen(name) {
   }
 
   if (name === 'equipment') renderEquipment();
+  if (name === 'chapters') renderChapterSelect();
 }
 
-mainButton.addEventListener('click', () => showScreen('game'));
+mainButton.addEventListener('click', () => showScreen('chapters'));
 equipmentButton.addEventListener('click', () => showScreen('equipment'));
 equipmentBack.addEventListener('click', () => showScreen('menu'));
+chapterBack.addEventListener('click', () => showScreen('menu'));
 
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape') {
-    if (currentScreen !== 'menu') showScreen('menu');
+    if (currentScreen === 'game') showScreen('chapters');
+    else if (currentScreen !== 'menu') showScreen('menu');
     return;
   }
 
@@ -373,6 +390,50 @@ function renderGame() {
   drawHUD();
 }
 
+function startPrologue() {
+  player.reset();
+  vectorWeapon.reset();
+  camera.x = 0;
+  camera.targetX = 0;
+  showScreen('game');
+}
+
+function renderChapterSelect() {
+  chapterTabs.innerHTML = '';
+  bossList.innerHTML = '';
+
+  for (const chapter of CHAPTERS) {
+    const tab = document.createElement('button');
+    tab.className = 'chapter-tab';
+    tab.textContent = chapter.label;
+    tab.classList.toggle('active', chapter.id === activeChapter);
+
+    tab.addEventListener('click', () => {
+      activeChapter = chapter.id;
+      renderChapterSelect();
+    });
+
+    chapterTabs.appendChild(tab);
+  }
+
+  const chapter = CHAPTERS.find(entry => entry.id === activeChapter) ?? CHAPTERS[0];
+
+  for (const boss of chapter.bosses) {
+    const button = document.createElement('button');
+    button.className = 'boss-button';
+    button.textContent = boss.label;
+
+    if (!boss.playable) {
+      button.classList.add('locked');
+      button.disabled = true;
+    } else if (boss.id === 'prologue') {
+      button.addEventListener('click', startPrologue);
+    }
+
+    bossList.appendChild(button);
+  }
+}
+
 function createItemCard(itemId, source = null) {
   const item = getItem(itemId);
   if (!item) return null;
@@ -564,6 +625,7 @@ function frame(now) {
 }
 
 renderEquipment();
+renderChapterSelect();
 showScreen('menu');
 requestAnimationFrame(frame);
 
