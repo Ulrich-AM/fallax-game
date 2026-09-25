@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=24';
-import { PlayerController } from './PlayerController.js?v=24';
-import { MOVEMENT } from './movementConfig.js?v=24';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=25';
+import { PlayerController } from './PlayerController.js?v=25';
+import { MOVEMENT } from './movementConfig.js?v=25';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,14 +14,15 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=24';
-import { VectorWeapon } from './VectorWeapon.js?v=24';
-import { EuclidWeapon } from './EuclidWeapon.js?v=24';
-import { HorizonWeapon } from './HorizonWeapon.js?v=24';
-import { MachWeapon } from './MachWeapon.js?v=24';
-import { BackfireAbility } from './BackfireAbility.js?v=24';
-import { BossAI } from './bosses/BossAI.js?v=24';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=24';
+} from './equipment.js?v=25';
+import { VectorWeapon } from './VectorWeapon.js?v=25';
+import { EuclidWeapon } from './EuclidWeapon.js?v=25';
+import { HorizonWeapon } from './HorizonWeapon.js?v=25';
+import { MachWeapon } from './MachWeapon.js?v=25';
+import { BackfireAbility } from './BackfireAbility.js?v=25';
+import { BossAI } from './bosses/BossAI.js?v=25';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=25';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=25';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -112,6 +113,7 @@ const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
 const prologueBoss = new PrologueBoss(world);
+const matrixBoss = new MatrixBoss(world);
 let activeBoss = null;
 
 const camera = {
@@ -133,7 +135,14 @@ const pointer = {
 };
 
 const CHAPTERS = [
-  { id: 'genesis', label: 'genesis', bosses: [{ id: 'prologue', label: 'prologue', playable: true }] },
+  {
+    id: 'genesis',
+    label: 'genesis',
+    bosses: [
+      { id: 'prologue', label: 'prologue', playable: true },
+      { id: 'matrix', label: 'matrix', playable: true },
+    ],
+  },
   { id: 'unknown-2', label: '?', bosses: [{ id: 'unknown-2-boss', label: '?', playable: false }] },
   { id: 'unknown-3', label: '?', bosses: [{ id: 'unknown-3-boss', label: '?', playable: false }] },
   { id: 'unknown-4', label: '?', bosses: [{ id: 'unknown-4-boss', label: '?', playable: false }] },
@@ -756,23 +765,35 @@ function renderGame() {
   drawHUD();
 }
 
-function startPrologue() {
+function prepareEncounter(boss) {
   encounterOver = false;
   setDeathMenuVisible(false, 'defeated');
+
   player.reset();
   vectorWeapon.reset();
   euclidWeapon.reset();
   horizonWeapon.reset();
   machWeapon.reset();
   backfireAbility.reset(player);
-  prologueBoss.reset(world);
-  activeBoss = prologueBoss;
+
+  boss.reset(world);
+  activeBoss = boss;
+
   camera.x = 0;
   camera.targetX = 0;
   camera.shakeTime = 0;
   camera.shakeDuration = 0;
   camera.shakeIntensity = 0;
+
   showScreen('game');
+}
+
+function startPrologue() {
+  prepareEncounter(prologueBoss);
+}
+
+function startMatrix() {
+  prepareEncounter(matrixBoss);
 }
 
 function renderChapterSelect() {
@@ -805,6 +826,8 @@ function renderChapterSelect() {
       button.disabled = true;
     } else if (boss.id === 'prologue') {
       button.addEventListener('click', startPrologue);
+    } else if (boss.id === 'matrix') {
+      button.addEventListener('click', startMatrix);
     }
 
     bossList.appendChild(button);
@@ -1055,6 +1078,7 @@ window.BOSSFIGHTS = {
   BossAI,
   PrologueBoss,
   prologueBoss,
+  matrixBoss,
   vectorWeapon,
   euclidWeapon,
   horizonWeapon,
