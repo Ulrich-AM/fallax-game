@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=23';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=24';
 
 function shortestAngleDelta(a, b) {
   return ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -144,7 +144,7 @@ export class MachWeapon {
         this.specialWavesFired < this.specialWaveCount &&
         this.specialWaveTimer <= 0
       ) {
-        this.emitSpecialWave(player, pointerWorld);
+        this.emitSpecialWave(player);
         this.specialWavesFired++;
         this.specialWaveTimer = this.specialWaveInterval;
       }
@@ -205,13 +205,11 @@ export class MachWeapon {
     }
   }
 
-  emitSpecialWave(player, pointerWorld) {
-    const aim = this.getAim(player, pointerWorld);
-
+  emitSpecialWave(player) {
     this.waves.push({
-      x: aim.x,
-      y: aim.y,
-      angle: aim.angle,
+      x: player.x,
+      y: player.y,
+      angle: 0,
       radius: 24,
       previousRadius: 24,
       hitTarget: false,
@@ -220,7 +218,7 @@ export class MachWeapon {
       speed: this.specialWaveSpeed,
       maxRadius: this.specialWaveMaxRadius,
       thickness: this.specialWaveThickness,
-      halfAngle: this.specialWaveHalfAngle,
+      halfAngle: Math.PI,
     });
   }
 
