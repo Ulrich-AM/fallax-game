@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=18';
-import { PlayerController } from './PlayerController.js?v=18';
-import { MOVEMENT } from './movementConfig.js?v=18';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=19';
+import { PlayerController } from './PlayerController.js?v=19';
+import { MOVEMENT } from './movementConfig.js?v=19';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,11 +14,12 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=18';
-import { VectorWeapon } from './VectorWeapon.js?v=18';
-import { EuclidWeapon } from './EuclidWeapon.js?v=18';
-import { BossAI } from './bosses/BossAI.js?v=18';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=18';
+} from './equipment.js?v=19';
+import { VectorWeapon } from './VectorWeapon.js?v=19';
+import { EuclidWeapon } from './EuclidWeapon.js?v=19';
+import { HorizonWeapon } from './HorizonWeapon.js?v=19';
+import { BossAI } from './bosses/BossAI.js?v=19';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=19';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -105,6 +106,7 @@ const playerDefinition = group([
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
+const horizonWeapon = new HorizonWeapon();
 const prologueBoss = new PrologueBoss(world);
 let activeBoss = null;
 
@@ -148,6 +150,7 @@ function getActiveWeaponId() {
 function getWeaponInstance(id) {
   if (id === 'vector') return vectorWeapon;
   if (id === 'euclid') return euclidWeapon;
+  if (id === 'horizon') return horizonWeapon;
   return null;
 }
 
@@ -355,13 +358,29 @@ function update(dt) {
     player.reset();
     vectorWeapon.reset();
     euclidWeapon.reset();
+    horizonWeapon.reset();
     activeBoss?.reset?.(world);
   }
 
-  player.update(dt, {
+  const activeWeaponId = getActiveWeaponId();
+  const activeWeapon = getActiveWeaponInstance();
+
+  const playerInput = {
     ...readInput(),
     dashTarget: getPointerWorld(),
-  }, world);
+  };
+
+  if (activeWeapon?.locksPlayer) {
+    playerInput.move = 0;
+    playerInput.jumpHeld = false;
+    playerInput.jumpPressed = false;
+    playerInput.jumpReleased = false;
+    playerInput.sprintHeld = false;
+    playerInput.dashPressed = false;
+    player.vx = 0;
+  }
+
+  player.update(dt, playerInput, world);
 
   camera.targetX = player.x - W * 0.38;
   camera.targetX = Math.max(0, Math.min(world.width - W, camera.targetX));
@@ -376,9 +395,6 @@ function update(dt) {
   });
 
   updateCameraShake(dt);
-
-  const activeWeaponId = getActiveWeaponId();
-  const activeWeapon = getActiveWeaponInstance();
 
   if (pressed.has('KeyQ')) {
     activeWeapon?.triggerSpecial?.();
@@ -406,6 +422,16 @@ function update(dt) {
     activeBoss,
     ART_PIXEL,
     activeWeaponId === 'euclid',
+  );
+
+  horizonWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'horizon' && pointer.firing,
+    activeBoss,
+    ART_PIXEL,
+    activeWeaponId === 'horizon',
   );
 
   if (player.health <= 0) {
@@ -615,6 +641,16 @@ function drawBossBar() {
 
   ctx.strokeStyle = '#3b404a';
   ctx.strokeRect(x + 0.5, y + 0.5, width, height);
+
+  ctx.font = '11px Arial, sans-serif';
+  ctx.fillStyle = COLORS.dim;
+  ctx.textBaseline = 'top';
+  ctx.fillText(
+    activeBoss.phaseLabel ?? '',
+    W / 2,
+    y + height + 6,
+  );
+
   ctx.restore();
 }
 
@@ -643,6 +679,10 @@ function renderGame() {
     euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
   }
 
+  if (activeWeaponId === 'horizon') {
+    horizonWeapon.draw(ctx, player, getPointerWorld(), camera.x);
+  }
+
   ctx.restore();
 
   drawBossBar();
@@ -655,6 +695,7 @@ function startPrologue() {
   player.reset();
   vectorWeapon.reset();
   euclidWeapon.reset();
+  horizonWeapon.reset();
   prologueBoss.reset(world);
   activeBoss = prologueBoss;
   camera.x = 0;
@@ -947,4 +988,5 @@ window.BOSSFIGHTS = {
   prologueBoss,
   vectorWeapon,
   euclidWeapon,
+  horizonWeapon,
 };
