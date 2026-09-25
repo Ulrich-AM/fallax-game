@@ -31,15 +31,15 @@ export class HorizonWeapon {
     this.name = 'Horizon';
 
     this.damage = 42;
-    this.recoil = 690;
+    this.recoil = 900;
     this.orbitRadius = 45;
     this.beamRange = 1850;
 
     this.bodyLengthPixels = 26;
-    this.bodyThicknessPixels = 15;
+    this.bodyThicknessPixels = 19;
 
     this.chargeDuration = 0.34;
-    this.flashDuration = 0.10;
+    this.flashDuration = 0.06;
     this.fireCooldown = 1.10;
 
     this.chargeTimer = 0;
@@ -64,7 +64,7 @@ export class HorizonWeapon {
   }
 
   get locksPlayer() {
-    return this.chargeTimer > 0;
+    return false;
   }
 
   getTargetAngle(player, pointerWorld) {
@@ -123,8 +123,6 @@ export class HorizonWeapon {
     this.wasFiring = firing;
 
     if (this.chargeTimer > 0) {
-      player.vx = 0;
-
       this.chargeTimer = Math.max(0, this.chargeTimer - dt);
 
       if (this.chargeTimer <= 0) {
@@ -189,7 +187,7 @@ export class HorizonWeapon {
       Math.round(aim.y),
     );
     ctx.rotate(aim.angle);
-    ctx.fillStyle = '#050505';
+    ctx.fillStyle = '#6f747c';
     ctx.fillRect(
       -this.bodyLengthPixels / 2,
       -this.bodyThicknessPixels / 2,
@@ -207,12 +205,12 @@ export class HorizonWeapon {
 
     if (this.flashTimer > 0) {
       ctx.globalAlpha = 1;
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 10;
       ctx.shadowColor = 'rgba(255,255,255,1)';
       ctx.shadowBlur = 24;
     } else {
       ctx.globalAlpha = 0.24;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 4;
       ctx.shadowBlur = 0;
     }
 
