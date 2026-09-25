@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=19';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=20';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -45,7 +45,7 @@ export class VectorWeapon {
       rectangle({
         width: this.bodyArtSize,
         height: this.bodyArtSize,
-        color: '#050505',
+        color: '#6f747c',
       }),
     ], {
       mergeOutlines: true,
