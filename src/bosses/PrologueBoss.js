@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=21';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=21';
+import { BossAI } from './BossAI.js?v=22';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=22';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -114,6 +114,13 @@ export class PrologueBoss {
     this.satelliteDirY = 0;
     this.satelliteAttackHit = false;
     this.satelliteMaxRange = 950;
+
+    this.secondSatelliteX = this.x - this.satelliteOrbitRadius;
+    this.secondSatelliteY = this.y;
+    this.satelliteBarrageStrikes = 8;
+    this.satelliteBarrageStrikeHit = -1;
+    this.satelliteBarrageDirectionX = 1;
+    this.satelliteBarrageDirectionY = 0;
 
     // Radial satellite burst attack.
     this.satelliteBurstRowsFired = 0;
@@ -569,6 +576,12 @@ export class PrologueBoss {
       .addState('satelliteLunge', {
         enter: (owner, ai, ctx) => {
           const player = ai.targetPlayer(ctx);
+
+          if (owner.isPhase2) {
+            owner.beginPhase2SatelliteBarrage(player);
+            return;
+          }
+
           const home = owner.getSatelliteOrbitPosition();
 
           owner.satelliteMode = 'attack';
@@ -594,6 +607,11 @@ export class PrologueBoss {
 
         update: (owner, ai, dt, ctx) => {
           const player = ai.targetPlayer(ctx);
+
+          if (owner.isPhase2) {
+            owner.updatePhase2SatelliteBarrage(ai, dt, ctx);
+            return;
+          }
 
           // Prologue itself keeps circling above the player while the satellite
           // attacks, which makes the whole encounter feel less passive.
@@ -1024,6 +1042,127 @@ export class PrologueBoss {
       });
   }
 
+  beginPhase2SatelliteBarrage(player) {
+    this.satelliteMode = 'dualAttack';
+
+    const firstHome = this.getSatelliteOrbitPosition(0);
+    const secondHome = this.getSatelliteOrbitPosition(180);
+
+    this.satelliteX = firstHome.x;
+    this.satelliteY = firstHome.y;
+    this.secondSatelliteX = secondHome.x;
+    this.secondSatelliteY = secondHome.y;
+    this.satelliteBarrageStrikeHit = -1;
+
+    const dx = (player?.x ?? this.x + 1) - this.x;
+    const dy = (player?.y ?? this.y) - this.y;
+    const length = Math.hypot(dx, dy) || 1;
+
+    this.satelliteBarrageDirectionX = dx / length;
+    this.satelliteBarrageDirectionY = dy / length;
+  }
+
+  updatePhase2SatelliteBarrage(ai, dt, ctx) {
+    const player = ai.targetPlayer(ctx);
+
+    // Keep the boss moving, but more slowly, while its two orbiters punch.
+    this.updateFigureEightAbovePlayer(dt, player, 0.58 * this.actionSpeed);
+
+    const strikeDuration = 0.23;
+    const totalDuration =
+      this.satelliteBarrageStrikes * strikeDuration + 0.18;
+
+    const strikeIndex = Math.min(
+      this.satelliteBarrageStrikes - 1,
+      Math.floor(ai.stateTime / strikeDuration),
+    );
+
+    const strikeTime =
+      (ai.stateTime - strikeIndex * strikeDuration) / strikeDuration;
+
+    const activeFirst = strikeIndex % 2 === 0;
+    const firstHome = this.getSatelliteOrbitPosition(0);
+    const secondHome = this.getSatelliteOrbitPosition(180);
+
+    // Re-aim at the player at the start of each punch so the barrage tracks
+    // broadly without turning into a homing projectile.
+    if (
+      strikeIndex >= 0 &&
+      Math.abs(strikeTime) < dt / strikeDuration + 0.03 &&
+      player
+    ) {
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const length = Math.hypot(dx, dy) || 1;
+      this.satelliteBarrageDirectionX = dx / length;
+      this.satelliteBarrageDirectionY = dy / length;
+    }
+
+    const dirX = this.satelliteBarrageDirectionX;
+    const dirY = this.satelliteBarrageDirectionY;
+    const punchDistance = 520;
+
+    // Fast extension, slightly slower snap-back.
+    let punch = 0;
+    if (strikeTime < 0.42) {
+      punch = easeInCubic(strikeTime / 0.42);
+    } else {
+      punch =
+        1 -
+        easeOutCubic(
+          (strikeTime - 0.42) / 0.58,
+        );
+    }
+
+    const activeHome = activeFirst ? firstHome : secondHome;
+    const activeX = activeHome.x + dirX * punchDistance * punch;
+    const activeY = activeHome.y + dirY * punchDistance * punch;
+
+    if (activeFirst) {
+      this.satelliteX = activeX;
+      this.satelliteY = activeY;
+      this.secondSatelliteX = secondHome.x;
+      this.secondSatelliteY = secondHome.y;
+    } else {
+      this.satelliteX = firstHome.x;
+      this.satelliteY = firstHome.y;
+      this.secondSatelliteX = activeX;
+      this.secondSatelliteY = activeY;
+    }
+
+    if (
+      player &&
+      strikeTime >= 0.16 &&
+      strikeTime <= 0.72 &&
+      this.satelliteBarrageStrikeHit !== strikeIndex
+    ) {
+      const handX = activeFirst ? this.satelliteX : this.secondSatelliteX;
+      const handY = activeFirst ? this.satelliteY : this.secondSatelliteY;
+      const radius =
+        this.satelliteSize * 0.5 +
+        Math.max(player.w, player.h) * 0.42;
+
+      if (Math.hypot(handX - player.x, handY - player.y) <= radius) {
+        if (player.takeDamage?.(10)) {
+          this.satelliteBarrageStrikeHit = strikeIndex;
+        }
+      }
+    }
+
+    if (ai.stateTime >= totalDuration) {
+      this.satelliteMode = 'orbit';
+
+      const home = this.getSatelliteOrbitPosition(0);
+      const second = this.getSatelliteOrbitPosition(180);
+      this.satelliteX = home.x;
+      this.satelliteY = home.y;
+      this.secondSatelliteX = second.x;
+      this.secondSatelliteY = second.y;
+
+      ai.changeState('idle', ctx);
+    }
+  }
+
   reset(world) {
     this.health = this.maxHealth;
     this.dead = false;
@@ -1065,8 +1204,12 @@ export class PrologueBoss {
     this.shockwaves.length = 0;
 
     const home = this.getSatelliteOrbitPosition();
+    const secondHome = this.getSatelliteOrbitPosition(180);
     this.satelliteX = home.x;
     this.satelliteY = home.y;
+    this.secondSatelliteX = secondHome.x;
+    this.secondSatelliteY = secondHome.y;
+    this.satelliteBarrageStrikeHit = -1;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -1101,8 +1244,11 @@ export class PrologueBoss {
 
     if (this.satelliteMode === 'orbit') {
       const home = this.getSatelliteOrbitPosition();
+      const secondHome = this.getSatelliteOrbitPosition(180);
       this.satelliteX = home.x;
       this.satelliteY = home.y;
+      this.secondSatelliteX = secondHome.x;
+      this.secondSatelliteY = secondHome.y;
     }
 
     this.updateSatelliteBullets(dt, context.player, context.world);
@@ -1468,8 +1614,18 @@ export class PrologueBoss {
     );
 
     if (this.isPhase2) {
-      const secondTarget = this.getSatelliteOrbitPosition(180);
-      const emerge = this.phase2Transition;
+      const secondTarget =
+        this.satelliteMode === 'dualAttack'
+          ? {
+              x: this.secondSatelliteX,
+              y: this.secondSatelliteY,
+            }
+          : this.getSatelliteOrbitPosition(180);
+
+      const emerge =
+        this.satelliteMode === 'dualAttack'
+          ? 1
+          : this.phase2Transition;
 
       const secondX = lerp(
         this.satelliteX,
