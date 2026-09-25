@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=22';
-import { PlayerController } from './PlayerController.js?v=22';
-import { MOVEMENT } from './movementConfig.js?v=22';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=23';
+import { PlayerController } from './PlayerController.js?v=23';
+import { MOVEMENT } from './movementConfig.js?v=23';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,13 +14,13 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=22';
-import { VectorWeapon } from './VectorWeapon.js?v=22';
-import { EuclidWeapon } from './EuclidWeapon.js?v=22';
-import { HorizonWeapon } from './HorizonWeapon.js?v=22';
-import { MachWeapon } from './MachWeapon.js?v=22';
-import { BossAI } from './bosses/BossAI.js?v=22';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=22';
+} from './equipment.js?v=23';
+import { VectorWeapon } from './VectorWeapon.js?v=23';
+import { EuclidWeapon } from './EuclidWeapon.js?v=23';
+import { HorizonWeapon } from './HorizonWeapon.js?v=23';
+import { MachWeapon } from './MachWeapon.js?v=23';
+import { BossAI } from './bosses/BossAI.js?v=23';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=23';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -374,7 +374,11 @@ function update(dt) {
     dashTarget: getPointerWorld(),
   };
 
-  if (activeWeapon?.locksPlayer) {
+  const weaponLocksPlayer = !!activeWeapon?.locksPlayer;
+  const lockedPlayerX = player.x;
+  const lockedPlayerY = player.y;
+
+  if (weaponLocksPlayer) {
     playerInput.move = 0;
     playerInput.jumpHeld = false;
     playerInput.jumpPressed = false;
@@ -382,9 +386,18 @@ function update(dt) {
     playerInput.sprintHeld = false;
     playerInput.dashPressed = false;
     player.vx = 0;
+    player.vy = 0;
   }
 
   player.update(dt, playerInput, world);
+
+  if (weaponLocksPlayer) {
+    player.x = lockedPlayerX;
+    player.y = lockedPlayerY;
+    player.prevY = lockedPlayerY;
+    player.vx = 0;
+    player.vy = 0;
+  }
 
   camera.targetX = player.x - W * 0.38;
   camera.targetX = Math.max(0, Math.min(world.width - W, camera.targetX));
@@ -401,7 +414,10 @@ function update(dt) {
   updateCameraShake(dt);
 
   if (pressed.has('KeyQ')) {
-    activeWeapon?.triggerSpecial?.();
+    activeWeapon?.triggerSpecial?.({
+      player,
+      pointerWorld: getPointerWorld(),
+    });
   }
 
   // Vector projectiles keep moving after switching weapons, but it only begins
@@ -694,6 +710,8 @@ function renderGame() {
 
   if (activeWeaponId === 'horizon') {
     horizonWeapon.draw(ctx, player, getPointerWorld(), camera.x);
+  } else {
+    horizonWeapon.drawSpecialProjectiles(ctx, camera.x);
   }
 
   if (activeWeaponId === 'mach') {
