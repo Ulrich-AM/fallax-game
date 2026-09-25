@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=15';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=16';
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
@@ -23,6 +23,12 @@ export class EuclidWeapon {
   constructor() {
     this.name = 'Euclid';
     this.damagePerSecond = 8;
+    this.specialDamagePerSecond = 42;
+    this.specialCooldown = 18;
+    this.specialCooldownTimer = 0;
+    this.specialDuration = 3;
+    this.specialActiveTimer = 0;
+
     this.orbitRadius = 42;
     this.beamRange = 1700;
     this.bodyLength = 5;
@@ -56,6 +62,26 @@ export class EuclidWeapon {
 
   reset() {
     this.firing = false;
+    this.specialCooldownTimer = 0;
+    this.specialActiveTimer = 0;
+  }
+
+  triggerSpecial() {
+    if (this.specialCooldownTimer > 0) return false;
+
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialActiveTimer = this.specialDuration;
+    return true;
+  }
+
+  get specialAbilities() {
+    return [{
+      id: 'euclid-overcharge',
+      name: 'overcharge',
+      cooldown: this.specialCooldown,
+      remaining: this.specialCooldownTimer,
+      active: this.specialActiveTimer > 0,
+    }];
   }
 
   getAim(player, pointerWorld) {
@@ -76,12 +102,30 @@ export class EuclidWeapon {
 
   update(dt, player, pointerWorld, firing, target, artPixelSize) {
     const aim = this.getAim(player, pointerWorld);
-    this.firing = firing;
+
+    this.specialCooldownTimer = Math.max(
+      0,
+      this.specialCooldownTimer - dt,
+    );
+    this.specialActiveTimer = Math.max(
+      0,
+      this.specialActiveTimer - dt,
+    );
+
+    const specialActive = this.specialActiveTimer > 0;
+    const effectiveFiring = firing || specialActive;
+    const widthMultiplier = specialActive ? 3 : 1;
+    const damagePerSecond = specialActive
+      ? this.specialDamagePerSecond
+      : this.damagePerSecond;
+
+    this.firing = effectiveFiring;
 
     let beamDistance = this.beamRange;
 
-    if (firing && target && !target.dead) {
-      const beamRadius = (this.bodyThickness * artPixelSize) * 0.5;
+    if (effectiveFiring && target && !target.dead) {
+      const beamRadius =
+        (this.bodyThickness * artPixelSize * widthMultiplier) * 0.5;
 
       target.damageProjectilesAlongRay?.(
         aim.x,
@@ -90,7 +134,7 @@ export class EuclidWeapon {
         aim.dirY,
         this.beamRange,
         beamRadius,
-        this.damagePerSecond * dt,
+        damagePerSecond * dt,
       );
 
       const radius = (target.halfSize ?? 48) * 0.94;
@@ -107,7 +151,7 @@ export class EuclidWeapon {
 
       if (hitDistance !== null) {
         beamDistance = hitDistance;
-        target.takeDamage?.(this.damagePerSecond * dt);
+        target.takeDamage?.(damagePerSecond * dt);
       }
     }
 
@@ -149,13 +193,19 @@ export class EuclidWeapon {
 
     if (!this.firing) return;
 
+    const specialActive = this.specialActiveTimer > 0;
+    const widthMultiplier = specialActive ? 3 : 1;
+
     ctx.save();
-    ctx.globalAlpha = 0.42;
+    ctx.globalAlpha = specialActive ? 1 : 0.42;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = this.bodyThickness * artPixelSize;
+    ctx.lineWidth =
+      this.bodyThickness * artPixelSize * widthMultiplier;
     ctx.lineCap = 'butt';
-    ctx.shadowColor = 'rgba(255,255,255,0.65)';
-    ctx.shadowBlur = 7;
+    ctx.shadowColor = specialActive
+      ? 'rgba(255,255,255,1)'
+      : 'rgba(255,255,255,0.65)';
+    ctx.shadowBlur = specialActive ? 24 : 7;
 
     ctx.beginPath();
     ctx.moveTo(
