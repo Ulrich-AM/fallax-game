@@ -34,6 +34,13 @@ export const ITEM_LIBRARY = {
     description: 'A pressure-wave weapon with strong sustained recoil.',
     appearance: 'wide gray rectangle',
   },
+  backfire: {
+    id: 'backfire',
+    name: 'Backfire',
+    category: 'abilities',
+    description: 'Dash propulsion that sprays a rear-facing bullet fan.',
+    appearance: 'ability module',
+  },
 };
 
 export const ownedItems = ['vector', 'euclid'];
