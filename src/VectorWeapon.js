@@ -1,4 +1,4 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=7';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=8';
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -15,6 +15,10 @@ export class VectorWeapon {
     this.orbitRadius = 42;
     this.bulletSpeed = 1020;
     this.bulletLife = 1.6;
+    this.bodyArtSize = 4;
+    this.bulletTrailLife = 0.14;
+    this.bulletTrailInterval = 0.018;
+    this.bulletTrailMaxGhosts = 7;
 
     // Short three-round bursts.
     this.burstSize = 3;
@@ -29,8 +33,8 @@ export class VectorWeapon {
 
     this.definition = group([
       rectangle({
-        width: 4,
-        height: 4,
+        width: this.bodyArtSize,
+        height: this.bodyArtSize,
         color: '#050505',
       }),
     ], {
@@ -77,6 +81,29 @@ export class VectorWeapon {
     }
 
     for (const bullet of this.bullets) {
+      bullet.trailTimer -= dt;
+
+      if (bullet.trailTimer <= 0) {
+        bullet.trail.push({
+          x: bullet.x,
+          y: bullet.y,
+          life: this.bulletTrailLife,
+          maxLife: this.bulletTrailLife,
+        });
+
+        if (bullet.trail.length > this.bulletTrailMaxGhosts) {
+          bullet.trail.shift();
+        }
+
+        bullet.trailTimer = this.bulletTrailInterval;
+      }
+
+      for (const ghost of bullet.trail) {
+        ghost.life -= dt;
+      }
+
+      bullet.trail = bullet.trail.filter(ghost => ghost.life > 0);
+
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
       bullet.life -= dt;
@@ -102,6 +129,8 @@ export class VectorWeapon {
       vy: Math.sin(shotAngle) * this.bulletSpeed,
       damage: this.damage,
       life: this.bulletLife,
+      trailTimer: 0,
+      trail: [],
     });
   }
 
@@ -124,20 +153,39 @@ export class VectorWeapon {
     );
     ctx.restore();
 
-    this.drawBullets(ctx, cameraX);
+    this.drawBullets(ctx, cameraX, artPixelSize);
   }
 
-  drawBullets(ctx, cameraX) {
+  drawBullets(ctx, cameraX, artPixelSize) {
     ctx.save();
-    ctx.fillStyle = '#e5e7eb';
 
-    const size = 8;
+    // Vector body is bodyArtSize * artPixelSize screen pixels.
+    // Bullets are exactly one screen pixel smaller.
+    const size = Math.max(1, this.bodyArtSize * artPixelSize - 1);
     const half = size / 2;
 
     for (const bullet of this.bullets) {
-      const sx = Math.round(bullet.x - cameraX - half);
-      const sy = Math.round(bullet.y - half);
-      ctx.fillRect(sx, sy, size, size);
+      // Phantom trail: square afterimages that fade behind the projectile.
+      for (const ghost of bullet.trail) {
+        const alpha = Math.max(0, ghost.life / ghost.maxLife) * 0.24;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#e5e7eb';
+        ctx.fillRect(
+          Math.round(ghost.x - cameraX - half),
+          Math.round(ghost.y - half),
+          size,
+          size,
+        );
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(
+        Math.round(bullet.x - cameraX - half),
+        Math.round(bullet.y - half),
+        size,
+        size,
+      );
     }
 
     ctx.restore();
