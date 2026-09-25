@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=18';
+import { MOVEMENT as CFG } from './movementConfig.js?v=19';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -31,6 +31,7 @@ export class PlayerController {
     this.health = this.maxHealth;
     this.hurtInvulnerabilityTimer = 0;
     this.hurtFlashTimer = 0;
+    this.dashSerial = 0;
 
     this.stamina = CFG.staminaMax;
     this.staminaRegenDelayTimer = 0;
@@ -249,6 +250,7 @@ export class PlayerController {
 
     this.dashCooldownTimer = CFG.dashCooldown;
     this.dashInvulnerabilityTimer = CFG.dashInvulnerability;
+    this.dashSerial++;
     this.dashVisualTimer = CFG.dashVisualTime;
 
     this.spawnDashTrail(startX, startY, this.x, this.y);
@@ -458,6 +460,14 @@ export class PlayerController {
     this.afterimages = this.afterimages.filter(a => a.life > 0);
   }
 
+
+  takeContinuousDamage(amount) {
+    if (amount <= 0 || this.health <= 0) return false;
+
+    this.health = Math.max(0, this.health - amount);
+    this.hurtFlashTimer = Math.max(this.hurtFlashTimer, 0.045);
+    return true;
+  }
 
   takeDamage(amount, { ignoreDashInvulnerability = false } = {}) {
     if (amount <= 0 || this.health <= 0) return false;
