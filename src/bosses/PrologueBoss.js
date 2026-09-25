@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=17';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=17';
+import { BossAI } from './BossAI.js?v=18';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=18';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -98,6 +98,7 @@ export class PrologueBoss {
     this.satelliteLocalRotation = 0;
     this.satelliteOrbitSpeed = 56;
     this.satelliteSpinSpeed = 220;
+    this.phase2Speed = 1.45;
     this.satelliteOrbitRadius = this.halfSize + this.satelliteSize * 0.72;
 
     this.satelliteMode = 'orbit';
@@ -116,6 +117,10 @@ export class PrologueBoss {
     this.satelliteBurstRowsFired = 0;
     this.satelliteBurstRows = 3;
     this.satelliteBurstInterval = 0.36;
+    this.phase2BurstRows = 8;
+    this.phase2BurstInterval = 0.24;
+    this.burstAnchorX = this.x;
+    this.burstAnchorY = this.y;
     this.satelliteBurstBaseAngle = 0;
     this.satelliteBullets = [];
     this.satelliteBulletCount = 20;
@@ -168,6 +173,7 @@ export class PrologueBoss {
       initialState: 'idle',
       phases: [
         { id: 'phase1', atOrBelow: 1.0 },
+        { id: 'phase2', atOrBelow: 0.5 },
       ],
     });
 
@@ -208,9 +214,21 @@ export class PrologueBoss {
     this.scaleY = 1 - breathe;
   }
 
-  getSatelliteOrbitPosition() {
+  get isPhase2() {
+    return this.ai?.phaseId === 'phase2';
+  }
+
+  get actionSpeed() {
+    return this.isPhase2 ? this.phase2Speed : 1;
+  }
+
+  getSatelliteOrbitPosition(angleOffsetDegrees = 0) {
     const orbitRadians =
-      (this.rotation + this.satelliteOrbitAngle) * Math.PI / 180;
+      (
+        this.rotation +
+        this.satelliteOrbitAngle +
+        angleOffsetDegrees
+      ) * Math.PI / 180;
 
     return {
       x: this.x + Math.cos(orbitRadians) * this.satelliteOrbitRadius,
@@ -225,14 +243,23 @@ export class PrologueBoss {
           owner.scaleX = 1;
           owner.scaleY = 1;
           owner.rotationLocked = false;
-          owner.rotationSpeed = 52;
+          owner.rotationSpeed = 52 * owner.actionSpeed;
           owner.satelliteMode = 'orbit';
-          ai.setTimer('attackDelay', 2.8 + Math.random() * 1.8);
+
+          const attackDelay = owner.isPhase2
+            ? 1.15 + Math.random() * 0.75
+            : 2.8 + Math.random() * 1.8;
+
+          ai.setTimer('attackDelay', attackDelay);
         },
 
         update: (owner, ai, dt, ctx) => {
           const player = ai.targetPlayer(ctx);
-          owner.updateFigureEightAbovePlayer(dt, player);
+          owner.updateFigureEightAbovePlayer(
+            dt,
+            player,
+            owner.isPhase2 ? 1.45 : 1,
+          );
 
           if (ai.timerDone('attackDelay')) {
             const nextAttack = ai.chooseWeighted([
@@ -252,7 +279,7 @@ export class PrologueBoss {
           owner.trackStartX = owner.x;
           owner.trackStartY = owner.y;
           owner.rotationLocked = false;
-          owner.rotationSpeed = 68;
+          owner.rotationSpeed = 68 * owner.actionSpeed;
         },
 
         update: (owner, ai, dt, ctx) => {
@@ -266,17 +293,20 @@ export class PrologueBoss {
           );
           owner.trackTargetY = clamp(player.y - 250, 115, 270);
 
-          const follow = 1 - Math.exp(-2.05 * dt);
+          const follow =
+            1 - Math.exp(-2.05 * owner.actionSpeed * dt);
           owner.x = lerp(owner.x, owner.trackTargetX, follow);
           owner.y = lerp(owner.y, owner.trackTargetY, follow);
 
           owner.y += Math.sin(ai.stateTime * 4.0) * 0.20;
 
-          const settle = smoothstep(ai.stateTime / 1.15);
+          const settle = smoothstep(
+            ai.stateTime / (1.15 / owner.actionSpeed),
+          );
           owner.scaleX = lerp(1.035, 1, settle);
           owner.scaleY = lerp(0.965, 1, settle);
 
-          if (ai.stateTime >= 1.30) {
+          if (ai.stateTime >= 1.30 / owner.actionSpeed) {
             ai.changeState('anticipate', ctx);
           }
         },
@@ -300,7 +330,11 @@ export class PrologueBoss {
         },
 
         update: (owner, ai) => {
-          const t = clamp(ai.stateTime / 0.52, 0, 1);
+          const t = clamp(
+            ai.stateTime / (0.52 / owner.actionSpeed),
+            0,
+            1,
+          );
           const eased = smoothstep(t);
 
           owner.x = lerp(owner.trackStartX, owner.lockedSmashX, eased);
@@ -340,7 +374,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai, dt, ctx) => {
-          const duration = 0.31;
+          const duration = 0.31 / owner.actionSpeed;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const fall = easeInQuart(t);
 
@@ -409,7 +443,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai) => {
-          const duration = 0.44;
+          const duration = 0.44 / owner.actionSpeed;
           const t = clamp(ai.stateTime / duration, 0, 1);
 
           const squash = Math.exp(-8 * t);
@@ -436,7 +470,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai, dt, ctx) => {
-          const duration = 0.90;
+          const duration = 0.90 / owner.actionSpeed;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const eased = easeOutBack(t);
 
@@ -455,7 +489,11 @@ export class PrologueBoss {
 
           owner.scaleX = lerp(1.08, 1, smoothstep(t));
           owner.scaleY = lerp(0.92, 1, smoothstep(t));
-          owner.rotationSpeed = lerp(18, 52, smoothstep(t));
+          owner.rotationSpeed = lerp(
+            18,
+            52 * owner.actionSpeed,
+            smoothstep(t),
+          );
 
           if (t >= 1) {
             ai.changeState('idle', ctx);
@@ -494,13 +532,17 @@ export class PrologueBoss {
 
           // Prologue itself keeps circling above the player while the satellite
           // attacks, which makes the whole encounter feel less passive.
-          owner.updateFigureEightAbovePlayer(dt, player, 0.74);
+          owner.updateFigureEightAbovePlayer(
+            dt,
+            player,
+            0.74 * owner.actionSpeed,
+          );
 
           const anticipationEnd = 0.20;
           const lungeEnd = 0.48;
           const holdEnd = 0.58;
           const returnEnd = 1.06;
-          const time = ai.stateTime;
+          const time = ai.stateTime * owner.actionSpeed;
 
           if (time < anticipationEnd) {
             const t = smoothstep(time / anticipationEnd);
@@ -559,6 +601,8 @@ export class PrologueBoss {
         enter: (owner) => {
           owner.satelliteMode = 'attack';
           owner.satelliteBurstRowsFired = 0;
+          owner.burstAnchorX = owner.x;
+          owner.burstAnchorY = owner.y;
           owner.satelliteBurstBaseAngle =
             owner.satelliteOrbitAngle * Math.PI / 180;
 
@@ -571,14 +615,30 @@ export class PrologueBoss {
 
         update: (owner, ai, dt, ctx) => {
           const player = ai.targetPlayer(ctx);
-          owner.updateFigureEightAbovePlayer(dt, player, 0.70);
 
-          const pullInEnd = 0.46;
+          if (owner.isPhase2) {
+            owner.x = owner.burstAnchorX;
+            owner.y = owner.burstAnchorY;
+          } else {
+            owner.updateFigureEightAbovePlayer(dt, player, 0.70);
+          }
+
+          const rows = owner.isPhase2
+            ? owner.phase2BurstRows
+            : owner.satelliteBurstRows;
+
+          const interval = owner.isPhase2
+            ? owner.phase2BurstInterval
+            : owner.satelliteBurstInterval;
+
+          const pullInEnd = owner.isPhase2 ? 0.32 : 0.46;
           const firingEnd =
             pullInEnd +
-            owner.satelliteBurstInterval * (owner.satelliteBurstRows - 1) +
-            0.18;
-          const returnEnd = firingEnd + 0.42;
+            interval * (rows - 1) +
+            (owner.isPhase2 ? 0.12 : 0.18);
+          const returnEnd =
+            firingEnd + (owner.isPhase2 ? 0.30 : 0.42);
+
           const time = ai.stateTime;
 
           const dx = owner.satelliteLungeStartX - owner.x;
@@ -600,8 +660,8 @@ export class PrologueBoss {
             const elapsed = time - pullInEnd;
             const shouldHaveFired =
               Math.min(
-                owner.satelliteBurstRows,
-                Math.floor(elapsed / owner.satelliteBurstInterval) + 1,
+                rows,
+                Math.floor(elapsed / interval) + 1,
               );
 
             while (owner.satelliteBurstRowsFired < shouldHaveFired) {
@@ -668,7 +728,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai) => {
-          const duration = 0.92;
+          const duration = 0.92 / owner.actionSpeed;
           const t = clamp(ai.stateTime / duration, 0, 1);
           const eased = smoothstep(t);
 
@@ -721,9 +781,13 @@ export class PrologueBoss {
         update: (owner, ai, dt, ctx) => {
           const previousX = owner.x;
 
+          const rushSpeed =
+            owner.wallRushSpeed *
+            (owner.isPhase2 ? 1.22 : 1);
+
           owner.x +=
             owner.wallRushDirection *
-            owner.wallRushSpeed *
+            rushSpeed *
             dt;
 
           owner.rotation = owner.lockedRotation;
@@ -795,7 +859,7 @@ export class PrologueBoss {
                 world.floorY - playerHalfH,
               );
               player.prevY = player.y;
-              player.vx = owner.wallRushDirection * owner.wallRushSpeed;
+              player.vx = owner.wallRushDirection * rushSpeed;
               player.vy = 0;
               player.grounded = false;
             }
@@ -844,7 +908,7 @@ export class PrologueBoss {
         },
 
         update: (owner, ai) => {
-          const duration = 0.58;
+          const duration = 0.58 / owner.actionSpeed;
           const t = clamp(ai.stateTime / duration, 0, 1);
 
           const recoil =
@@ -925,10 +989,19 @@ export class PrologueBoss {
       this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
     }
 
+    const orbitSpeedScale = this.isPhase2 ? 1.35 : 1;
+
     this.satelliteOrbitAngle =
-      (this.satelliteOrbitAngle + this.satelliteOrbitSpeed * dt) % 360;
+      (
+        this.satelliteOrbitAngle +
+        this.satelliteOrbitSpeed * orbitSpeedScale * dt
+      ) % 360;
+
     this.satelliteLocalRotation =
-      (this.satelliteLocalRotation + this.satelliteSpinSpeed * dt) % 360;
+      (
+        this.satelliteLocalRotation +
+        this.satelliteSpinSpeed * orbitSpeedScale * dt
+      ) % 360;
 
     if (this.satelliteMode === 'orbit') {
       const home = this.getSatelliteOrbitPosition();
@@ -1241,17 +1314,16 @@ export class PrologueBoss {
     ctx.restore();
   }
 
-  drawSatellite(ctx, cameraX) {
+  drawSatelliteAt(ctx, cameraX, x, y, localRotation) {
     const size = this.satelliteSize;
 
     ctx.save();
     ctx.translate(
-      Math.round(this.satelliteX - cameraX),
-      Math.round(this.satelliteY),
+      Math.round(x - cameraX),
+      Math.round(y),
     );
-    ctx.rotate(this.satelliteLocalRotation * Math.PI / 180);
+    ctx.rotate(localRotation * Math.PI / 180);
 
-    // Layered glow for a much stronger white aura.
     ctx.fillStyle = 'rgba(255,255,255,0.32)';
     ctx.shadowColor = 'rgba(255,255,255,1)';
     ctx.shadowBlur = 42;
@@ -1266,6 +1338,28 @@ export class PrologueBoss {
     ctx.fillRect(-size / 2, -size / 2, size, size);
 
     ctx.restore();
+  }
+
+  drawSatellite(ctx, cameraX) {
+    this.drawSatelliteAt(
+      ctx,
+      cameraX,
+      this.satelliteX,
+      this.satelliteY,
+      this.satelliteLocalRotation,
+    );
+
+    if (this.isPhase2) {
+      const second = this.getSatelliteOrbitPosition(180);
+
+      this.drawSatelliteAt(
+        ctx,
+        cameraX,
+        second.x,
+        second.y,
+        -this.satelliteLocalRotation,
+      );
+    }
   }
 
   drawShockwaves(ctx, cameraX) {
