@@ -1,83 +1,75 @@
-# Fallax
+# Bossfights movement foundation
 
-A shape-driven boss rush built around one rule:
+Browser-playable foundation for Bossfights. This build intentionally contains no boss or weapon code yet.
 
-> Simple shapes, complex effects and mechanics.
+## Run in PowerShell
 
-The current vertical slice contains the gray-square player, platforming, a long directional dash, the rapid-fire **Vector**, a menu-driven loadout and bossfight flow, reactive camera movement, sharp-corner gradient shading, and the full two-phase **Prologue** encounter.
+From this folder:
 
-## Stack
-
-- TypeScript
-- Phaser 3.90.0
-- Vite
-
-## Play on GitHub Pages
-
-After GitHub Pages is enabled with **Settings → Pages → Source: GitHub Actions**, every push to `main` can publish the production build at `https://ulrich-am.github.io/fallax-game/`.
-
-## Run locally
-
-```bash
-npm install
-npm run dev
+```powershell
+py -m http.server 8000
 ```
 
-Then open the local URL printed by Vite.
+Then open `http://localhost:8000`.
 
-## Menu
+If `py` is unavailable, use:
 
-- **Bossfights:** select Prologue and begin the encounter
-- **Inventory:** inspect the equipped Vector and reserved future slots
-- **Settings:** independently toggle music and effects
+```powershell
+python -m http.server 8000
+```
 
 ## Controls
 
-| Action | Control |
-| --- | --- |
-| Move | `A` / `D` or arrow keys |
-| Jump | `Space`, `W`, or Up |
-| Drop through a platform | `S` or Down |
-| Long dash | `Shift` |
-| Aim | Mouse |
-| Fire Vector | Left mouse button or `J` |
-| Return to menu | `Escape` |
-| Retry after defeat | `R` |
-| Return to menu after victory or defeat | `Enter` |
+- A / D: move
+- Space: jump
+- Shift: sprint
+- Ctrl: momentum dash
+- R: reset player
+- Click the rotation-test object in the middle of the arena: rotate it by 15 degrees
 
-## Current loadout
+## Stamina
 
-**Vector** is the only equipped weapon. It fires accurate projectiles very quickly, but each projectile deals little damage. The secondary slot remains locked and the three special slots remain empty until those systems are designed.
+Stamina is a shared movement resource rather than a cooldown.
 
-## Prologue
+- maximum: 100
+- sprint drains stamina continuously
+- dash spends a chunk immediately
+- regeneration starts after a short delay
+- fully exhausting sprint briefly locks sprinting until a small amount of stamina recovers
 
-### Phase I
+All values are exposed in `src/movementConfig.js` for tuning.
 
-- **Swing:** the inner white square recoils and thrusts toward the player's predicted position.
-- **Crash:** Prologue rises, anticipates, and smashes onto the floor or the platform supporting the player.
-- **Slide:** when the player is grounded, Prologue crashes and sweeps toward the nearest wall.
+## Movement
 
-### Phase II
+The floor is intentionally less grippy than the previous prototype. Releasing movement carries some horizontal velocity, while reversal acceleration remains strong enough to keep the player responsive.
 
-- **Swing II:** a faster version of Swing.
-- **Rotation:** the white square extends outward and accelerates around Prologue.
-- **Crash II:** each impact sends shockwaves along the surface that was struck.
-- **Slide II:** Prologue ricochets around the room like a Pong ball.
+Dash is implemented as a horizontal impulse added to existing velocity. It does not erase vertical velocity and does not replace current horizontal momentum. This means sprinting into a dash carries more speed, airborne dashes keep the current jump/fall arc, and dashing against current movement can be used as a hard directional correction.
 
-All attacks use anticipation, action, and recovery. Impacts add squash and stretch, flashes, additive glow, afterimages, and camera shake.
+Current movement features:
 
-## Visual system
+- walk and stamina-limited sprint
+- momentum-preserving dash
+- coyote time
+- jump buffering
+- variable jump height
+- softer gravity near jump apex
+- stronger fall gravity
+- slightly slippery ground braking
+- dash afterimages
+- landing squash and dash stretch
+- fixed 120 Hz simulation
 
-Fallax generates gradient textures with deliberately sharp rectangular corners at runtime for the player, boss, platforms, menus, health bars, projectiles, and arena. The same procedural texture helpers generate radial glow sprites that can be reused for attacks, bullets, interfaces, and future effects.
+## Shape system
 
-## Audio organization
+`src/pixelShapes.js` contains reusable procedural pixel-shape primitives:
 
-```text
-public/audio/
-├─ themes/
-│  └─ bossfight-prologue.mp3
-└─ effects/
-   └─ vector-shot.mp3
-```
+- `rectangle()`
+- `polygon()`
+- `group()`
+- `rasterize()`
 
-The Prologue theme loops during the fight. Vector uses its dedicated shooting effect with slight pitch variation so rapid fire sounds less repetitive.
+Shapes use local art-pixel coordinates while world/physics positions remain continuous floating-point values.
+
+A group can merge child outlines into one outer silhouette or retain separate outlines. Outlines can also be disabled entirely.
+
+The clickable rotation object in the arena combines several primitives with merged outlines. Every click changes its angle and re-rasterizes the procedural geometry before reapplying the one-pixel outline, making it a live test of the rotation pipeline.
