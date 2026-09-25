@@ -35,7 +35,6 @@ export class VectorWeapon {
     this.specialInaccuracy = degToRad(10);
 
     this.cooldownTimer = 0;
-    this.specialCooldownTimer = 0;
     this.specialShotsRemaining = 0;
     this.specialShotTimer = 0;
     this.burstShotsRemaining = 0;
@@ -59,6 +58,9 @@ export class VectorWeapon {
 
   reset() {
     this.cooldownTimer = 0;
+    this.specialCooldownTimer = this.specialCooldown;
+    this.specialShotsRemaining = 0;
+    this.specialShotTimer = 0;
     this.burstShotsRemaining = 0;
     this.burstShotTimer = 0;
     this.bullets.length = 0;
