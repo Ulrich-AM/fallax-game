@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=10';
+import { MOVEMENT as CFG } from './movementConfig.js?v=11';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
@@ -26,6 +26,11 @@ export class PlayerController {
 
     this.coyoteTimer = 0;
     this.jumpBufferTimer = 0;
+
+    this.maxHealth = 100;
+    this.health = this.maxHealth;
+    this.hurtInvulnerabilityTimer = 0;
+    this.hurtFlashTimer = 0;
 
     this.stamina = CFG.staminaMax;
     this.staminaRegenDelayTimer = 0;
@@ -278,6 +283,8 @@ export class PlayerController {
 
     this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
     this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
+    this.hurtInvulnerabilityTimer = Math.max(0, this.hurtInvulnerabilityTimer - dt);
+    this.hurtFlashTimer = Math.max(0, this.hurtFlashTimer - dt);
     this.dashCooldownTimer = Math.max(0, this.dashCooldownTimer - dt);
     this.dashInvulnerabilityTimer = Math.max(0, this.dashInvulnerabilityTimer - dt);
     this.dashVisualTimer = Math.max(0, this.dashVisualTimer - dt);
@@ -449,6 +456,22 @@ export class PlayerController {
   updateAfterimages(dt) {
     for (const a of this.afterimages) a.life -= dt;
     this.afterimages = this.afterimages.filter(a => a.life > 0);
+  }
+
+
+  takeDamage(amount, { ignoreDashInvulnerability = false } = {}) {
+    if (amount <= 0 || this.health <= 0) return false;
+    if (!ignoreDashInvulnerability && this.dashInvulnerabilityTimer > 0) return false;
+    if (this.hurtInvulnerabilityTimer > 0) return false;
+
+    this.health = Math.max(0, this.health - amount);
+    this.hurtInvulnerabilityTimer = 0.34;
+    this.hurtFlashTimer = 0.12;
+    return true;
+  }
+
+  get healthRatio() {
+    return this.health / this.maxHealth;
   }
 
   get dashReady() {
