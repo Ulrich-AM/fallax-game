@@ -1,6 +1,6 @@
-import { rectangle, polygon, group, rasterize } from './pixelShapes.js';
-import { PlayerController } from './PlayerController.js';
-import { MOVEMENT } from './movementConfig.js';
+import { rectangle, polygon, group, rasterize } from './pixelShapes.js?v=4';
+import { PlayerController } from './PlayerController.js?v=4';
+import { MOVEMENT } from './movementConfig.js?v=4';
 
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
@@ -282,7 +282,7 @@ function drawHUD() {
 
   ctx.fillStyle = COLORS.text;
   ctx.font = 'bold 15px Arial, sans-serif';
-  ctx.fillText('Movement test  v0.3', 32, 31);
+  ctx.fillText('Movement test  v0.4', 32, 31);
 
   ctx.font = '13px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
