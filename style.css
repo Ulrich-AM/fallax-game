@@ -138,7 +138,8 @@ canvas {
 
 /* Equipment */
 #equipment-screen,
-#shop-screen {
+#shop-screen,
+#settings-screen {
   display: grid;
   grid-template-columns: 220px 1fr;
   min-width: 760px;
@@ -474,4 +475,50 @@ canvas {
 .shop-buy-button:disabled {
   color: #737b87;
   cursor: default;
+}
+
+
+/* Settings */
+.settings-panel {
+  max-width: 760px;
+}
+
+.setting-row {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 2px;
+  border-top: 1px solid #242832;
+  cursor: pointer;
+}
+
+.setting-row:first-of-type {
+  border-top: 0;
+}
+
+.setting-row > span {
+  display: grid;
+  gap: 5px;
+}
+
+.setting-row strong {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.setting-row small {
+  color: #777f8c;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.setting-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #8a8e95;
+  cursor: pointer;
+  flex: 0 0 auto;
 }
