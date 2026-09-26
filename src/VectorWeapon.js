@@ -40,6 +40,7 @@ export class VectorWeapon {
     this.burstShotsRemaining = 0;
     this.burstShotTimer = 0;
     this.bullets = [];
+    this.shotSerial = 0;
 
     this.definition = group([
       rectangle({
@@ -64,6 +65,7 @@ export class VectorWeapon {
     this.burstShotsRemaining = 0;
     this.burstShotTimer = 0;
     this.bullets.length = 0;
+    this.shotSerial = 0;
   }
 
   getAim(player, pointerWorld) {
@@ -176,6 +178,7 @@ export class VectorWeapon {
   }
 
   fireOne(player, pointerWorld, spread = this.inaccuracy) {
+    this.shotSerial++;
     const aim = this.getAim(player, pointerWorld);
     const shotAngle = aim.angle + randomSpread(spread);
 
