@@ -326,7 +326,7 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-
+      })
 
       .addState('coreOrbit', {
         enter: (owner) => {
@@ -510,7 +510,7 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-      })      });
+      });
   }
 
   getPredictedIntercept(
