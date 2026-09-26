@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=30';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=30';
+import { BossAI } from './BossAI.js?v=31';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=31';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -101,31 +101,16 @@ export class MatrixBoss {
 
     this.lastAttack = null;
 
-    // Large, slow core shots aimed at the player's current position.
+    // Large core shots that lead the player using current velocity.
     this.heavyShotCount = 5;
     this.heavyShotsRemaining = 0;
     this.heavyShotInterval = 0.52;
     this.heavyShotTimer = 0;
     this.heavyBulletSize = 46;
     this.heavyBulletDamage = 24;
-    this.heavyBulletSpeed = 195;
+    this.heavyBulletSpeed = 315;
     this.heavyBulletLife = 6.0;
     this.heavyBulletHealth = 18;
-
-    // Environmental floor-eruption special.
-    this.floorY = world.floorY;
-    this.roomTriggerFired = false;
-    this.roomEruptionFired = false;
-    this.roomTelegraphs = [];
-    this.roomWarningAlpha = 0;
-    this.roomTriggerBulletSize = 22;
-    this.roomTriggerBulletSpeed = 900;
-    this.roomTriggerBulletDamage = 12;
-    this.roomRiseBulletSize = 30;
-    this.roomRiseBulletSpeed = 430;
-    this.roomRiseBulletDamage = 22;
-    this.roomRiseBulletLife = 2.3;
-    this.roomRiseBulletHealth = 12;
 
     // Core burst.
     this.coreBurstFired = false;
@@ -134,8 +119,10 @@ export class MatrixBoss {
     this.burstBulletSize = 30;
     this.burstBulletDamage = 22;
     this.burstBulletSpeed = 300;
-    this.burstBulletLife = 3.2;
+    this.burstBulletLife = 10.0;
     this.burstBulletHealth = 10;
+    this.burstBounceFade = 0.68;
+    this.burstMinimumOpacity = 0.10;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -192,7 +179,6 @@ export class MatrixBoss {
               'swirl',
               'heavyVolley',
               'coreBurst',
-              'roomEruption',
             ].filter(name => name !== owner.lastAttack);
 
             const next =
@@ -322,90 +308,6 @@ export class MatrixBoss {
         },
       })
 
-      .addState('roomEruption', {
-        enter: (owner, ai, ctx) => {
-          owner.attackAnchorY = owner.y;
-          owner.roomTriggerFired = false;
-          owner.roomEruptionFired = false;
-          owner.roomWarningAlpha = 0;
-
-          owner.prepareRoomTelegraphs(
-            ctx?.cameraX ?? Math.max(0, owner.x - 640),
-            ctx?.viewportWidth ?? 1280,
-            ctx?.world,
-          );
-        },
-
-        update: (owner, ai, dt, ctx) => {
-          const openEnd = 0.52;
-          const triggerEnd = 0.82;
-          const warningEnd = 2.00;
-          const eruptEnd = 2.24;
-          const end = 2.72;
-          const time = ai.stateTime;
-
-          owner.coreRotation -= 120 * dt;
-
-          if (time < openEnd) {
-            const t = smoothstep(time / openEnd);
-            owner.shellOpen = lerp(0, 1.38, t);
-            owner.y = lerp(
-              owner.attackAnchorY,
-              owner.attackAnchorY - 20,
-              t,
-            );
-          } else if (time < triggerEnd) {
-            owner.shellOpen = 1.38;
-            owner.y = owner.attackAnchorY - 20;
-
-            if (!owner.roomTriggerFired) {
-              owner.roomTriggerFired = true;
-              owner.fireRoomTriggerShots();
-            }
-          } else if (time < warningEnd) {
-            owner.shellOpen = 1.38;
-            owner.y = owner.attackAnchorY - 20;
-
-            const warningT =
-              (time - triggerEnd) /
-              (warningEnd - triggerEnd);
-
-            owner.roomWarningAlpha =
-              0.14 +
-              Math.sin(warningT * Math.PI * 6) * 0.035;
-          } else if (time < eruptEnd) {
-            owner.shellOpen = 1.38;
-            owner.y = owner.attackAnchorY - 20;
-            owner.roomWarningAlpha = 0.24;
-
-            if (!owner.roomEruptionFired) {
-              owner.roomEruptionFired = true;
-              owner.fireRoomEruption(ctx?.world);
-              ctx?.shakeCamera?.(14, 0.22);
-            }
-          } else {
-            const t = smoothstep(
-              (time - eruptEnd) / (end - eruptEnd),
-            );
-
-            owner.roomWarningAlpha = lerp(0.24, 0, t);
-            owner.shellOpen = lerp(1.38, 0, t);
-            owner.y = lerp(
-              owner.attackAnchorY - 20,
-              owner.attackAnchorY,
-              easeOutCubic(t),
-            );
-          }
-
-          if (time >= end) {
-            owner.shellOpen = 0;
-            owner.roomWarningAlpha = 0;
-            owner.roomTelegraphs.length = 0;
-            ai.changeState('idle', ctx);
-          }
-        },
-      })
-
       .addState('coreBurst', {
         enter: (owner) => {
           owner.attackAnchorY = owner.y;
@@ -463,9 +365,80 @@ export class MatrixBoss {
       });
   }
 
+  getPredictedIntercept(player, projectileSpeed) {
+    const rx = player.x - this.x;
+    const ry = player.y - this.y;
+    const vx = player.vx ?? 0;
+    const vy = player.vy ?? 0;
+
+    const a =
+      vx * vx +
+      vy * vy -
+      projectileSpeed * projectileSpeed;
+
+    const b =
+      2 * (rx * vx + ry * vy);
+
+    const d =
+      rx * rx +
+      ry * ry;
+
+    let t = 0;
+
+    if (Math.abs(a) < 0.0001) {
+      if (Math.abs(b) > 0.0001) {
+        const linearT = -d / b;
+        if (linearT > 0) t = linearT;
+      }
+    } else {
+      const discriminant =
+        b * b - 4 * a * d;
+
+      if (discriminant >= 0) {
+        const root =
+          Math.sqrt(discriminant);
+
+        const t1 =
+          (-b - root) / (2 * a);
+
+        const t2 =
+          (-b + root) / (2 * a);
+
+        const positive = [t1, t2]
+          .filter(value => value > 0)
+          .sort((x, y) => x - y);
+
+        if (positive.length > 0) {
+          t = positive[0];
+        }
+      }
+    }
+
+    // Prevent extreme leads when the target is moving faster than a valid
+    // interception solution permits. In that case it still makes a useful
+    // short prediction instead of aiming absurdly far off-screen.
+    if (!(t > 0) || !Number.isFinite(t)) {
+      const distance = Math.hypot(rx, ry);
+      t = distance / projectileSpeed;
+    }
+
+    t = clamp(t, 0, 1.35);
+
+    return {
+      x: player.x + vx * t,
+      y: player.y + vy * t,
+    };
+  }
+
   fireHeavyAimedShot(player) {
-    const dx = player.x - this.x;
-    const dy = player.y - this.y;
+    const predicted =
+      this.getPredictedIntercept(
+        player,
+        this.heavyBulletSpeed,
+      );
+
+    const dx = predicted.x - this.x;
+    const dy = predicted.y - this.y;
     const length = Math.hypot(dx, dy) || 1;
 
     this.shotSerial++;
@@ -484,106 +457,6 @@ export class MatrixBoss {
         kind: 'heavy',
       },
     );
-  }
-
-  prepareRoomTelegraphs(
-    cameraX,
-    viewportWidth,
-    world,
-  ) {
-    this.roomTelegraphs.length = 0;
-
-    const margin = 90;
-    const safeWorldWidth =
-      world?.width ?? 2700;
-
-    const left = clamp(
-      cameraX + margin,
-      margin,
-      safeWorldWidth - margin,
-    );
-
-    const right = clamp(
-      cameraX + viewportWidth - margin,
-      margin,
-      safeWorldWidth - margin,
-    );
-
-    const count = 10;
-    const span = Math.max(1, right - left);
-    const laneWidth = span / count;
-
-    for (let i = 0; i < count; i++) {
-      const laneLeft =
-        left + i * laneWidth;
-
-      const x =
-        laneLeft +
-        laneWidth *
-        (0.25 + Math.random() * 0.50);
-
-      this.roomTelegraphs.push({
-        x,
-      });
-    }
-  }
-
-  fireRoomTriggerShots() {
-    this.shotSerial++;
-
-    this.spawnBullet(
-      this.x,
-      this.y,
-      -1,
-      0,
-      {
-        size: this.roomTriggerBulletSize,
-        damage: this.roomTriggerBulletDamage,
-        speed: this.roomTriggerBulletSpeed,
-        life: 2.1,
-        health: 6,
-        kind: 'signal',
-      },
-    );
-
-    this.spawnBullet(
-      this.x,
-      this.y,
-      1,
-      0,
-      {
-        size: this.roomTriggerBulletSize,
-        damage: this.roomTriggerBulletDamage,
-        speed: this.roomTriggerBulletSpeed,
-        life: 2.1,
-        health: 6,
-        kind: 'signal',
-      },
-    );
-  }
-
-  fireRoomEruption(world) {
-    this.shotSerial++;
-
-    const floorY =
-      world?.floorY ?? this.floorY;
-
-    for (const lane of this.roomTelegraphs) {
-      this.spawnBullet(
-        lane.x,
-        floorY + this.roomRiseBulletSize * 0.35,
-        0,
-        -1,
-        {
-          size: this.roomRiseBulletSize,
-          damage: this.roomRiseBulletDamage,
-          speed: this.roomRiseBulletSpeed,
-          life: this.roomRiseBulletLife,
-          health: this.roomRiseBulletHealth,
-          kind: 'eruption',
-        },
-      );
-    }
   }
 
   fireCoreBurst() {
@@ -606,6 +479,9 @@ export class MatrixBoss {
           life: this.burstBulletLife,
           health: this.burstBulletHealth,
           kind: 'burst',
+          opacity: 1,
+          bounceFade: this.burstBounceFade,
+          minimumOpacity: this.burstMinimumOpacity,
         },
       );
     }
@@ -647,6 +523,9 @@ export class MatrixBoss {
       life = this.bulletLife,
       health = this.bulletHealth,
       kind = 'swirl',
+      opacity = 1,
+      bounceFade = 1,
+      minimumOpacity = 0,
     } = {},
   ) {
     this.bullets.push({
@@ -661,6 +540,9 @@ export class MatrixBoss {
       size,
       damage,
       kind,
+      opacity,
+      bounceFade,
+      minimumOpacity,
       hitPlayer: false,
     });
   }
@@ -684,10 +566,6 @@ export class MatrixBoss {
     this.lastAttack = null;
     this.heavyShotsRemaining = 0;
     this.heavyShotTimer = 0;
-    this.roomTriggerFired = false;
-    this.roomEruptionFired = false;
-    this.roomWarningAlpha = 0;
-    this.roomTelegraphs.length = 0;
     this.coreBurstFired = false;
     this.coreFlash = 0;
 
@@ -730,10 +608,53 @@ export class MatrixBoss {
         bullet.life - dt,
       );
 
+      if (bullet.kind === 'burst') {
+        const radius = bullet.size * 0.5;
+        let bounced = false;
+
+        if (bullet.x - radius <= 0 && bullet.vx < 0) {
+          bullet.x = radius;
+          bullet.vx = Math.abs(bullet.vx);
+          bounced = true;
+        } else if (
+          bullet.x + radius >= world.width &&
+          bullet.vx > 0
+        ) {
+          bullet.x = world.width - radius;
+          bullet.vx = -Math.abs(bullet.vx);
+          bounced = true;
+        }
+
+        if (bullet.y - radius <= 0 && bullet.vy < 0) {
+          bullet.y = radius;
+          bullet.vy = Math.abs(bullet.vy);
+          bounced = true;
+        } else if (
+          bullet.y + radius >= world.floorY &&
+          bullet.vy > 0
+        ) {
+          bullet.y = world.floorY - radius;
+          bullet.vy = -Math.abs(bullet.vy);
+          bounced = true;
+        }
+
+        if (bounced) {
+          bullet.opacity *= bullet.bounceFade;
+
+          if (
+            bullet.opacity <=
+            bullet.minimumOpacity
+          ) {
+            bullet.life = 0;
+          }
+        }
+      }
+
       if (
         !bullet.hitPlayer &&
         player &&
-        bullet.health > 0
+        bullet.health > 0 &&
+        bullet.life > 0
       ) {
         const radius =
           bullet.size * 0.5 +
@@ -745,9 +666,12 @@ export class MatrixBoss {
             bullet.y - player.y,
           ) <= radius
         ) {
+          const opacity =
+            bullet.opacity ?? 1;
+
           if (
             player.takeDamage?.(
-              bullet.damage,
+              bullet.damage * opacity,
             )
           ) {
             bullet.hitPlayer = true;
@@ -757,10 +681,13 @@ export class MatrixBoss {
       }
 
       if (
-        bullet.x < -100 ||
-        bullet.x > world.width + 100 ||
-        bullet.y < -100 ||
-        bullet.y > world.floorY + 160
+        bullet.kind !== 'burst' &&
+        (
+          bullet.x < -100 ||
+          bullet.x > world.width + 100 ||
+          bullet.y < -100 ||
+          bullet.y > world.floorY + 160
+        )
       ) {
         bullet.life = 0;
       }
@@ -769,7 +696,9 @@ export class MatrixBoss {
     this.bullets = this.bullets.filter(
       bullet =>
         bullet.life > 0 &&
-        bullet.health > 0,
+        bullet.health > 0 &&
+        (bullet.opacity ?? 1) >
+          (bullet.minimumOpacity ?? 0),
     );
   }
 
@@ -1152,8 +1081,8 @@ export class MatrixBoss {
 
     for (const bullet of this.bullets) {
       const alpha =
-        bullet.life /
-        bullet.maxLife;
+        (bullet.life / bullet.maxLife) *
+        (bullet.opacity ?? 1);
 
       const half = bullet.size / 2;
 
@@ -1162,8 +1091,7 @@ export class MatrixBoss {
 
       const strongGlow =
         bullet.kind === 'burst' ||
-        bullet.kind === 'heavy' ||
-        bullet.kind === 'eruption';
+        bullet.kind === 'heavy';
 
       ctx.shadowColor =
         strongGlow
@@ -1188,34 +1116,6 @@ export class MatrixBoss {
         bullet.size,
         bullet.size,
       );
-    }
-
-    ctx.restore();
-  }
-
-  drawRoomTelegraphs(ctx, cameraX) {
-    if (
-      this.roomWarningAlpha <= 0 ||
-      this.roomTelegraphs.length === 0
-    ) {
-      return;
-    }
-
-    ctx.save();
-    ctx.strokeStyle =
-      `rgba(255,70,70,${this.roomWarningAlpha})`;
-    ctx.lineWidth = 3;
-    ctx.setLineDash([8, 12]);
-
-    for (const lane of this.roomTelegraphs) {
-      const x = Math.round(
-        lane.x - cameraX,
-      ) + 0.5;
-
-      ctx.beginPath();
-      ctx.moveTo(x, 70);
-      ctx.lineTo(x, this.floorY);
-      ctx.stroke();
     }
 
     ctx.restore();
@@ -1274,9 +1174,5 @@ export class MatrixBoss {
       cameraX,
     );
 
-    this.drawRoomTelegraphs(
-      ctx,
-      cameraX,
-    );
   }
 }
