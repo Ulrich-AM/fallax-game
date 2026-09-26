@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=28';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=28';
+import { BossAI } from './BossAI.js?v=29';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=29';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
