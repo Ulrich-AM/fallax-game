@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=29';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=29';
+import { BossAI } from './BossAI.js?v=30';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=30';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -101,14 +101,31 @@ export class MatrixBoss {
 
     this.lastAttack = null;
 
-    // Slow-tracking sustained core laser.
-    this.beamActive = false;
-    this.beamTelegraph = 0;
-    this.beamAngle = 0;
-    this.beamTurnSpeed = 80 * Math.PI / 180;
-    this.beamLength = 1750;
-    this.beamWidth = 18;
-    this.beamDamagePerSecond = 34;
+    // Large, slow core shots aimed at the player's current position.
+    this.heavyShotCount = 5;
+    this.heavyShotsRemaining = 0;
+    this.heavyShotInterval = 0.52;
+    this.heavyShotTimer = 0;
+    this.heavyBulletSize = 46;
+    this.heavyBulletDamage = 24;
+    this.heavyBulletSpeed = 195;
+    this.heavyBulletLife = 6.0;
+    this.heavyBulletHealth = 18;
+
+    // Environmental floor-eruption special.
+    this.floorY = world.floorY;
+    this.roomTriggerFired = false;
+    this.roomEruptionFired = false;
+    this.roomTelegraphs = [];
+    this.roomWarningAlpha = 0;
+    this.roomTriggerBulletSize = 22;
+    this.roomTriggerBulletSpeed = 900;
+    this.roomTriggerBulletDamage = 12;
+    this.roomRiseBulletSize = 30;
+    this.roomRiseBulletSpeed = 430;
+    this.roomRiseBulletDamage = 22;
+    this.roomRiseBulletLife = 2.3;
+    this.roomRiseBulletHealth = 12;
 
     // Core burst.
     this.coreBurstFired = false;
@@ -173,8 +190,9 @@ export class MatrixBoss {
           if (ai.timerDone('attackDelay')) {
             const choices = [
               'swirl',
-              'beamSweep',
+              'heavyVolley',
               'coreBurst',
+              'roomEruption',
             ].filter(name => name !== owner.lastAttack);
 
             const next =
@@ -245,77 +263,144 @@ export class MatrixBoss {
         },
       })
 
-      .addState('beamSweep', {
-        enter: (owner, ai, ctx) => {
+      .addState('heavyVolley', {
+        enter: (owner) => {
           owner.attackAnchorY = owner.y;
-          owner.beamActive = false;
-          owner.beamTelegraph = 0;
-
-          const player = ai.targetPlayer(ctx);
-          owner.beamAngle = Math.atan2(
-            (player?.y ?? owner.y) - owner.y,
-            (player?.x ?? owner.x + 1) - owner.x,
-          );
+          owner.heavyShotsRemaining = owner.heavyShotCount;
+          owner.heavyShotTimer = 0;
         },
 
         update: (owner, ai, dt, ctx) => {
-          const telegraphEnd = 0.45;
-          const fireEnd = 2.85;
-          const end = 3.25;
+          const openEnd = 0.42;
+          const fireEnd = 2.95;
+          const end = 3.30;
           const time = ai.stateTime;
           const player = ai.targetPlayer(ctx);
 
-          owner.coreRotation -= 95 * dt;
+          owner.coreRotation -= 105 * dt;
 
-          if (time < telegraphEnd) {
-            const t = smoothstep(time / telegraphEnd);
-            owner.shellOpen = lerp(0, 0.78, t);
-            owner.beamTelegraph = t;
-            owner.beamActive = false;
+          if (time < openEnd) {
+            const t = smoothstep(time / openEnd);
+            owner.shellOpen = lerp(0, 0.88, t);
             owner.y = lerp(
               owner.attackAnchorY,
-              owner.attackAnchorY - 16,
+              owner.attackAnchorY - 14,
               t,
             );
           } else if (time < fireEnd) {
-            owner.shellOpen = 0.78;
-            owner.beamTelegraph = 1;
-            owner.beamActive = true;
-            owner.y = owner.attackAnchorY - 16;
+            owner.shellOpen = 0.88;
+            owner.y = owner.attackAnchorY - 14;
 
-            if (player) {
-              const desired = Math.atan2(
-                player.y - owner.y,
-                player.x - owner.x,
-              );
+            owner.heavyShotTimer -= dt;
 
-              owner.beamAngle = owner.approachAngle(
-                owner.beamAngle,
-                desired,
-                owner.beamTurnSpeed * dt,
-              );
-
-              owner.damagePlayerWithBeam(player, dt);
+            if (
+              owner.heavyShotsRemaining > 0 &&
+              owner.heavyShotTimer <= 0 &&
+              player
+            ) {
+              owner.fireHeavyAimedShot(player);
+              owner.heavyShotsRemaining--;
+              owner.heavyShotTimer = owner.heavyShotInterval;
             }
           } else {
             const t = smoothstep(
               (time - fireEnd) / (end - fireEnd),
             );
 
-            owner.beamActive = false;
-            owner.beamTelegraph = 1 - t;
-            owner.shellOpen = lerp(0.78, 0, t);
+            owner.shellOpen = lerp(0.88, 0, t);
             owner.y = lerp(
-              owner.attackAnchorY - 16,
+              owner.attackAnchorY - 14,
               owner.attackAnchorY,
               easeOutCubic(t),
             );
           }
 
           if (time >= end) {
-            owner.beamActive = false;
-            owner.beamTelegraph = 0;
             owner.shellOpen = 0;
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('roomEruption', {
+        enter: (owner, ai, ctx) => {
+          owner.attackAnchorY = owner.y;
+          owner.roomTriggerFired = false;
+          owner.roomEruptionFired = false;
+          owner.roomWarningAlpha = 0;
+
+          owner.prepareRoomTelegraphs(
+            ctx?.cameraX ?? Math.max(0, owner.x - 640),
+            ctx?.viewportWidth ?? 1280,
+            ctx?.world,
+          );
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const openEnd = 0.52;
+          const triggerEnd = 0.82;
+          const warningEnd = 2.00;
+          const eruptEnd = 2.24;
+          const end = 2.72;
+          const time = ai.stateTime;
+
+          owner.coreRotation -= 120 * dt;
+
+          if (time < openEnd) {
+            const t = smoothstep(time / openEnd);
+            owner.shellOpen = lerp(0, 1.38, t);
+            owner.y = lerp(
+              owner.attackAnchorY,
+              owner.attackAnchorY - 20,
+              t,
+            );
+          } else if (time < triggerEnd) {
+            owner.shellOpen = 1.38;
+            owner.y = owner.attackAnchorY - 20;
+
+            if (!owner.roomTriggerFired) {
+              owner.roomTriggerFired = true;
+              owner.fireRoomTriggerShots();
+            }
+          } else if (time < warningEnd) {
+            owner.shellOpen = 1.38;
+            owner.y = owner.attackAnchorY - 20;
+
+            const warningT =
+              (time - triggerEnd) /
+              (warningEnd - triggerEnd);
+
+            owner.roomWarningAlpha =
+              0.14 +
+              Math.sin(warningT * Math.PI * 6) * 0.035;
+          } else if (time < eruptEnd) {
+            owner.shellOpen = 1.38;
+            owner.y = owner.attackAnchorY - 20;
+            owner.roomWarningAlpha = 0.24;
+
+            if (!owner.roomEruptionFired) {
+              owner.roomEruptionFired = true;
+              owner.fireRoomEruption(ctx?.world);
+              ctx?.shakeCamera?.(14, 0.22);
+            }
+          } else {
+            const t = smoothstep(
+              (time - eruptEnd) / (end - eruptEnd),
+            );
+
+            owner.roomWarningAlpha = lerp(0.24, 0, t);
+            owner.shellOpen = lerp(1.38, 0, t);
+            owner.y = lerp(
+              owner.attackAnchorY - 20,
+              owner.attackAnchorY,
+              easeOutCubic(t),
+            );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            owner.roomWarningAlpha = 0;
+            owner.roomTelegraphs.length = 0;
             ai.changeState('idle', ctx);
           }
         },
@@ -326,8 +411,6 @@ export class MatrixBoss {
           owner.attackAnchorY = owner.y;
           owner.coreBurstFired = false;
           owner.coreFlash = 0;
-          owner.beamActive = false;
-          owner.beamTelegraph = 0;
         },
 
         update: (owner, ai, dt, ctx) => {
@@ -380,48 +463,125 @@ export class MatrixBoss {
       });
   }
 
-  approachAngle(current, target, maxDelta) {
-    const delta =
-      ((target - current + Math.PI * 3) % (Math.PI * 2)) -
-      Math.PI;
+  fireHeavyAimedShot(player) {
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
+    const length = Math.hypot(dx, dy) || 1;
 
-    if (Math.abs(delta) <= maxDelta) return target;
+    this.shotSerial++;
 
-    return current + Math.sign(delta) * maxDelta;
+    this.spawnBullet(
+      this.x,
+      this.y,
+      dx / length,
+      dy / length,
+      {
+        size: this.heavyBulletSize,
+        damage: this.heavyBulletDamage,
+        speed: this.heavyBulletSpeed,
+        life: this.heavyBulletLife,
+        health: this.heavyBulletHealth,
+        kind: 'heavy',
+      },
+    );
   }
 
-  damagePlayerWithBeam(player, dt) {
-    const dirX = Math.cos(this.beamAngle);
-    const dirY = Math.sin(this.beamAngle);
+  prepareRoomTelegraphs(
+    cameraX,
+    viewportWidth,
+    world,
+  ) {
+    this.roomTelegraphs.length = 0;
 
-    const relX = player.x - this.x;
-    const relY = player.y - this.y;
+    const margin = 90;
+    const safeWorldWidth =
+      world?.width ?? 2700;
 
-    const along =
-      relX * dirX +
-      relY * dirY;
-
-    if (along < 0 || along > this.beamLength) return;
-
-    const closestX =
-      this.x + dirX * along;
-    const closestY =
-      this.y + dirY * along;
-
-    const playerRadius =
-      Math.max(player.w, player.h) * 0.42;
-
-    const distance = Math.hypot(
-      player.x - closestX,
-      player.y - closestY,
+    const left = clamp(
+      cameraX + margin,
+      margin,
+      safeWorldWidth - margin,
     );
 
-    if (
-      distance <=
-      this.beamWidth * 0.5 + playerRadius
-    ) {
-      player.takeContinuousDamage?.(
-        this.beamDamagePerSecond * dt,
+    const right = clamp(
+      cameraX + viewportWidth - margin,
+      margin,
+      safeWorldWidth - margin,
+    );
+
+    const count = 10;
+    const span = Math.max(1, right - left);
+    const laneWidth = span / count;
+
+    for (let i = 0; i < count; i++) {
+      const laneLeft =
+        left + i * laneWidth;
+
+      const x =
+        laneLeft +
+        laneWidth *
+        (0.25 + Math.random() * 0.50);
+
+      this.roomTelegraphs.push({
+        x,
+      });
+    }
+  }
+
+  fireRoomTriggerShots() {
+    this.shotSerial++;
+
+    this.spawnBullet(
+      this.x,
+      this.y,
+      -1,
+      0,
+      {
+        size: this.roomTriggerBulletSize,
+        damage: this.roomTriggerBulletDamage,
+        speed: this.roomTriggerBulletSpeed,
+        life: 2.1,
+        health: 6,
+        kind: 'signal',
+      },
+    );
+
+    this.spawnBullet(
+      this.x,
+      this.y,
+      1,
+      0,
+      {
+        size: this.roomTriggerBulletSize,
+        damage: this.roomTriggerBulletDamage,
+        speed: this.roomTriggerBulletSpeed,
+        life: 2.1,
+        health: 6,
+        kind: 'signal',
+      },
+    );
+  }
+
+  fireRoomEruption(world) {
+    this.shotSerial++;
+
+    const floorY =
+      world?.floorY ?? this.floorY;
+
+    for (const lane of this.roomTelegraphs) {
+      this.spawnBullet(
+        lane.x,
+        floorY + this.roomRiseBulletSize * 0.35,
+        0,
+        -1,
+        {
+          size: this.roomRiseBulletSize,
+          damage: this.roomRiseBulletDamage,
+          speed: this.roomRiseBulletSpeed,
+          life: this.roomRiseBulletLife,
+          health: this.roomRiseBulletHealth,
+          kind: 'eruption',
+        },
       );
     }
   }
@@ -522,9 +682,12 @@ export class MatrixBoss {
     this.shotSerial = 0;
     this.fireTimer = 0;
     this.lastAttack = null;
-    this.beamActive = false;
-    this.beamTelegraph = 0;
-    this.beamAngle = 0;
+    this.heavyShotsRemaining = 0;
+    this.heavyShotTimer = 0;
+    this.roomTriggerFired = false;
+    this.roomEruptionFired = false;
+    this.roomWarningAlpha = 0;
+    this.roomTelegraphs.length = 0;
     this.coreBurstFired = false;
     this.coreFlash = 0;
 
@@ -821,7 +984,7 @@ export class MatrixBoss {
 
     const openStep =
       Math.round(
-        clamp(openAmount, -1, 1) * 8,
+        clamp(openAmount, -1, 1.5) * 8,
       ) / 8;
 
     const key =
@@ -997,13 +1160,18 @@ export class MatrixBoss {
       ctx.globalAlpha =
         Math.max(0, alpha);
 
+      const strongGlow =
+        bullet.kind === 'burst' ||
+        bullet.kind === 'heavy' ||
+        bullet.kind === 'eruption';
+
       ctx.shadowColor =
-        bullet.kind === 'burst'
+        strongGlow
           ? 'rgba(255,255,255,1)'
           : 'rgba(255,255,255,0.75)';
 
       ctx.shadowBlur =
-        bullet.kind === 'burst'
+        strongGlow
           ? 18
           : 8;
 
@@ -1025,54 +1193,28 @@ export class MatrixBoss {
     ctx.restore();
   }
 
-  drawBeam(ctx, cameraX) {
+  drawRoomTelegraphs(ctx, cameraX) {
     if (
-      !this.beamActive &&
-      this.beamTelegraph <= 0
+      this.roomWarningAlpha <= 0 ||
+      this.roomTelegraphs.length === 0
     ) {
       return;
     }
 
-    const dirX = Math.cos(this.beamAngle);
-    const dirY = Math.sin(this.beamAngle);
-
-    const startX = this.x - cameraX;
-    const startY = this.y;
-    const endX =
-      startX + dirX * this.beamLength;
-    const endY =
-      startY + dirY * this.beamLength;
-
     ctx.save();
-    ctx.lineCap = 'butt';
+    ctx.strokeStyle =
+      `rgba(255,70,70,${this.roomWarningAlpha})`;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 12]);
 
-    if (this.beamActive) {
-      ctx.globalAlpha = 0.34;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = this.beamWidth * 2.4;
-      ctx.shadowColor = 'rgba(255,255,255,0.92)';
-      ctx.shadowBlur = 26;
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
+    for (const lane of this.roomTelegraphs) {
+      const x = Math.round(
+        lane.x - cameraX,
+      ) + 0.5;
 
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = this.beamWidth;
-      ctx.shadowBlur = 14;
       ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-    } else {
-      ctx.globalAlpha =
-        0.12 + this.beamTelegraph * 0.18;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
+      ctx.moveTo(x, 70);
+      ctx.lineTo(x, this.floorY);
       ctx.stroke();
     }
 
@@ -1132,8 +1274,7 @@ export class MatrixBoss {
       cameraX,
     );
 
-    // The sustained beam is the top-most Matrix attack layer.
-    this.drawBeam(
+    this.drawRoomTelegraphs(
       ctx,
       cameraX,
     );
