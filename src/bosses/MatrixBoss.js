@@ -114,6 +114,7 @@ export class MatrixBoss {
     this.hurtFlash = 0;
 
     this.bullets = [];
+    this.fxEvents = [];
     this.shotSerial = 0;
     this.bulletSpeed = 335;
     this.bulletLife = 4.0;
@@ -1053,6 +1054,7 @@ export class MatrixBoss {
     this.patrolDirection = 1;
 
     this.bullets.length = 0;
+    this.fxEvents.length = 0;
     this.shotSerial = 0;
     this.fireTimer = 0;
     this.lastAttack = null;
@@ -1166,6 +1168,12 @@ export class MatrixBoss {
         }
 
         if (bounced && !bullet.fading) {
+          this.fxEvents.push({
+            type: 'ricochet',
+            x: bullet.x,
+            y: bullet.y,
+          });
+
           bullet.bounceCount++;
 
           if (
@@ -1233,6 +1241,12 @@ export class MatrixBoss {
         }
 
         if (splitAngle !== null) {
+          this.fxEvents.push({
+            type: 'wallImpact',
+            x: bullet.x,
+            y: bullet.y,
+          });
+
           compressionSplits.push({
             x: bullet.x,
             y: bullet.y,
@@ -1339,10 +1353,24 @@ export class MatrixBoss {
           bullet.y - y,
         ) <= bullet.size * 0.5 + radius
       ) {
+        const healthBefore =
+          bullet.health;
+
         bullet.health = Math.max(
           0,
           bullet.health - damage,
         );
+
+        if (
+          healthBefore > 0 &&
+          bullet.health <= 0
+        ) {
+          this.fxEvents.push({
+            type: 'projectileBreak',
+            x: bullet.x,
+            y: bullet.y,
+          });
+        }
 
         return true;
       }
@@ -1401,10 +1429,24 @@ export class MatrixBoss {
         distance <=
         bullet.size * 0.5 + beamRadius
       ) {
+        const healthBefore =
+          bullet.health;
+
         bullet.health = Math.max(
           0,
           bullet.health - damage,
         );
+
+        if (
+          healthBefore > 0 &&
+          bullet.health <= 0
+        ) {
+          this.fxEvents.push({
+            type: 'projectileBreak',
+            x: bullet.x,
+            y: bullet.y,
+          });
+        }
 
         hits++;
       }
