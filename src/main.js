@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=29';
-import { PlayerController } from './PlayerController.js?v=29';
-import { MOVEMENT } from './movementConfig.js?v=29';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=30';
+import { PlayerController } from './PlayerController.js?v=30';
+import { MOVEMENT } from './movementConfig.js?v=30';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,16 +14,16 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=29';
-import { VectorWeapon } from './VectorWeapon.js?v=29';
-import { EuclidWeapon } from './EuclidWeapon.js?v=29';
-import { HorizonWeapon } from './HorizonWeapon.js?v=29';
-import { MachWeapon } from './MachWeapon.js?v=29';
-import { BackfireAbility } from './BackfireAbility.js?v=29';
-import { BossAI } from './bosses/BossAI.js?v=29';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=29';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=29';
-import { GameAudio } from './AudioManager.js?v=29';
+} from './equipment.js?v=30';
+import { VectorWeapon } from './VectorWeapon.js?v=30';
+import { EuclidWeapon } from './EuclidWeapon.js?v=30';
+import { HorizonWeapon } from './HorizonWeapon.js?v=30';
+import { MachWeapon } from './MachWeapon.js?v=30';
+import { BackfireAbility } from './BackfireAbility.js?v=30';
+import { BossAI } from './bosses/BossAI.js?v=30';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=30';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=30';
+import { GameAudio } from './AudioManager.js?v=30';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -518,6 +518,8 @@ function update(dt) {
   activeBoss?.update?.(dt, {
     player,
     world,
+    cameraX: camera.x,
+    viewportWidth: W,
     shakeCamera: triggerCameraShake,
   });
 
