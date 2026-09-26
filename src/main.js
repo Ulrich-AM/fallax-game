@@ -345,8 +345,7 @@ addEventListener('keydown', (e) => {
     'Space',
     'ShiftLeft',
     'ShiftRight',
-    'ControlLeft',
-    'ControlRight',
+    'KeyF',
     'ArrowLeft',
     'ArrowRight',
   ].includes(e.code)) {
@@ -398,7 +397,7 @@ function readInput() {
     jumpPressed: pressed.has('Space'),
     jumpReleased: released.has('Space'),
     sprintHeld: keys.has('ShiftLeft') || keys.has('ShiftRight'),
-    dashPressed: pressed.has('ControlLeft') || pressed.has('ControlRight'),
+    dashPressed: pressed.has('KeyF'),
   };
 }
 
@@ -689,32 +688,44 @@ function drawPlayer() {
 function drawResourceBar(label, value, max, x, y, width, color, rightText = '') {
   ctx.save();
   ctx.textBaseline = 'top';
-  ctx.font = 'bold 12px Arial, sans-serif';
+  const barHeight = 8;
+
+  ctx.font = 'bold 11px Arial, sans-serif';
   ctx.fillStyle = COLORS.text;
-  ctx.fillText(label, x, y - 18);
+  ctx.fillText(label, x, y - 15);
 
   ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(x, y, width, 12);
+  ctx.fillRect(x, y, width, barHeight);
   ctx.fillStyle = color;
-  ctx.fillRect(x, y, width * Math.max(0, Math.min(1, value / max)), 12);
+  ctx.fillRect(
+    x,
+    y,
+    width * Math.max(0, Math.min(1, value / max)),
+    barHeight,
+  );
   ctx.strokeStyle = '#343a46';
-  ctx.strokeRect(x + 0.5, y + 0.5, width, 12);
+  ctx.strokeRect(
+    x + 0.5,
+    y + 0.5,
+    width,
+    barHeight,
+  );
 
   if (rightText) {
-    ctx.font = '12px Arial, sans-serif';
+    ctx.font = '11px Arial, sans-serif';
     ctx.fillStyle = COLORS.dim;
-    ctx.fillText(rightText, x + width + 12, y - 1);
+    ctx.fillText(rightText, x + width + 10, y - 2);
   }
 
   ctx.restore();
 }
 
 function drawHUD() {
-  const bx = 24;
-  const bw = 260;
-  const healthY = H - 100;
-  const specialY = H - 134;
-  const staminaY = H - 66;
+  const bx = 20;
+  const bw = 205;
+  const healthY = H - 88;
+  const specialY = H - 116;
+  const staminaY = H - 60;
   const dashY = H - 32;
 
   const activeWeapon = getActiveWeaponInstance();
@@ -786,7 +797,7 @@ function drawHUD() {
   ctx.font = '12px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.textAlign = 'right';
-  ctx.fillText('A/D move   Space jump   Shift sprint   Ctrl dash   Q special   LMB fire', W - 20, H - 24);
+  ctx.fillText('A/D move   Space jump   Shift sprint   F dash   Q special   LMB fire', W - 20, H - 24);
   const activeItem = getItem(getActiveWeaponId());
   ctx.fillText(activeItem ? activeItem.name : 'No weapon equipped', W - 20, H - 44);
   ctx.restore();
