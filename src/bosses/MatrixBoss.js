@@ -1497,7 +1497,8 @@ export class MatrixBoss {
 
       const strongGlow =
         bullet.kind === 'burst' ||
-        bullet.kind === 'heavy';
+        bullet.kind === 'orbit' ||
+        bullet.kind === 'compression';
 
       ctx.shadowColor =
         strongGlow
