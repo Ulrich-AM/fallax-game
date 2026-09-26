@@ -1,6 +1,6 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=28';
-import { PlayerController } from './PlayerController.js?v=28';
-import { MOVEMENT } from './movementConfig.js?v=28';
+import { rectangle, group, rasterize } from './pixelShapes.js?v=29';
+import { PlayerController } from './PlayerController.js?v=29';
+import { MOVEMENT } from './movementConfig.js?v=29';
 import {
   EQUIPMENT_CATEGORIES,
   ownedItems,
@@ -14,15 +14,16 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=28';
-import { VectorWeapon } from './VectorWeapon.js?v=28';
-import { EuclidWeapon } from './EuclidWeapon.js?v=28';
-import { HorizonWeapon } from './HorizonWeapon.js?v=28';
-import { MachWeapon } from './MachWeapon.js?v=28';
-import { BackfireAbility } from './BackfireAbility.js?v=28';
-import { BossAI } from './bosses/BossAI.js?v=28';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=28';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=28';
+} from './equipment.js?v=29';
+import { VectorWeapon } from './VectorWeapon.js?v=29';
+import { EuclidWeapon } from './EuclidWeapon.js?v=29';
+import { HorizonWeapon } from './HorizonWeapon.js?v=29';
+import { MachWeapon } from './MachWeapon.js?v=29';
+import { BackfireAbility } from './BackfireAbility.js?v=29';
+import { BossAI } from './bosses/BossAI.js?v=29';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=29';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=29';
+import { GameAudio } from './AudioManager.js?v=29';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -114,6 +115,7 @@ const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
+const audio = new GameAudio();
 let activeBoss = null;
 
 const camera = {
@@ -176,6 +178,40 @@ function isAbilityEquipped(id) {
   return loadout.abilities.includes(id);
 }
 
+function playRepeated(count, callback) {
+  for (let i = 0; i < count; i++) callback();
+}
+
+function syncWeaponAudio(activeWeaponId = getActiveWeaponId()) {
+  if (currentScreen !== 'game' || encounterOver) {
+    audio.stopWeaponLoops();
+    return;
+  }
+
+  const euclidSpecial =
+    activeWeaponId === 'euclid' &&
+    euclidWeapon.specialActiveTimer > 0;
+
+  audio.setLoop(
+    'euclidSpecial',
+    euclidSpecial,
+  );
+
+  audio.setLoop(
+    'euclidShoot',
+    activeWeaponId === 'euclid' &&
+      euclidWeapon.firing &&
+      !euclidSpecial,
+  );
+
+  audio.setLoop(
+    'machShoot',
+    activeWeaponId === 'mach' &&
+      pointer.firing &&
+      machWeapon.specialActiveTimer <= 0,
+  );
+}
+
 function refreshWeaponButtons() {
   weaponSlotButtons.forEach((button, index) => {
     const id = getWeaponSlotId(index);
@@ -206,6 +242,7 @@ function endEncounter(result) {
 
   encounterOver = true;
   pointer.firing = false;
+  audio.stopWeaponLoops();
   keys.clear();
   pressed.clear();
   released.clear();
@@ -214,6 +251,17 @@ function endEncounter(result) {
 
 function showScreen(name) {
   currentScreen = name;
+
+  if (name === 'game') {
+    if (activeBoss === matrixBoss) {
+      audio.setTheme('matrix');
+    } else {
+      audio.setTheme('prologue');
+    }
+  } else {
+    audio.setTheme('mainmenu');
+    audio.stopWeaponLoops();
+  }
 
   menuScreen.classList.toggle('hidden', name !== 'menu');
   chapterScreen.classList.toggle('hidden', name !== 'chapters');
@@ -254,6 +302,28 @@ deathInventory.addEventListener('click', () => {
   encounterOver = false;
   activeBoss = null;
   showScreen('equipment');
+});
+
+addEventListener(
+  'pointerdown',
+  () => audio.unlock(),
+  { capture: true },
+);
+
+addEventListener(
+  'keydown',
+  () => audio.unlock(),
+  { capture: true },
+);
+
+document.addEventListener('pointerover', (e) => {
+  const button = e.target.closest?.('button');
+  if (!button || button.disabled) return;
+
+  const previous = e.relatedTarget;
+  if (previous && button.contains(previous)) return;
+
+  audio.playHover();
 });
 
 addEventListener('keydown', (e) => {
@@ -388,6 +458,11 @@ function update(dt) {
   const activeWeaponId = getActiveWeaponId();
   const activeWeapon = getActiveWeaponInstance();
 
+  const vectorShotsBefore = vectorWeapon.shotSerial;
+  const horizonShotsBefore = horizonWeapon.shotSerial;
+  const machSpecialWavesBefore = machWeapon.specialWavesFired;
+  const bossShotsBefore = activeBoss?.shotSerial ?? 0;
+
   const backfireEquipped = isAbilityEquipped('backfire');
 
   const playerInput = {
@@ -496,6 +571,34 @@ function update(dt) {
     activeBoss,
     activeWeaponId === 'mach',
   );
+
+  playRepeated(
+    Math.max(0, vectorWeapon.shotSerial - vectorShotsBefore),
+    () => audio.playShot('vector'),
+  );
+
+  playRepeated(
+    Math.max(0, horizonWeapon.shotSerial - horizonShotsBefore),
+    () => audio.playShot('horizon'),
+  );
+
+  playRepeated(
+    Math.max(
+      0,
+      (activeBoss?.shotSerial ?? 0) - bossShotsBefore,
+    ),
+    () => audio.playShot('default'),
+  );
+
+  playRepeated(
+    Math.max(
+      0,
+      machWeapon.specialWavesFired - machSpecialWavesBefore,
+    ),
+    () => audio.playBoom(),
+  );
+
+  syncWeaponAudio(activeWeaponId);
 
   if (player.health <= 0) {
     endEncounter('defeated');
@@ -1087,4 +1190,5 @@ window.BOSSFIGHTS = {
   horizonWeapon,
   machWeapon,
   backfireAbility,
+  audio,
 };
