@@ -132,6 +132,7 @@ export class PrologueBoss {
     this.burstAnchorY = this.y;
     this.satelliteBurstBaseAngle = 0;
     this.satelliteBullets = [];
+    this.shotSerial = 0;
     this.satelliteBulletCount = 20;
     this.satelliteBulletSpeed = 390;
     this.satelliteBulletLife = 2.8;
@@ -1201,6 +1202,7 @@ export class PrologueBoss {
     this.wallRushGrabDashSerial = 0;
     this.satelliteBurstRowsFired = 0;
     this.satelliteBullets.length = 0;
+    this.shotSerial = 0;
     this.shockwaves.length = 0;
 
     const home = this.getSatelliteOrbitPosition();
@@ -1263,6 +1265,7 @@ export class PrologueBoss {
   }
 
   spawnGroundSpray(x, y) {
+    this.shotSerial++;
     const count = this.isPhase2 ? 18 : 14;
     const speed = this.isPhase2 ? 500 : 440;
 
@@ -1285,6 +1288,7 @@ export class PrologueBoss {
   }
 
   spawnSatelliteBurst(x, y, angleOffset = 0) {
+    this.shotSerial++;
     for (let i = 0; i < this.satelliteBulletCount; i++) {
       const angle =
         angleOffset +
