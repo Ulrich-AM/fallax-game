@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=31';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=31';
+import { BossAI } from './BossAI.js?v=32';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=32';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -39,7 +39,7 @@ function hexPoints(radiusX, radiusY) {
 export class MatrixBoss {
   constructor(world) {
     this.name = 'matrix';
-    this.maxHealth = 800;
+    this.maxHealth = 1000;
     this.health = this.maxHealth;
     this.dead = false;
 
@@ -101,16 +101,38 @@ export class MatrixBoss {
 
     this.lastAttack = null;
 
-    // Large core shots that lead the player using current velocity.
-    this.heavyShotCount = 5;
-    this.heavyShotsRemaining = 0;
-    this.heavyShotInterval = 0.52;
-    this.heavyShotTimer = 0;
-    this.heavyBulletSize = 46;
-    this.heavyBulletDamage = 24;
-    this.heavyBulletSpeed = 315;
-    this.heavyBulletLife = 6.0;
-    this.heavyBulletHealth = 18;
+    // Core Orbit: bullets form a ring around the exposed core, then peel off
+    // one by one toward predicted player positions.
+    this.orbitBulletCount = 8;
+    this.orbitBulletRadius = 84;
+    this.orbitBulletSize = 18;
+    this.orbitBulletDamage = 12;
+    this.orbitBulletSpeed = 455;
+    this.orbitBulletLife = 5.0;
+    this.orbitBulletHealth = 7;
+    this.orbitAngularSpeed = Math.PI * 1.15;
+    this.orbitReleaseInterval = 0.22;
+    this.orbitReleaseTimer = 0;
+    this.orbitBulletsReleased = 0;
+    this.orbitSpawned = false;
+
+    // Compression Shot: three jaw compressions charge one huge projectile.
+    // The giant projectile splits into a smaller bullet fan at a room border.
+    this.compressionPulseCount = 3;
+    this.compressionPulsesFired = 0;
+    this.compressionShotFired = false;
+    this.compressionBulletSize = 76;
+    this.compressionBulletDamage = 36;
+    this.compressionBulletSpeed = 245;
+    this.compressionBulletLife = 7.0;
+    this.compressionBulletHealth = 28;
+    this.compressionSplitCount = 11;
+    this.compressionSplitSpread = Math.PI * 0.78;
+    this.compressionSplitSize = 16;
+    this.compressionSplitDamage = 10;
+    this.compressionSplitSpeed = 390;
+    this.compressionSplitLife = 3.8;
+    this.compressionSplitHealth = 4;
 
     // Core burst.
     this.coreBurstFired = false;
@@ -122,7 +144,7 @@ export class MatrixBoss {
     this.burstBulletLife = 10.0;
     this.burstBulletHealth = 10;
     this.burstBounceFade = 0.68;
-    this.burstMinimumOpacity = 0.10;
+    this.burstMaxBounces = 4;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -177,8 +199,9 @@ export class MatrixBoss {
           if (ai.timerDone('attackDelay')) {
             const choices = [
               'swirl',
-              'heavyVolley',
               'coreBurst',
+              'coreOrbit',
+              'compressionShot',
             ].filter(name => name !== owner.lastAttack);
 
             const next =
@@ -249,65 +272,6 @@ export class MatrixBoss {
         },
       })
 
-      .addState('heavyVolley', {
-        enter: (owner) => {
-          owner.attackAnchorY = owner.y;
-          owner.heavyShotsRemaining = owner.heavyShotCount;
-          owner.heavyShotTimer = 0;
-        },
-
-        update: (owner, ai, dt, ctx) => {
-          const openEnd = 0.42;
-          const fireEnd = 2.95;
-          const end = 3.30;
-          const time = ai.stateTime;
-          const player = ai.targetPlayer(ctx);
-
-          owner.coreRotation -= 105 * dt;
-
-          if (time < openEnd) {
-            const t = smoothstep(time / openEnd);
-            owner.shellOpen = lerp(0, 0.88, t);
-            owner.y = lerp(
-              owner.attackAnchorY,
-              owner.attackAnchorY - 14,
-              t,
-            );
-          } else if (time < fireEnd) {
-            owner.shellOpen = 0.88;
-            owner.y = owner.attackAnchorY - 14;
-
-            owner.heavyShotTimer -= dt;
-
-            if (
-              owner.heavyShotsRemaining > 0 &&
-              owner.heavyShotTimer <= 0 &&
-              player
-            ) {
-              owner.fireHeavyAimedShot(player);
-              owner.heavyShotsRemaining--;
-              owner.heavyShotTimer = owner.heavyShotInterval;
-            }
-          } else {
-            const t = smoothstep(
-              (time - fireEnd) / (end - fireEnd),
-            );
-
-            owner.shellOpen = lerp(0.88, 0, t);
-            owner.y = lerp(
-              owner.attackAnchorY - 14,
-              owner.attackAnchorY,
-              easeOutCubic(t),
-            );
-          }
-
-          if (time >= end) {
-            owner.shellOpen = 0;
-            ai.changeState('idle', ctx);
-          }
-        },
-      })
-
       .addState('coreBurst', {
         enter: (owner) => {
           owner.attackAnchorY = owner.y;
@@ -362,12 +326,201 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
-      });
+
+
+      .addState('coreOrbit', {
+        enter: (owner) => {
+          owner.attackAnchorY = owner.y;
+          owner.orbitSpawned = false;
+          owner.orbitReleaseTimer = 0;
+          owner.orbitBulletsReleased = 0;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const openEnd = 0.48;
+          const orbitHoldEnd = 1.22;
+          const releaseEnd = 3.15;
+          const end = 3.58;
+          const time = ai.stateTime;
+          const player = ai.targetPlayer(ctx);
+
+          owner.rotation += 28 * dt;
+          owner.coreRotation -= 190 * dt;
+
+          if (time < openEnd) {
+            const t = smoothstep(time / openEnd);
+            owner.shellOpen = lerp(0, 1.05, t);
+            owner.y = lerp(
+              owner.attackAnchorY,
+              owner.attackAnchorY - 18,
+              t,
+            );
+          } else if (time < orbitHoldEnd) {
+            owner.shellOpen = 1.05;
+            owner.y = owner.attackAnchorY - 18;
+
+            if (!owner.orbitSpawned) {
+              owner.orbitSpawned = true;
+              owner.spawnCoreOrbit();
+              owner.coreFlash = 0.72;
+            }
+          } else if (time < releaseEnd) {
+            owner.shellOpen = 1.05;
+            owner.y = owner.attackAnchorY - 18;
+
+            owner.orbitReleaseTimer -= dt;
+
+            if (
+              owner.orbitBulletsReleased <
+                owner.orbitBulletCount &&
+              owner.orbitReleaseTimer <= 0
+            ) {
+              owner.releaseNextOrbitBullet(player);
+              owner.orbitBulletsReleased++;
+              owner.orbitReleaseTimer =
+                owner.orbitReleaseInterval;
+              owner.coreFlash = Math.max(
+                owner.coreFlash,
+                0.34,
+              );
+            }
+          } else {
+            const t = smoothstep(
+              (time - releaseEnd) /
+              (end - releaseEnd),
+            );
+
+            owner.shellOpen = lerp(1.05, 0, t);
+            owner.y = lerp(
+              owner.attackAnchorY - 18,
+              owner.attackAnchorY,
+              easeOutCubic(t),
+            );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            owner.releaseAllOrbitBullets(player);
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('compressionShot', {
+        enter: (owner) => {
+          owner.attackAnchorY = owner.y;
+          owner.compressionPulsesFired = 0;
+          owner.compressionShotFired = false;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const pulseDuration = 0.48;
+          const chargeEnd =
+            owner.compressionPulseCount *
+            pulseDuration;
+          const revealEnd = chargeEnd + 0.42;
+          const end = revealEnd + 0.48;
+          const time = ai.stateTime;
+          const player = ai.targetPlayer(ctx);
+
+          owner.rotation += 22 * dt;
+          owner.coreRotation -= 135 * dt;
+
+          if (time < chargeEnd) {
+            const pulseIndex = Math.min(
+              owner.compressionPulseCount - 1,
+              Math.floor(time / pulseDuration),
+            );
+
+            const local =
+              (time - pulseIndex * pulseDuration) /
+              pulseDuration;
+
+            if (local < 0.56) {
+              owner.shellOpen =
+                -smoothstep(local / 0.56);
+            } else {
+              owner.shellOpen = lerp(
+                -1,
+                0.12,
+                smoothstep(
+                  (local - 0.56) / 0.44,
+                ),
+              );
+            }
+
+            owner.y =
+              owner.attackAnchorY +
+              Math.sin(local * Math.PI) * 5;
+
+            if (
+              local >= 0.50 &&
+              owner.compressionPulsesFired <= pulseIndex
+            ) {
+              owner.compressionPulsesFired++;
+              owner.coreFlash = Math.min(
+                1,
+                0.34 +
+                owner.compressionPulsesFired * 0.2,
+              );
+              ctx?.shakeCamera?.(
+                4 + owner.compressionPulsesFired * 2,
+                0.10,
+              );
+            }
+          } else if (time < revealEnd) {
+            const t = smoothstep(
+              (time - chargeEnd) /
+              (revealEnd - chargeEnd),
+            );
+
+            owner.shellOpen = lerp(0.12, 1.12, t);
+            owner.y = lerp(
+              owner.attackAnchorY,
+              owner.attackAnchorY - 14,
+              t,
+            );
+
+            if (
+              !owner.compressionShotFired &&
+              t >= 0.46 &&
+              player
+            ) {
+              owner.compressionShotFired = true;
+              owner.coreFlash = 1;
+              owner.fireCompressionShot(player);
+              ctx?.shakeCamera?.(16, 0.22);
+            }
+          } else {
+            const t = smoothstep(
+              (time - revealEnd) /
+              (end - revealEnd),
+            );
+
+            owner.shellOpen = lerp(1.12, 0, t);
+            owner.y = lerp(
+              owner.attackAnchorY - 14,
+              owner.attackAnchorY,
+              easeOutCubic(t),
+            );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            ai.changeState('idle', ctx);
+          }
+        },
+      })      });
   }
 
-  getPredictedIntercept(player, projectileSpeed) {
-    const rx = player.x - this.x;
-    const ry = player.y - this.y;
+  getPredictedIntercept(
+    player,
+    projectileSpeed,
+    originX = this.x,
+    originY = this.y,
+  ) {
+    const rx = player.x - originX;
+    const ry = player.y - originY;
     const vx = player.vx ?? 0;
     const vy = player.vy ?? 0;
 
@@ -395,34 +548,28 @@ export class MatrixBoss {
         b * b - 4 * a * d;
 
       if (discriminant >= 0) {
-        const root =
-          Math.sqrt(discriminant);
+        const root = Math.sqrt(discriminant);
 
-        const t1 =
-          (-b - root) / (2 * a);
-
-        const t2 =
-          (-b + root) / (2 * a);
-
-        const positive = [t1, t2]
+        const candidates = [
+          (-b - root) / (2 * a),
+          (-b + root) / (2 * a),
+        ]
           .filter(value => value > 0)
           .sort((x, y) => x - y);
 
-        if (positive.length > 0) {
-          t = positive[0];
+        if (candidates.length > 0) {
+          t = candidates[0];
         }
       }
     }
 
-    // Prevent extreme leads when the target is moving faster than a valid
-    // interception solution permits. In that case it still makes a useful
-    // short prediction instead of aiming absurdly far off-screen.
     if (!(t > 0) || !Number.isFinite(t)) {
-      const distance = Math.hypot(rx, ry);
-      t = distance / projectileSpeed;
+      t =
+        Math.hypot(rx, ry) /
+        projectileSpeed;
     }
 
-    t = clamp(t, 0, 1.35);
+    t = clamp(t, 0, 1.10);
 
     return {
       x: player.x + vx * t,
@@ -430,15 +577,143 @@ export class MatrixBoss {
     };
   }
 
-  fireHeavyAimedShot(player) {
-    const predicted =
-      this.getPredictedIntercept(
-        player,
-        this.heavyBulletSpeed,
-      );
+  spawnCoreOrbit() {
+    const startAngle =
+      this.coreRotation * Math.PI / 180;
 
-    const dx = predicted.x - this.x;
-    const dy = predicted.y - this.y;
+    for (let i = 0; i < this.orbitBulletCount; i++) {
+      const angle =
+        startAngle +
+        (i / this.orbitBulletCount) *
+        Math.PI *
+        2;
+
+      this.bullets.push({
+        x:
+          this.x +
+          Math.cos(angle) *
+          this.orbitBulletRadius,
+        y:
+          this.y +
+          Math.sin(angle) *
+          this.orbitBulletRadius,
+        vx: 0,
+        vy: 0,
+        life: this.orbitBulletLife,
+        maxLife: this.orbitBulletLife,
+        health: this.orbitBulletHealth,
+        maxHealth: this.orbitBulletHealth,
+        size: this.orbitBulletSize,
+        damage: this.orbitBulletDamage,
+        kind: 'orbit',
+        opacity: 1,
+        bounceFade: 1,
+        maxBounces: 0,
+        bounceCount: 0,
+        orbiting: true,
+        orbitAngle: angle,
+        orbitRadius: this.orbitBulletRadius,
+        hitPlayer: false,
+      });
+    }
+
+    this.shotSerial++;
+  }
+
+  releaseNextOrbitBullet(player) {
+    const bullet = this.bullets.find(
+      entry =>
+        entry.kind === 'orbit' &&
+        entry.orbiting &&
+        entry.life > 0 &&
+        entry.health > 0,
+    );
+
+    if (!bullet) return false;
+
+    bullet.orbiting = false;
+
+    const predicted = player
+      ? this.getPredictedIntercept(
+          player,
+          this.orbitBulletSpeed,
+          bullet.x,
+          bullet.y,
+        )
+      : {
+          x: bullet.x + 1,
+          y: bullet.y,
+        };
+
+    const dx = predicted.x - bullet.x;
+    const dy = predicted.y - bullet.y;
+    const length = Math.hypot(dx, dy) || 1;
+
+    bullet.vx =
+      (dx / length) *
+      this.orbitBulletSpeed;
+
+    bullet.vy =
+      (dy / length) *
+      this.orbitBulletSpeed;
+
+    bullet.life = this.orbitBulletLife;
+    bullet.maxLife = this.orbitBulletLife;
+    this.shotSerial++;
+
+    return true;
+  }
+
+  releaseAllOrbitBullets(player) {
+    let released = false;
+
+    for (const bullet of this.bullets) {
+      if (
+        bullet.kind !== 'orbit' ||
+        !bullet.orbiting ||
+        bullet.life <= 0 ||
+        bullet.health <= 0
+      ) {
+        continue;
+      }
+
+      bullet.orbiting = false;
+
+      const predicted = player
+        ? this.getPredictedIntercept(
+            player,
+            this.orbitBulletSpeed,
+            bullet.x,
+            bullet.y,
+          )
+        : {
+            x: bullet.x + 1,
+            y: bullet.y,
+          };
+
+      const dx = predicted.x - bullet.x;
+      const dy = predicted.y - bullet.y;
+      const length = Math.hypot(dx, dy) || 1;
+
+      bullet.vx =
+        (dx / length) *
+        this.orbitBulletSpeed;
+
+      bullet.vy =
+        (dy / length) *
+        this.orbitBulletSpeed;
+
+      bullet.life = this.orbitBulletLife;
+      bullet.maxLife = this.orbitBulletLife;
+      released = true;
+    }
+
+    if (released) this.shotSerial++;
+  }
+
+  fireCompressionShot(player) {
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
     const length = Math.hypot(dx, dy) || 1;
 
     this.shotSerial++;
@@ -449,14 +724,54 @@ export class MatrixBoss {
       dx / length,
       dy / length,
       {
-        size: this.heavyBulletSize,
-        damage: this.heavyBulletDamage,
-        speed: this.heavyBulletSpeed,
-        life: this.heavyBulletLife,
-        health: this.heavyBulletHealth,
-        kind: 'heavy',
+        size: this.compressionBulletSize,
+        damage: this.compressionBulletDamage,
+        speed: this.compressionBulletSpeed,
+        life: this.compressionBulletLife,
+        health: this.compressionBulletHealth,
+        kind: 'compression',
       },
     );
+  }
+
+  spawnCompressionSplit(
+    x,
+    y,
+    inwardAngle,
+  ) {
+    this.shotSerial++;
+
+    for (
+      let i = 0;
+      i < this.compressionSplitCount;
+      i++
+    ) {
+      const t =
+        this.compressionSplitCount === 1
+          ? 0.5
+          : i /
+            (this.compressionSplitCount - 1);
+
+      const angle =
+        inwardAngle +
+        (t - 0.5) *
+        this.compressionSplitSpread;
+
+      this.spawnBullet(
+        x,
+        y,
+        Math.cos(angle),
+        Math.sin(angle),
+        {
+          size: this.compressionSplitSize,
+          damage: this.compressionSplitDamage,
+          speed: this.compressionSplitSpeed,
+          life: this.compressionSplitLife,
+          health: this.compressionSplitHealth,
+          kind: 'compressionSplit',
+        },
+      );
+    }
   }
 
   fireCoreBurst() {
@@ -481,7 +796,8 @@ export class MatrixBoss {
           kind: 'burst',
           opacity: 1,
           bounceFade: this.burstBounceFade,
-          minimumOpacity: this.burstMinimumOpacity,
+          maxBounces: this.burstMaxBounces,
+          bounceCount: 0,
         },
       );
     }
@@ -525,7 +841,8 @@ export class MatrixBoss {
       kind = 'swirl',
       opacity = 1,
       bounceFade = 1,
-      minimumOpacity = 0,
+      maxBounces = 0,
+      bounceCount = 0,
     } = {},
   ) {
     this.bullets.push({
@@ -542,7 +859,9 @@ export class MatrixBoss {
       kind,
       opacity,
       bounceFade,
-      minimumOpacity,
+      maxBounces,
+      bounceCount,
+      orbiting: false,
       hitPlayer: false,
     });
   }
@@ -564,8 +883,11 @@ export class MatrixBoss {
     this.shotSerial = 0;
     this.fireTimer = 0;
     this.lastAttack = null;
-    this.heavyShotsRemaining = 0;
-    this.heavyShotTimer = 0;
+    this.orbitReleaseTimer = 0;
+    this.orbitBulletsReleased = 0;
+    this.orbitSpawned = false;
+    this.compressionPulsesFired = 0;
+    this.compressionShotFired = false;
     this.coreBurstFired = false;
     this.coreFlash = 0;
 
@@ -600,7 +922,29 @@ export class MatrixBoss {
   }
 
   updateBullets(dt, player, world) {
+    const compressionSplits = [];
+
     for (const bullet of this.bullets) {
+      if (
+        bullet.kind === 'orbit' &&
+        bullet.orbiting
+      ) {
+        bullet.orbitAngle +=
+          this.orbitAngularSpeed * dt;
+
+        bullet.x =
+          this.x +
+          Math.cos(bullet.orbitAngle) *
+          bullet.orbitRadius;
+
+        bullet.y =
+          this.y +
+          Math.sin(bullet.orbitAngle) *
+          bullet.orbitRadius;
+
+        continue;
+      }
+
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
       bullet.life = Math.max(
@@ -612,7 +956,10 @@ export class MatrixBoss {
         const radius = bullet.size * 0.5;
         let bounced = false;
 
-        if (bullet.x - radius <= 0 && bullet.vx < 0) {
+        if (
+          bullet.x - radius <= 0 &&
+          bullet.vx < 0
+        ) {
           bullet.x = radius;
           bullet.vx = Math.abs(bullet.vx);
           bounced = true;
@@ -620,12 +967,16 @@ export class MatrixBoss {
           bullet.x + radius >= world.width &&
           bullet.vx > 0
         ) {
-          bullet.x = world.width - radius;
+          bullet.x =
+            world.width - radius;
           bullet.vx = -Math.abs(bullet.vx);
           bounced = true;
         }
 
-        if (bullet.y - radius <= 0 && bullet.vy < 0) {
+        if (
+          bullet.y - radius <= 0 &&
+          bullet.vy < 0
+        ) {
           bullet.y = radius;
           bullet.vy = Math.abs(bullet.vy);
           bounced = true;
@@ -633,32 +984,80 @@ export class MatrixBoss {
           bullet.y + radius >= world.floorY &&
           bullet.vy > 0
         ) {
-          bullet.y = world.floorY - radius;
+          bullet.y =
+            world.floorY - radius;
           bullet.vy = -Math.abs(bullet.vy);
           bounced = true;
         }
 
         if (bounced) {
+          bullet.bounceCount++;
           bullet.opacity *= bullet.bounceFade;
 
           if (
-            bullet.opacity <=
-            bullet.minimumOpacity
+            bullet.bounceCount >=
+            bullet.maxBounces
           ) {
             bullet.life = 0;
           }
+        }
+      } else if (
+        bullet.kind === 'compression' &&
+        bullet.life > 0
+      ) {
+        const radius = bullet.size * 0.5;
+        let splitAngle = null;
+
+        if (
+          bullet.x - radius <= 0 &&
+          bullet.vx < 0
+        ) {
+          bullet.x = radius;
+          splitAngle = 0;
+        } else if (
+          bullet.x + radius >= world.width &&
+          bullet.vx > 0
+        ) {
+          bullet.x =
+            world.width - radius;
+          splitAngle = Math.PI;
+        } else if (
+          bullet.y - radius <= 0 &&
+          bullet.vy < 0
+        ) {
+          bullet.y = radius;
+          splitAngle = Math.PI / 2;
+        } else if (
+          bullet.y + radius >= world.floorY &&
+          bullet.vy > 0
+        ) {
+          bullet.y =
+            world.floorY - radius;
+          splitAngle = -Math.PI / 2;
+        }
+
+        if (splitAngle !== null) {
+          compressionSplits.push({
+            x: bullet.x,
+            y: bullet.y,
+            angle: splitAngle,
+          });
+
+          bullet.life = 0;
         }
       }
 
       if (
         !bullet.hitPlayer &&
+        !bullet.orbiting &&
         player &&
         bullet.health > 0 &&
         bullet.life > 0
       ) {
         const radius =
           bullet.size * 0.5 +
-          Math.max(player.w, player.h) * 0.40;
+          Math.max(player.w, player.h) *
+          0.40;
 
         if (
           Math.hypot(
@@ -682,6 +1081,7 @@ export class MatrixBoss {
 
       if (
         bullet.kind !== 'burst' &&
+        bullet.kind !== 'compression' &&
         (
           bullet.x < -100 ||
           bullet.x > world.width + 100 ||
@@ -693,12 +1093,18 @@ export class MatrixBoss {
       }
     }
 
+    for (const split of compressionSplits) {
+      this.spawnCompressionSplit(
+        split.x,
+        split.y,
+        split.angle,
+      );
+    }
+
     this.bullets = this.bullets.filter(
       bullet =>
         bullet.life > 0 &&
-        bullet.health > 0 &&
-        (bullet.opacity ?? 1) >
-          (bullet.minimumOpacity ?? 0),
+        bullet.health > 0,
     );
   }
 
