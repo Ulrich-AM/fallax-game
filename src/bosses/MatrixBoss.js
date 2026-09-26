@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=32';
-import { polygon, group, rasterize } from '../pixelShapes.js?v=32';
+import { BossAI } from './BossAI.js?v=33';
+import { polygon, group, rasterize } from '../pixelShapes.js?v=33';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -17,6 +17,30 @@ function smoothstep(t) {
 function easeOutCubic(t) {
   t = clamp(t, 0, 1);
   return 1 - Math.pow(1 - t, 3);
+}
+
+function easeOutBounce(t) {
+  t = clamp(t, 0, 1);
+
+  const n1 = 7.5625;
+  const d1 = 2.75;
+
+  if (t < 1 / d1) {
+    return n1 * t * t;
+  }
+
+  if (t < 2 / d1) {
+    t -= 1.5 / d1;
+    return n1 * t * t + 0.75;
+  }
+
+  if (t < 2.5 / d1) {
+    t -= 2.25 / d1;
+    return n1 * t * t + 0.9375;
+  }
+
+  t -= 2.625 / d1;
+  return n1 * t * t + 0.984375;
 }
 
 function hexPoints(radiusX, radiusY) {
@@ -126,13 +150,21 @@ export class MatrixBoss {
     this.compressionBulletSpeed = 245;
     this.compressionBulletLife = 7.0;
     this.compressionBulletHealth = 28;
-    this.compressionSplitCount = 11;
-    this.compressionSplitSpread = Math.PI * 0.78;
-    this.compressionSplitSize = 16;
-    this.compressionSplitDamage = 10;
-    this.compressionSplitSpeed = 390;
-    this.compressionSplitLife = 3.8;
-    this.compressionSplitHealth = 4;
+    this.compressionFirstSplitCount = 4;
+    this.compressionFirstSplitSpread = Math.PI * 0.62;
+    this.compressionFirstSplitSize = 22;
+    this.compressionFirstSplitDamage = 12;
+    this.compressionFirstSplitSpeed = 330;
+    this.compressionFirstSplitLife = 4.2;
+    this.compressionFirstSplitHealth = 6;
+
+    this.compressionSecondSplitCount = 2;
+    this.compressionSecondSplitSpread = Math.PI * 0.22;
+    this.compressionSecondSplitSize = 14;
+    this.compressionSecondSplitDamage = 8;
+    this.compressionSecondSplitSpeed = 440;
+    this.compressionSecondSplitLife = 3.2;
+    this.compressionSecondSplitHealth = 3;
 
     // Core burst.
     this.coreBurstFired = false;
@@ -143,8 +175,14 @@ export class MatrixBoss {
     this.burstBulletSpeed = 300;
     this.burstBulletLife = 10.0;
     this.burstBulletHealth = 10;
-    this.burstBounceFade = 0.68;
     this.burstMaxBounces = 4;
+    this.burstFinalFadeDuration = 0.72;
+
+    // Moving bullet-flood variant of the swirl attack.
+    this.floodFireInterval = 0.05;
+    this.floodMoveSpeed = 300;
+    this.floodDirection = 1;
+    this.floodFireTimer = 0;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -199,6 +237,7 @@ export class MatrixBoss {
           if (ai.timerDone('attackDelay')) {
             const choices = [
               'swirl',
+              'floodSwirl',
               'coreBurst',
               'coreOrbit',
               'compressionShot',
@@ -263,6 +302,84 @@ export class MatrixBoss {
 
             owner.rotation += 70 * dt;
             owner.coreRotation -= 120 * dt;
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            ai.changeState('idle', ctx);
+          }
+        },
+      })
+
+      .addState('floodSwirl', {
+        enter: (owner) => {
+          owner.attackAnchorY = owner.y;
+          owner.floodFireTimer = 0;
+          owner.floodDirection =
+            owner.patrolDirection || 1;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const openEnd = 0.45;
+          const fireEnd = 4.05;
+          const end = 4.48;
+          const time = ai.stateTime;
+
+          if (time < openEnd) {
+            const t = smoothstep(time / openEnd);
+            owner.shellOpen = t;
+            owner.y = lerp(
+              owner.attackAnchorY,
+              owner.attackAnchorY - 20,
+              t,
+            );
+          } else if (time < fireEnd) {
+            owner.shellOpen = 1;
+            owner.y = owner.attackAnchorY - 20;
+
+            owner.x +=
+              owner.floodDirection *
+              owner.floodMoveSpeed *
+              dt;
+
+            if (owner.x >= owner.patrolMaxX) {
+              owner.x = owner.patrolMaxX;
+              owner.floodDirection = -1;
+            } else if (
+              owner.x <= owner.patrolMinX
+            ) {
+              owner.x = owner.patrolMinX;
+              owner.floodDirection = 1;
+            }
+
+            owner.patrolDirection =
+              owner.floodDirection;
+
+            owner.rotation += 225 * dt;
+            owner.coreRotation -= 300 * dt;
+
+            owner.floodFireTimer -= dt;
+
+            while (owner.floodFireTimer <= 0) {
+              owner.fireSwirlPair();
+              owner.floodFireTimer +=
+                owner.floodFireInterval;
+            }
+          } else {
+            const t = smoothstep(
+              (time - fireEnd) /
+              (end - fireEnd),
+            );
+
+            owner.shellOpen = 1 - t;
+            owner.y = lerp(
+              owner.attackAnchorY - 20,
+              owner.attackAnchorY,
+              easeOutCubic(t),
+            );
+
+            owner.rotation += 80 * dt;
+            owner.coreRotation -= 130 * dt;
           }
 
           if (time >= end) {
@@ -437,21 +554,31 @@ export class MatrixBoss {
               pulseDuration;
 
             if (local < 0.56) {
-              owner.shellOpen =
-                -smoothstep(local / 0.56);
+              const down =
+                easeOutBounce(local / 0.56);
+
+              owner.shellOpen = -down;
+              owner.y =
+                owner.attackAnchorY +
+                down * 10;
             } else {
+              const up =
+                easeOutCubic(
+                  (local - 0.56) / 0.44,
+                );
+
               owner.shellOpen = lerp(
                 -1,
                 0.12,
-                smoothstep(
-                  (local - 0.56) / 0.44,
-                ),
+                up,
+              );
+
+              owner.y = lerp(
+                owner.attackAnchorY + 10,
+                owner.attackAnchorY,
+                up,
               );
             }
-
-            owner.y =
-              owner.attackAnchorY +
-              Math.sin(local * Math.PI) * 5;
 
             if (
               local >= 0.50 &&
@@ -734,7 +861,7 @@ export class MatrixBoss {
     );
   }
 
-  spawnCompressionSplit(
+  spawnCompressionFirstSplit(
     x,
     y,
     inwardAngle,
@@ -743,19 +870,19 @@ export class MatrixBoss {
 
     for (
       let i = 0;
-      i < this.compressionSplitCount;
+      i < this.compressionFirstSplitCount;
       i++
     ) {
       const t =
-        this.compressionSplitCount === 1
+        this.compressionFirstSplitCount === 1
           ? 0.5
           : i /
-            (this.compressionSplitCount - 1);
+            (this.compressionFirstSplitCount - 1);
 
       const angle =
         inwardAngle +
         (t - 0.5) *
-        this.compressionSplitSpread;
+        this.compressionFirstSplitSpread;
 
       this.spawnBullet(
         x,
@@ -763,12 +890,52 @@ export class MatrixBoss {
         Math.cos(angle),
         Math.sin(angle),
         {
-          size: this.compressionSplitSize,
-          damage: this.compressionSplitDamage,
-          speed: this.compressionSplitSpeed,
-          life: this.compressionSplitLife,
-          health: this.compressionSplitHealth,
-          kind: 'compressionSplit',
+          size: this.compressionFirstSplitSize,
+          damage: this.compressionFirstSplitDamage,
+          speed: this.compressionFirstSplitSpeed,
+          life: this.compressionFirstSplitLife,
+          health: this.compressionFirstSplitHealth,
+          kind: 'compressionSplit1',
+        },
+      );
+    }
+  }
+
+  spawnCompressionSecondSplit(
+    x,
+    y,
+    inwardAngle,
+  ) {
+    this.shotSerial++;
+
+    for (
+      let i = 0;
+      i < this.compressionSecondSplitCount;
+      i++
+    ) {
+      const t =
+        this.compressionSecondSplitCount === 1
+          ? 0.5
+          : i /
+            (this.compressionSecondSplitCount - 1);
+
+      const angle =
+        inwardAngle +
+        (t - 0.5) *
+        this.compressionSecondSplitSpread;
+
+      this.spawnBullet(
+        x,
+        y,
+        Math.cos(angle),
+        Math.sin(angle),
+        {
+          size: this.compressionSecondSplitSize,
+          damage: this.compressionSecondSplitDamage,
+          speed: this.compressionSecondSplitSpeed,
+          life: this.compressionSecondSplitLife,
+          health: this.compressionSecondSplitHealth,
+          kind: 'compressionSplit2',
         },
       );
     }
@@ -795,9 +962,11 @@ export class MatrixBoss {
           health: this.burstBulletHealth,
           kind: 'burst',
           opacity: 1,
-          bounceFade: this.burstBounceFade,
           maxBounces: this.burstMaxBounces,
           bounceCount: 0,
+          fading: false,
+          fadeTimer: this.burstFinalFadeDuration,
+          fadeDuration: this.burstFinalFadeDuration,
         },
       );
     }
@@ -840,9 +1009,11 @@ export class MatrixBoss {
       health = this.bulletHealth,
       kind = 'swirl',
       opacity = 1,
-      bounceFade = 1,
       maxBounces = 0,
       bounceCount = 0,
+      fading = false,
+      fadeTimer = 0,
+      fadeDuration = 0,
     } = {},
   ) {
     this.bullets.push({
@@ -858,9 +1029,11 @@ export class MatrixBoss {
       damage,
       kind,
       opacity,
-      bounceFade,
       maxBounces,
       bounceCount,
+      fading,
+      fadeTimer,
+      fadeDuration,
       orbiting: false,
       hitPlayer: false,
     });
@@ -888,6 +1061,8 @@ export class MatrixBoss {
     this.orbitSpawned = false;
     this.compressionPulsesFired = 0;
     this.compressionShotFired = false;
+    this.floodFireTimer = 0;
+    this.floodDirection = this.patrolDirection;
     this.coreBurstFired = false;
     this.coreFlash = 0;
 
@@ -990,19 +1165,40 @@ export class MatrixBoss {
           bounced = true;
         }
 
-        if (bounced) {
+        if (bounced && !bullet.fading) {
           bullet.bounceCount++;
-          bullet.opacity *= bullet.bounceFade;
 
           if (
             bullet.bounceCount >=
             bullet.maxBounces
           ) {
+            bullet.fading = true;
+            bullet.fadeTimer =
+              bullet.fadeDuration;
+          }
+        }
+
+        if (bullet.fading) {
+          bullet.fadeTimer = Math.max(
+            0,
+            bullet.fadeTimer - dt,
+          );
+
+          bullet.opacity =
+            bullet.fadeDuration > 0
+              ? bullet.fadeTimer /
+                bullet.fadeDuration
+              : 0;
+
+          if (bullet.fadeTimer <= 0) {
             bullet.life = 0;
           }
         }
       } else if (
-        bullet.kind === 'compression' &&
+        (
+          bullet.kind === 'compression' ||
+          bullet.kind === 'compressionSplit1'
+        ) &&
         bullet.life > 0
       ) {
         const radius = bullet.size * 0.5;
@@ -1041,6 +1237,10 @@ export class MatrixBoss {
             x: bullet.x,
             y: bullet.y,
             angle: splitAngle,
+            stage:
+              bullet.kind === 'compression'
+                ? 1
+                : 2,
           });
 
           bullet.life = 0;
@@ -1082,6 +1282,7 @@ export class MatrixBoss {
       if (
         bullet.kind !== 'burst' &&
         bullet.kind !== 'compression' &&
+        bullet.kind !== 'compressionSplit1' &&
         (
           bullet.x < -100 ||
           bullet.x > world.width + 100 ||
@@ -1094,11 +1295,19 @@ export class MatrixBoss {
     }
 
     for (const split of compressionSplits) {
-      this.spawnCompressionSplit(
-        split.x,
-        split.y,
-        split.angle,
-      );
+      if (split.stage === 1) {
+        this.spawnCompressionFirstSplit(
+          split.x,
+          split.y,
+          split.angle,
+        );
+      } else {
+        this.spawnCompressionSecondSplit(
+          split.x,
+          split.y,
+          split.angle,
+        );
+      }
     }
 
     this.bullets = this.bullets.filter(
@@ -1498,7 +1707,8 @@ export class MatrixBoss {
       const strongGlow =
         bullet.kind === 'burst' ||
         bullet.kind === 'orbit' ||
-        bullet.kind === 'compression';
+        bullet.kind === 'compression' ||
+        bullet.kind === 'compressionSplit1';
 
       ctx.shadowColor =
         strongGlow
