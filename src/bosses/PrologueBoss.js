@@ -132,6 +132,7 @@ export class PrologueBoss {
     this.burstAnchorY = this.y;
     this.satelliteBurstBaseAngle = 0;
     this.satelliteBullets = [];
+    this.fxEvents = [];
     this.shotSerial = 0;
     this.satelliteBulletCount = 20;
     this.satelliteBulletSpeed = 390;
@@ -1202,6 +1203,7 @@ export class PrologueBoss {
     this.wallRushGrabDashSerial = 0;
     this.satelliteBurstRowsFired = 0;
     this.satelliteBullets.length = 0;
+    this.fxEvents.length = 0;
     this.shotSerial = 0;
     this.shockwaves.length = 0;
 
@@ -1359,7 +1361,17 @@ export class PrologueBoss {
         Math.hypot(bullet.x - x, bullet.y - y) <=
         bulletRadius + radius
       ) {
+        const healthBefore = bullet.health;
         bullet.health = Math.max(0, bullet.health - damage);
+
+        if (healthBefore > 0 && bullet.health <= 0) {
+          this.fxEvents.push({
+            type: 'projectileBreak',
+            x: bullet.x,
+            y: bullet.y,
+          });
+        }
+
         return true;
       }
     }
@@ -1398,7 +1410,17 @@ export class PrologueBoss {
       );
 
       if (distance <= bulletRadius + beamRadius) {
+        const healthBefore = bullet.health;
         bullet.health = Math.max(0, bullet.health - damage);
+
+        if (healthBefore > 0 && bullet.health <= 0) {
+          this.fxEvents.push({
+            type: 'projectileBreak',
+            x: bullet.x,
+            y: bullet.y,
+          });
+        }
+
         hits++;
       }
     }
