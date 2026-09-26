@@ -90,6 +90,7 @@ export class MatrixBoss {
     this.hurtFlash = 0;
 
     this.bullets = [];
+    this.shotSerial = 0;
     this.bulletSpeed = 335;
     this.bulletLife = 4.0;
     this.bulletSize = 16;
@@ -426,6 +427,7 @@ export class MatrixBoss {
   }
 
   fireCoreBurst() {
+    this.shotSerial++;
     for (let i = 0; i < this.burstBulletCount; i++) {
       const angle =
         (i / this.burstBulletCount) *
@@ -450,6 +452,7 @@ export class MatrixBoss {
   }
 
   fireSwirlPair() {
+    this.shotSerial++;
     const angle =
       this.rotation * Math.PI / 180;
 
@@ -516,6 +519,7 @@ export class MatrixBoss {
     this.patrolDirection = 1;
 
     this.bullets.length = 0;
+    this.shotSerial = 0;
     this.fireTimer = 0;
     this.lastAttack = null;
     this.beamActive = false;
