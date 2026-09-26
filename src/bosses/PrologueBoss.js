@@ -1,5 +1,5 @@
-import { BossAI } from './BossAI.js?v=31';
-import { rectangle, group, rasterize } from '../pixelShapes.js?v=31';
+import { BossAI } from './BossAI.js?v=32';
+import { rectangle, group, rasterize } from '../pixelShapes.js?v=32';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -47,7 +47,7 @@ function lerpAngle(from, to, t) {
 export class PrologueBoss {
   constructor(world) {
     this.name = 'prologue';
-    this.maxHealth = 650;
+    this.maxHealth = 815;
     this.health = this.maxHealth;
 
     this.size = 132;
