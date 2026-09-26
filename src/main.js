@@ -23,7 +23,7 @@ import { BackfireAbility } from './BackfireAbility.js?v=33';
 import { BossAI } from './bosses/BossAI.js?v=33';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=33';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=33';
-import { GameAudio } from './AudioManager.js?v=33';
+import { GameAudio } from './AudioManager.js?v=34';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
