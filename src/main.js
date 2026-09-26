@@ -30,9 +30,16 @@ const chapterScreen = document.querySelector('#chapter-screen');
 const gameScreen = document.querySelector('#game-screen');
 const equipmentScreen = document.querySelector('#equipment-screen');
 const shopScreen = document.querySelector('#shop-screen');
+const settingsScreen = document.querySelector('#settings-screen');
 const mainButton = document.querySelector('#main-button');
 const equipmentButton = document.querySelector('#equipment-button');
 const shopButton = document.querySelector('#shop-button');
+const settingsButton = document.querySelector('#settings-button');
+const settingsBack = document.querySelector('#settings-back');
+const settingScreenShake = document.querySelector('#setting-screen-shake');
+const settingParticles = document.querySelector('#setting-particles');
+const settingHitFlash = document.querySelector('#setting-hit-flash');
+const settingImpactCamera = document.querySelector('#setting-impact-camera');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
 const shopItems = document.querySelector('#shop-items');
@@ -158,6 +165,274 @@ let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
 let currentDrag = null;
 
+const FX_STORAGE_KEY = 'bossfights.fx-settings.v1';
+const fxSettings = {
+  screenShake: true,
+  particles: true,
+  hitFlash: true,
+  impactCamera: true,
+};
+
+try {
+  const saved = JSON.parse(
+    localStorage.getItem(FX_STORAGE_KEY) ?? 'null',
+  );
+
+  if (saved && typeof saved === 'object') {
+    for (const key of Object.keys(fxSettings)) {
+      if (typeof saved[key] === 'boolean') {
+        fxSettings[key] = saved[key];
+      }
+    }
+  }
+} catch {
+  // Ignore malformed or unavailable local storage.
+}
+
+const particles = [];
+const MAX_PARTICLES = 220;
+let bossImpactFxCooldown = 0;
+let playerImpactFxCooldown = 0;
+
+function saveFxSettings() {
+  try {
+    localStorage.setItem(
+      FX_STORAGE_KEY,
+      JSON.stringify(fxSettings),
+    );
+  } catch {
+    // Settings still work for the current session.
+  }
+}
+
+function renderSettings() {
+  settingScreenShake.checked = fxSettings.screenShake;
+  settingParticles.checked = fxSettings.particles;
+  settingHitFlash.checked = fxSettings.hitFlash;
+  settingImpactCamera.checked = fxSettings.impactCamera;
+}
+
+function bindSetting(input, key) {
+  input.addEventListener('change', () => {
+    fxSettings[key] = input.checked;
+
+    if (key === 'particles' && !input.checked) {
+      particles.length = 0;
+    }
+
+    if (key === 'screenShake' && !input.checked) {
+      camera.shakeTime = 0;
+      camera.shakeDuration = 0;
+      camera.shakeIntensity = 0;
+    }
+
+    saveFxSettings();
+  });
+}
+
+bindSetting(settingScreenShake, 'screenShake');
+bindSetting(settingParticles, 'particles');
+bindSetting(settingHitFlash, 'hitFlash');
+bindSetting(settingImpactCamera, 'impactCamera');
+
+function spawnParticle(
+  x,
+  y,
+  {
+    vx = 0,
+    vy = 0,
+    life = 0.24,
+    size = 4,
+    gravity = 0,
+    alpha = 1,
+    color = '#e5e7eb',
+  } = {},
+) {
+  if (!fxSettings.particles) return;
+
+  if (particles.length >= MAX_PARTICLES) {
+    particles.splice(
+      0,
+      particles.length - MAX_PARTICLES + 1,
+    );
+  }
+
+  particles.push({
+    x,
+    y,
+    vx,
+    vy,
+    life,
+    maxLife: life,
+    size,
+    gravity,
+    alpha,
+    color,
+  });
+}
+
+function spawnSparkBurst(
+  x,
+  y,
+  count = 6,
+  speed = 150,
+  color = '#ffffff',
+) {
+  if (!fxSettings.particles) return;
+
+  for (let i = 0; i < count; i++) {
+    const angle =
+      Math.random() * Math.PI * 2;
+
+    const magnitude =
+      speed * (0.45 + Math.random() * 0.55);
+
+    spawnParticle(x, y, {
+      vx: Math.cos(angle) * magnitude,
+      vy: Math.sin(angle) * magnitude,
+      life: 0.12 + Math.random() * 0.16,
+      size: Math.random() < 0.65 ? 3 : 5,
+      gravity: 160,
+      color,
+    });
+  }
+}
+
+function spawnDashParticles(dash) {
+  if (!fxSettings.particles || !dash) return;
+
+  const count = 10;
+
+  for (let i = 0; i < count; i++) {
+    const t = count <= 1 ? 1 : i / (count - 1);
+
+    spawnParticle(
+      lerp(dash.startX, dash.endX, t),
+      lerp(dash.startY, dash.endY, t),
+      {
+        vx:
+          -dash.nx * (80 + Math.random() * 100) +
+          (Math.random() * 2 - 1) * 45,
+        vy:
+          -dash.ny * (80 + Math.random() * 100) +
+          (Math.random() * 2 - 1) * 45,
+        life: 0.16 + Math.random() * 0.12,
+        size: Math.random() < 0.5 ? 4 : 6,
+        alpha: 0.55,
+        color: '#aeb4bf',
+      },
+    );
+  }
+}
+
+function spawnLandingParticles(x, y, strength = 1) {
+  if (!fxSettings.particles) return;
+
+  const count = Math.round(
+    5 + Math.min(5, strength * 4),
+  );
+
+  for (let i = 0; i < count; i++) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+
+    spawnParticle(x, y, {
+      vx:
+        side *
+        (45 + Math.random() * 115),
+      vy:
+        -(25 + Math.random() * 90),
+      life: 0.18 + Math.random() * 0.18,
+      size: Math.random() < 0.6 ? 4 : 6,
+      gravity: 360,
+      alpha: 0.52,
+      color: '#8a8e95',
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (const particle of particles) {
+    particle.life -= dt;
+    particle.vy += particle.gravity * dt;
+    particle.x += particle.vx * dt;
+    particle.y += particle.vy * dt;
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    if (particles[i].life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  if (!fxSettings.particles) return;
+
+  ctx.save();
+
+  for (const particle of particles) {
+    const lifeRatio = Math.max(
+      0,
+      particle.life / particle.maxLife,
+    );
+
+    ctx.globalAlpha =
+      lifeRatio * particle.alpha;
+
+    ctx.fillStyle = particle.color;
+
+    ctx.fillRect(
+      Math.round(
+        particle.x -
+        camera.x -
+        particle.size / 2,
+      ),
+      Math.round(
+        particle.y -
+        particle.size / 2,
+      ),
+      particle.size,
+      particle.size,
+    );
+  }
+
+  ctx.restore();
+}
+
+function drainBossFxEvents(boss) {
+  if (!boss?.fxEvents?.length) return;
+
+  for (const event of boss.fxEvents) {
+    if (event.type === 'ricochet') {
+      spawnSparkBurst(
+        event.x,
+        event.y,
+        4,
+        125,
+        '#d7dbe2',
+      );
+    } else if (event.type === 'projectileBreak') {
+      spawnSparkBurst(
+        event.x,
+        event.y,
+        7,
+        175,
+        '#ffffff',
+      );
+    } else if (event.type === 'wallImpact') {
+      spawnSparkBurst(
+        event.x,
+        event.y,
+        8,
+        190,
+        '#ffffff',
+      );
+    }
+  }
+
+  boss.fxEvents.length = 0;
+}
+
 function getActiveWeaponId() {
   return getWeaponSlotId(activeWeaponSlot);
 }
@@ -268,6 +543,7 @@ function showScreen(name) {
   gameScreen.classList.toggle('hidden', name !== 'game');
   equipmentScreen.classList.toggle('hidden', name !== 'equipment');
   shopScreen.classList.toggle('hidden', name !== 'shop');
+  settingsScreen.classList.toggle('hidden', name !== 'settings');
 
   if (name !== 'game') {
     keys.clear();
@@ -279,14 +555,17 @@ function showScreen(name) {
 
   if (name === 'equipment') renderEquipment();
   if (name === 'shop') renderShop();
+  if (name === 'settings') renderSettings();
   if (name === 'chapters') renderChapterSelect();
 }
 
 mainButton.addEventListener('click', () => showScreen('chapters'));
 equipmentButton.addEventListener('click', () => showScreen('equipment'));
 shopButton.addEventListener('click', () => showScreen('shop'));
+settingsButton.addEventListener('click', () => showScreen('settings'));
 equipmentBack.addEventListener('click', () => showScreen('menu'));
 shopBack.addEventListener('click', () => showScreen('menu'));
+settingsBack.addEventListener('click', () => showScreen('menu'));
 chapterBack.addEventListener('click', () => showScreen('menu'));
 
 deathRestart.addEventListener('click', () => {
@@ -402,6 +681,8 @@ function readInput() {
 }
 
 function triggerCameraShake(intensity = 10, duration = 0.22) {
+  if (!fxSettings.screenShake) return;
+
   camera.shakeIntensity = Math.max(camera.shakeIntensity, intensity);
   camera.shakeDuration = Math.max(camera.shakeDuration, duration);
   camera.shakeTime = Math.max(camera.shakeTime, duration);
