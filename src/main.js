@@ -460,6 +460,7 @@ function update(dt) {
 
   const vectorShotsBefore = vectorWeapon.shotSerial;
   const horizonShotsBefore = horizonWeapon.shotSerial;
+  const backfireShotsBefore = backfireAbility.shotSerial;
   const machSpecialWavesBefore = machWeapon.specialWavesFired;
   const bossShotsBefore = activeBoss?.shotSerial ?? 0;
 
@@ -580,6 +581,11 @@ function update(dt) {
   playRepeated(
     Math.max(0, horizonWeapon.shotSerial - horizonShotsBefore),
     () => audio.playShot('horizon'),
+  );
+
+  playRepeated(
+    Math.max(0, backfireAbility.shotSerial - backfireShotsBefore),
+    () => audio.playShot('default'),
   );
 
   playRepeated(
