@@ -16,11 +16,13 @@ export class BackfireAbility {
     this.bulletSize = 10;
 
     this.lastDashSerial = 0;
+    this.shotSerial = 0;
     this.bullets = [];
   }
 
   reset(player) {
     this.lastDashSerial = player?.dashSerial ?? 0;
+    this.shotSerial = 0;
     this.bullets.length = 0;
   }
 
@@ -57,6 +59,8 @@ export class BackfireAbility {
   }
 
   fireFromDash(dash) {
+    this.shotSerial++;
+
     const backAngle =
       Math.atan2(-dash.ny, -dash.nx);
 
