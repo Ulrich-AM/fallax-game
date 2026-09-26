@@ -15,6 +15,7 @@
         <button id="main-button" class="menu-button">main</button>
         <button id="equipment-button" class="menu-button">equipment</button>
         <button id="shop-button" class="menu-button">shop</button>
+        <button id="settings-button" class="menu-button">settings</button>
       </div>
     </section>
 
@@ -68,6 +69,54 @@
             <span>everything is free for now</span>
           </div>
           <div id="shop-items" class="inventory-grid"></div>
+        </section>
+      </main>
+    </section>
+
+    <section id="settings-screen" class="screen hidden">
+      <aside class="equipment-sidebar">
+        <button id="settings-back" class="back-button">← main menu</button>
+        <h2>settings</h2>
+      </aside>
+
+      <main class="equipment-main">
+        <section class="equipment-panel settings-panel">
+          <div class="section-heading">
+            <h3>visual effects</h3>
+            <span>disable effects individually if needed</span>
+          </div>
+
+          <label class="setting-row">
+            <span>
+              <strong>screen shake</strong>
+              <small>large boss impacts and special attacks</small>
+            </span>
+            <input id="setting-screen-shake" type="checkbox" />
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>particles</strong>
+              <small>dash dust, landing dust, hit and ricochet sparks</small>
+            </span>
+            <input id="setting-particles" type="checkbox" />
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>boss hit flashes</strong>
+              <small>white flash when a boss takes damage</small>
+            </span>
+            <input id="setting-hit-flash" type="checkbox" />
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>impact camera feedback</strong>
+              <small>tiny camera reaction when attacks connect</small>
+            </span>
+            <input id="setting-impact-camera" type="checkbox" />
+          </label>
         </section>
       </main>
     </section>
