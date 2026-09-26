@@ -1,4 +1,4 @@
-import { MOVEMENT as CFG } from './movementConfig.js?v=31';
+import { MOVEMENT as CFG } from './movementConfig.js?v=32';
 
 function approach(value, target, amount) {
   if (value < target) return Math.min(value + amount, target);
