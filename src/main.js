@@ -235,6 +235,10 @@ bindSetting(settingParticles, 'particles');
 bindSetting(settingHitFlash, 'hitFlash');
 bindSetting(settingImpactCamera, 'impactCamera');
 
+function fxLerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
 function spawnParticle(
   x,
   y,
@@ -307,8 +311,8 @@ function spawnDashParticles(dash) {
     const t = count <= 1 ? 1 : i / (count - 1);
 
     spawnParticle(
-      lerp(dash.startX, dash.endX, t),
-      lerp(dash.startY, dash.endY, t),
+      fxLerp(dash.startX, dash.endX, t),
+      fxLerp(dash.startY, dash.endY, t),
       {
         vx:
           -dash.nx * (80 + Math.random() * 100) +
@@ -725,6 +729,16 @@ function update(dt) {
     return;
   }
 
+  bossImpactFxCooldown = Math.max(
+    0,
+    bossImpactFxCooldown - dt,
+  );
+  playerImpactFxCooldown = Math.max(
+    0,
+    playerImpactFxCooldown - dt,
+  );
+  updateParticles(dt);
+
   if (pressed.has('KeyR')) {
     player.reset();
     vectorWeapon.reset();
@@ -737,6 +751,12 @@ function update(dt) {
 
   const activeWeaponId = getActiveWeaponId();
   const activeWeapon = getActiveWeaponInstance();
+
+  const dashSerialBefore = player.dashSerial;
+  const groundedBefore = player.grounded;
+  const verticalSpeedBefore = player.vy;
+  const playerHealthBefore = player.health;
+  const bossHealthBefore = activeBoss?.health ?? 0;
 
   const vectorShotsBefore = vectorWeapon.shotSerial;
   const horizonShotsBefore = horizonWeapon.shotSerial;
@@ -772,6 +792,28 @@ function update(dt) {
   }
 
   player.update(dt, playerInput, world);
+
+  if (
+    player.dashSerial !== dashSerialBefore &&
+    player.lastDash
+  ) {
+    spawnDashParticles(player.lastDash);
+  }
+
+  if (
+    !groundedBefore &&
+    player.grounded &&
+    verticalSpeedBefore > 180
+  ) {
+    spawnLandingParticles(
+      player.x,
+      player.y + player.h * 0.5,
+      Math.min(
+        2,
+        verticalSpeedBefore / 700,
+      ),
+    );
+  }
 
   if (weaponLocksPlayer) {
     player.x = lockedPlayerX;
@@ -887,6 +929,54 @@ function update(dt) {
   );
 
   syncWeaponAudio(activeWeaponId);
+
+  const bossHealthAfter =
+    activeBoss?.health ?? bossHealthBefore;
+
+  if (
+    activeBoss &&
+    bossHealthAfter < bossHealthBefore &&
+    bossImpactFxCooldown <= 0
+  ) {
+    spawnSparkBurst(
+      activeBoss.x,
+      activeBoss.y,
+      6,
+      165,
+      '#ffffff',
+    );
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(2.4, 0.065);
+    }
+
+    bossImpactFxCooldown = 0.075;
+  }
+
+  if (
+    player.health < playerHealthBefore &&
+    playerImpactFxCooldown <= 0
+  ) {
+    spawnSparkBurst(
+      player.x,
+      player.y,
+      5,
+      135,
+      '#c9cdd4',
+    );
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(2.8, 0.075);
+    }
+
+    playerImpactFxCooldown = 0.10;
+  }
+
+  if (!fxSettings.hitFlash && activeBoss) {
+    activeBoss.hurtFlash = 0;
+  }
+
+  drainBossFxEvents(activeBoss);
 
   if (player.health <= 0) {
     endEncounter('defeated');
@@ -1130,6 +1220,7 @@ function renderGame() {
   drawPlatforms();
 
   activeBoss?.draw?.(ctx, camera.x, ART_PIXEL);
+  drawParticles();
   drawPlayer();
 
   const activeWeaponId = getActiveWeaponId();
@@ -1181,6 +1272,9 @@ function prepareEncounter(boss) {
   horizonWeapon.reset();
   machWeapon.reset();
   backfireAbility.reset(player);
+  particles.length = 0;
+  bossImpactFxCooldown = 0;
+  playerImpactFxCooldown = 0;
 
   boss.reset(world);
   activeBoss = boss;
@@ -1491,4 +1585,5 @@ window.BOSSFIGHTS = {
   machWeapon,
   backfireAbility,
   audio,
+  fxSettings,
 };
