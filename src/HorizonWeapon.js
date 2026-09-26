@@ -62,6 +62,7 @@ export class HorizonWeapon {
     this.specialRecoil = 1350;
     this.specialWeaponKickDistance = 28;
     this.specialProjectiles = [];
+    this.shotSerial = 0;
   }
 
   reset() {
@@ -74,6 +75,7 @@ export class HorizonWeapon {
     this.weaponKickTimer = 0;
     this.specialCooldownTimer = this.specialCooldown;
     this.specialProjectiles.length = 0;
+    this.shotSerial = 0;
   }
 
   triggerSpecial({ player, pointerWorld } = {}) {
@@ -179,6 +181,8 @@ export class HorizonWeapon {
   fireSpecial(player, pointerWorld) {
     if (this.specialCooldownTimer > 0) return false;
 
+    this.shotSerial++;
+
     const angle = this.getTargetAngle(player, pointerWorld);
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
@@ -260,6 +264,7 @@ export class HorizonWeapon {
   applyShot(player, target, artPixelSize) {
     if (this.shotApplied) return;
     this.shotApplied = true;
+    this.shotSerial++;
 
     const dirX = Math.cos(this.lockedAngle);
     const dirY = Math.sin(this.lockedAngle);
