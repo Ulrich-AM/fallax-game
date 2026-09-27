@@ -69,6 +69,7 @@ export class DeveloperConsole {
     this.history = [];
     this.historyIndex = 0;
     this.opened = false;
+    this.pendingRequest = null;
 
     this.input?.addEventListener(
       'keydown',
@@ -129,10 +130,80 @@ export class DeveloperConsole {
   close() {
     if (!this.opened) return;
 
+    this.cancelRequest();
     this.opened = false;
     this.root?.classList.add('hidden');
     this.input?.blur();
     this.onClose?.();
+  }
+
+  requestInput({
+    message = 'input:',
+    secret = false,
+  } = {}) {
+    if (this.pendingRequest) {
+      throw new Error(
+        'The console is already waiting for input.',
+      );
+    }
+
+    this.print(message, 'muted');
+
+    if (this.input) {
+      this.input.value = '';
+      this.input.type =
+        secret ? 'password' : 'text';
+      this.input.autocomplete = 'off';
+      this.input.focus();
+    }
+
+    return new Promise(resolve => {
+      this.pendingRequest = {
+        resolve,
+        secret,
+      };
+    });
+  }
+
+  requestSecret(message = 'password:') {
+    return this.requestInput({
+      message,
+      secret: true,
+    });
+  }
+
+  finishRequest(value) {
+    const request =
+      this.pendingRequest;
+
+    if (!request) return false;
+
+    this.pendingRequest = null;
+
+    if (this.input) {
+      this.input.type = 'text';
+      this.input.value = '';
+      this.input.focus();
+    }
+
+    request.resolve(value);
+    return true;
+  }
+
+  cancelRequest() {
+    if (!this.pendingRequest) return;
+
+    const request =
+      this.pendingRequest;
+
+    this.pendingRequest = null;
+
+    if (this.input) {
+      this.input.type = 'text';
+      this.input.value = '';
+    }
+
+    request.resolve(null);
   }
 
   toggle() {
@@ -253,7 +324,15 @@ export class DeveloperConsole {
     if (event.code === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      this.close();
+
+      if (this.pendingRequest) {
+        this.cancelRequest();
+        this.print('input cancelled.', 'muted');
+        this.input?.focus();
+      } else {
+        this.close();
+      }
+
       return;
     }
 
@@ -261,9 +340,28 @@ export class DeveloperConsole {
       event.preventDefault();
       event.stopPropagation();
 
+      if (this.pendingRequest) {
+        const value =
+          this.input?.value ?? '';
+
+        this.finishRequest(value);
+        return;
+      }
       const value = this.input.value;
       this.input.value = '';
       this.execute(value);
+      return;
+    }
+
+    if (
+      this.pendingRequest &&
+      (
+        event.code === 'ArrowUp' ||
+        event.code === 'ArrowDown'
+      )
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 
