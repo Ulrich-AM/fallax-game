@@ -142,8 +142,6 @@ function renderDenariusBalance() {
   }
 }
 
-renderDenariusBalance();
-
 ctx.imageSmoothingEnabled = false;
 
 const W = canvas.width;
@@ -201,6 +199,7 @@ const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
 const economy = new Economy();
+renderDenariusBalance();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
 const audio = new GameAudio();
