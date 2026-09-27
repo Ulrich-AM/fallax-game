@@ -6,10 +6,10 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=43';
+} from './SpriteAssets.js?v=44';
 import {
   rasterize,
-} from './pixelShapes.js?v=43';
+} from './pixelShapes.js?v=44';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
