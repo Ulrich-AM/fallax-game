@@ -1,13 +1,16 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=46';
+} from './SpriteAssets.js?v=47';
 import {
   rasterize,
-} from './pixelShapes.js?v=46';
+} from './pixelShapes.js?v=47';
 import {
   evaluateAnimation,
   applyAnimationPose,
-} from './SpriteAnimation.js?v=46';
+} from './SpriteAnimation.js?v=47';
+import {
+  PlayerController,
+} from './PlayerController.js?v=47';
 
 function clamp(value, min, max) {
   return Math.max(
@@ -35,6 +38,7 @@ export class WeaponTestRoom {
     canvas,
     angleLabel,
     exitButton,
+    getControls = null,
     onClose = null,
   }) {
     this.root = root;
@@ -49,6 +53,8 @@ export class WeaponTestRoom {
       exitButton;
 
     this.onClose = onClose;
+    this.getControls =
+      getControls;
 
     this.opened = false;
     this.asset = null;
@@ -58,6 +64,24 @@ export class WeaponTestRoom {
       canvas.width * 0.75;
     this.pointerY =
       canvas.height * 0.45;
+
+    this.roomWorld = {
+      width: canvas.width,
+      floorY: 624,
+      platforms: [],
+    };
+
+    this.player =
+      new PlayerController({
+        x: canvas.width * 0.5,
+        y: 624 - 28,
+        width: 32,
+        height: 56,
+      });
+
+    this.keys = new Set();
+    this.pressed = new Set();
+    this.released = new Set();
 
     this.frame = 0;
     this.rasterCache =
@@ -108,12 +132,79 @@ export class WeaponTestRoom {
     this.root.addEventListener(
       'keydown',
       event => {
+        if (!this.opened) return;
+
         if (
           event.code === 'Escape'
         ) {
           event.preventDefault();
           event.stopPropagation();
           this.close();
+          return;
+        }
+
+        const controls =
+          this.controls();
+
+        const movementCodes =
+          new Set([
+            controls.moveLeft,
+            controls.moveRight,
+            controls.jump,
+            controls.sprint,
+          ]);
+
+        if (
+          movementCodes.has(
+            event.code,
+          )
+        ) {
+          if (
+            !this.keys.has(
+              event.code,
+            )
+          ) {
+            this.pressed.add(
+              event.code,
+            );
+          }
+
+          this.keys.add(
+            event.code,
+          );
+
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      },
+    );
+
+    this.root.addEventListener(
+      'keyup',
+      event => {
+        if (!this.opened) return;
+
+        const controls =
+          this.controls();
+
+        if (
+          [
+            controls.moveLeft,
+            controls.moveRight,
+            controls.jump,
+            controls.sprint,
+          ].includes(event.code)
+        ) {
+          this.keys.delete(
+            event.code,
+          );
+
+          this.released.add(
+            event.code,
+          );
+
+          event.preventDefault();
+          event.stopPropagation();
         }
       },
     );
@@ -144,6 +235,10 @@ export class WeaponTestRoom {
 
     this.rasterCache.clear();
     this.angle = 0;
+    this.keys.clear();
+    this.pressed.clear();
+    this.released.clear();
+    this.player.reset();
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationLastTime =
@@ -171,6 +266,9 @@ export class WeaponTestRoom {
     if (!this.opened) return;
 
     this.opened = false;
+    this.keys.clear();
+    this.pressed.clear();
+    this.released.clear();
 
     if (this.frame) {
       cancelAnimationFrame(
@@ -213,6 +311,63 @@ export class WeaponTestRoom {
         this.canvas.height /
         rect.height
       );
+  }
+
+  controls() {
+    return (
+      this.getControls?.() ?? {
+        moveLeft: 'KeyA',
+        moveRight: 'KeyD',
+        jump: 'Space',
+        sprint: 'ShiftLeft',
+      }
+    );
+  }
+
+  updatePlayer(dt) {
+    const controls =
+      this.controls();
+
+    const right =
+      this.keys.has(
+        controls.moveRight,
+      );
+
+    const left =
+      this.keys.has(
+        controls.moveLeft,
+      );
+
+    this.player.update(
+      dt,
+      {
+        move:
+          (right ? 1 : 0) -
+          (left ? 1 : 0),
+        jumpHeld:
+          this.keys.has(
+            controls.jump,
+          ),
+        jumpPressed:
+          this.pressed.has(
+            controls.jump,
+          ),
+        jumpReleased:
+          this.released.has(
+            controls.jump,
+          ),
+        sprintHeld:
+          this.keys.has(
+            controls.sprint,
+          ),
+        dashPressed: false,
+        dashTarget: null,
+      },
+      this.roomWorld,
+    );
+
+    this.pressed.clear();
+    this.released.clear();
   }
 
   setClip(name) {
@@ -313,6 +468,7 @@ export class WeaponTestRoom {
 
       this.animationLastTime = now;
 
+      this.updatePlayer(dt);
       this.updateAim();
       this.updateAnimation(dt);
       this.draw();
@@ -330,24 +486,23 @@ export class WeaponTestRoom {
   }
 
   playerPose() {
-    const floorY = 624;
-
     const centerX =
-      this.canvas.width * 0.5;
+      this.player.x;
 
     const centerY =
-      floorY - 28;
+      this.player.y;
 
     return {
       centerX,
       centerY,
-      width: 32,
-      height: 56,
-      pivotX:
-        centerX + 16,
-      pivotY:
-        centerY - 14,
-      floorY,
+      width:
+        this.player.w,
+      height:
+        this.player.h,
+      pivotX: centerX,
+      pivotY: centerY,
+      floorY:
+        this.roomWorld.floorY,
     };
   }
 
@@ -554,21 +709,36 @@ export class WeaponTestRoom {
       pose.centerY -
       pose.height / 2;
 
+    const visual =
+      this.player.visualScale;
+
+    ctx.save();
+    ctx.translate(
+      pose.centerX,
+      pose.centerY,
+    );
+    ctx.scale(
+      visual.x,
+      visual.y,
+    );
+
     ctx.fillStyle = '#8a8e95';
     ctx.fillRect(
-      left,
-      top,
+      -pose.width / 2,
+      -pose.height / 2,
       pose.width,
       pose.height,
     );
 
     ctx.strokeStyle = '#4b4f57';
     ctx.strokeRect(
-      left + 0.5,
-      top + 0.5,
+      -pose.width / 2 + 0.5,
+      -pose.height / 2 + 0.5,
       pose.width,
       pose.height,
     );
+
+    ctx.restore();
   }
 
   drawRasterAtPivot(
@@ -772,6 +942,21 @@ export class WeaponTestRoom {
       pose,
       entry.compiled,
     );
+
+    const controls =
+      this.controls();
+
+    ctx.save();
+    ctx.fillStyle = '#7f8793';
+    ctx.font =
+      '12px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(
+      'move / jump / sprint use your configured game hotkeys',
+      18,
+      this.canvas.height - 18,
+    );
+    ctx.restore();
 
     ctx.save();
     ctx.fillStyle = '#bfc6d0';
