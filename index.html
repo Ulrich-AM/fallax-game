@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fallax - boss rush</title>
-  <link rel="stylesheet" href="style.css?v=53" />
+  <link rel="stylesheet" href="style.css?v=54a" />
 </head>
 <body>
   <div id="app">
@@ -61,13 +61,17 @@
       <aside class="equipment-sidebar">
         <button id="shop-back" class="back-button">← main menu</button>
         <h2>shop</h2>
+        <nav id="shop-tabs" class="equipment-tabs" aria-label="Shop categories"></nav>
       </aside>
 
       <main class="equipment-main">
         <section class="equipment-panel">
-          <div class="section-heading">
-            <h3>shop</h3>
-            <span>everything is free for now</span>
+          <div class="section-heading shop-section-heading">
+            <div>
+              <h3 id="shop-category-title">random</h3>
+              <span id="shop-category-note">random unowned items from the current catalog</span>
+            </div>
+            <button id="shop-reroll" class="shop-reroll-button">roll</button>
           </div>
           <div id="shop-items" class="inventory-grid"></div>
         </section>
@@ -498,6 +502,19 @@
     <div id="denarius-balance" class="denarius-balance" aria-label="Denarius balance">0 denarius</div>
     <div id="build-version" class="build-version" aria-label="Build version"></div>
 
+    <section id="item-tooltip" class="item-tooltip hidden" aria-hidden="true">
+      <canvas
+        id="item-tooltip-canvas"
+        class="item-tooltip-canvas"
+        width="160"
+        height="96"
+      ></canvas>
+      <div class="item-tooltip-copy">
+        <strong id="item-tooltip-name"></strong>
+        <span id="item-tooltip-description"></span>
+      </div>
+    </section>
+
     <section id="dev-console" class="dev-console hidden" aria-label="Developer console">
       <div id="dev-console-output" class="dev-console-output"></div>
       <div class="dev-console-input-row">
@@ -515,6 +532,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=54"></script>
+  <script type="module" src="src/main.js?v=54a"></script>
 </body>
 </html>
