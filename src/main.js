@@ -21,8 +21,8 @@ import { HorizonWeapon } from './HorizonWeapon.js?v=36';
 import { MachWeapon } from './MachWeapon.js?v=36';
 import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=51';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=51';
 import { GameAudio } from './AudioManager.js?v=49';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=49';
@@ -34,7 +34,7 @@ import {
   serializeSpriteAsset,
 } from './SpriteAssets.js?v=49';
 
-const BUILD_VERSION = 'v50';
+const BUILD_VERSION = 'v51';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
