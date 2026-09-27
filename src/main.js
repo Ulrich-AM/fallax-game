@@ -14,15 +14,17 @@ import {
   getWeaponSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=36';
+} from './equipment.js?v=52';
 import { VectorWeapon } from './VectorWeapon.js?v=36';
 import { EuclidWeapon } from './EuclidWeapon.js?v=36';
 import { HorizonWeapon } from './HorizonWeapon.js?v=36';
 import { MachWeapon } from './MachWeapon.js?v=36';
-import { BackfireAbility } from './BackfireAbility.js?v=36';
+import { BackfireAbility } from './BackfireAbility.js?v=52';
+import { StrikeAbility } from './StrikeAbility.js?v=52';
+import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=51';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=51';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=52';
 import { GameAudio } from './AudioManager.js?v=49';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=49';
@@ -34,7 +36,7 @@ import {
   serializeSpriteAsset,
 } from './SpriteAssets.js?v=49';
 
-const BUILD_VERSION = 'v51';
+const BUILD_VERSION = 'v52';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -108,6 +110,7 @@ const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
 const deathMenu = document.querySelector('#death-menu');
 const encounterResultTitle = document.querySelector('#encounter-result-title');
+const encounterReward = document.querySelector('#encounter-reward');
 const deathRestart = document.querySelector('#death-restart');
 const deathMenuButton = document.querySelector('#death-menu-button');
 const deathInventory = document.querySelector('#death-inventory');
@@ -124,12 +127,23 @@ const equipmentInventory = document.querySelector('#equipment-inventory');
 const inventoryDropZone = document.querySelector('#inventory-drop-zone');
 
 const buildVersionLabel = document.querySelector('#build-version');
+const denariusBalance = document.querySelector('#denarius-balance');
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
 
 if (buildVersionLabel) {
   buildVersionLabel.textContent = BUILD_VERSION;
 }
+
+function renderDenariusBalance() {
+  if (denariusBalance) {
+    denariusBalance.textContent =
+      `${economy.denarius} denarius`;
+  }
+}
+
+renderDenariusBalance();
+
 ctx.imageSmoothingEnabled = false;
 
 const W = canvas.width;
@@ -185,6 +199,8 @@ const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
+const strikeAbility = new StrikeAbility();
+const economy = new Economy();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
 const audio = new GameAudio();
@@ -1205,6 +1221,13 @@ weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
 function setDeathMenuVisible(visible, result = 'defeated') {
   encounterResultTitle.textContent = result;
   deathMenu.classList.toggle('hidden', !visible);
+
+  if (
+    !visible &&
+    encounterReward
+  ) {
+    encounterReward.textContent = '';
+  }
 }
 
 function endEncounter(result) {
@@ -1216,6 +1239,21 @@ function endEncounter(result) {
   keys.clear();
   pressed.clear();
   released.clear();
+
+  if (result === 'victory') {
+    const reward =
+      economy.addDenarius(50);
+
+    renderDenariusBalance();
+
+    if (encounterReward) {
+      encounterReward.textContent =
+        `+${reward} denarius`;
+    }
+  } else if (encounterReward) {
+    encounterReward.textContent = '';
+  }
+
   setDeathMenuVisible(true, result);
 }
 
@@ -1539,6 +1577,8 @@ function update(dt) {
   const bossShotsBefore = activeBoss?.shotSerial ?? 0;
 
   const backfireEquipped = isAbilityEquipped('backfire');
+  const strikeEquipped = isAbilityEquipped('strike');
+  const strikeHitsBefore = strikeAbility.hitSerial;
 
   const playerInput = {
     ...readInput(),
@@ -1610,6 +1650,33 @@ function update(dt) {
     activeBoss,
     backfireEquipped,
   );
+
+  strikeAbility.update(
+    player,
+    activeBoss,
+    strikeEquipped,
+  );
+
+  if (
+    strikeAbility.hitSerial >
+      strikeHitsBefore &&
+    strikeAbility.lastHit
+  ) {
+    spawnSparkBurst(
+      strikeAbility.lastHit.x,
+      strikeAbility.lastHit.y,
+      12,
+      260,
+      '#ffffff',
+    );
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(
+        6.5,
+        0.12,
+      );
+    }
+  }
 
   activeBoss?.update?.(dt, {
     player,
@@ -2057,6 +2124,7 @@ function prepareEncounter(boss) {
   horizonWeapon.reset();
   machWeapon.reset();
   backfireAbility.reset(player);
+  strikeAbility.reset(player);
   particles.length = 0;
   bossImpactFxCooldown = 0;
   playerImpactFxCooldown = 0;
@@ -2369,6 +2437,8 @@ window.BOSSFIGHTS = {
   horizonWeapon,
   machWeapon,
   backfireAbility,
+  strikeAbility,
+  economy,
   audio,
   fxSettings,
   controlBindings,
