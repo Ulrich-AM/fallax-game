@@ -1,4 +1,73 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=33';
+import {
+  WeaponSpriteRenderer,
+} from './WeaponSpriteRenderer.js?v=54c';
+
+const VECTOR_SPRITE_ASSET = {
+  version: 2,
+  name: 'vector',
+  displayName: 'Vector',
+  type: 'weapon',
+  scale: 1,
+  pivot: [0, 0],
+  parts: [
+    {
+      id: 'vector-body',
+      name: 'vector-body',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [-2, -2],
+        [2, -2],
+        [2, 2],
+        [-2, 2],
+      ],
+    },
+  ],
+  groups: [],
+  animations: {
+    clips: {
+      idle: {
+        name: 'idle',
+        duration: 1,
+        loop: true,
+        tracks: [],
+      },
+      fire: {
+        name: 'fire',
+        duration: 0.25,
+        loop: false,
+        tracks: [],
+      },
+      special: {
+        name: 'special',
+        duration: 0.6,
+        loop: false,
+        tracks: [],
+      },
+    },
+  },
+  markers: {
+    muzzle: {
+      x: 3,
+      y: 0,
+      rotation: 0,
+    },
+  },
+  render: {
+    mergeOutlines: true,
+    outline: {
+      enabled: true,
+      color: '#35383e',
+      thickness: 1,
+    },
+    padding: 2,
+  },
+};
 
 function degToRad(degrees) {
   return degrees * Math.PI / 180;
@@ -42,21 +111,10 @@ export class VectorWeapon {
     this.bullets = [];
     this.shotSerial = 0;
 
-    this.definition = group([
-      rectangle({
-        width: this.bodyArtSize,
-        height: this.bodyArtSize,
-        color: '#6f747c',
-      }),
-    ], {
-      mergeOutlines: true,
-      outline: false,
-      padding: 1,
-    });
-
-    this.raster = rasterize(this.definition);
-    this.previewRasterCache =
-      new Map();
+    this.sprite =
+      new WeaponSpriteRenderer(
+        VECTOR_SPRITE_ASSET,
+      );
   }
 
   reset() {
@@ -184,9 +242,19 @@ export class VectorWeapon {
     const aim = this.getAim(player, pointerWorld);
     const shotAngle = aim.angle + randomSpread(spread);
 
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          aim.x,
+          aim.y,
+          shotAngle,
+          4,
+        );
+
     this.bullets.push({
-      x: aim.x + Math.cos(shotAngle) * 12,
-      y: aim.y + Math.sin(shotAngle) * 12,
+      x: muzzle.x,
+      y: muzzle.y,
       vx: Math.cos(shotAngle) * this.bulletSpeed,
       vy: Math.sin(shotAngle) * this.bulletSpeed,
       baseDamage: this.damage,
@@ -199,66 +267,36 @@ export class VectorWeapon {
     });
   }
 
-  getSpriteEntry(angleRadians = 0) {
-    const degrees =
-      angleRadians *
-      180 /
-      Math.PI;
-
-    const quantized =
-      Math.round(degrees / 2) * 2;
-
-    const key =
-      ((quantized % 360) + 360) %
-      360;
-
-    if (
-      !this.previewRasterCache
-        .has(key)
-    ) {
-      this.previewRasterCache.set(
-        key,
-        {
-          angle: key,
-          base: rasterize(
-            this.definition,
-            key,
-          ),
-          glows: [],
-        },
-      );
-    }
-
-    return this.previewRasterCache.get(
-      key,
-    );
+  getSpriteEntry(
+    angleRadians = 0,
+    centered = false,
+  ) {
+    return centered
+      ? this.sprite
+          .getCenteredEntry(
+            angleRadians,
+          )
+      : this.sprite
+          .getEntry(
+            angleRadians,
+          );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
     const aim = this.getAim(player, pointerWorld);
-    const screenX = Math.round(aim.x - cameraX);
-    const screenY = Math.round(aim.y);
-
-    const dw = this.raster.width * artPixelSize;
-    const dh = this.raster.height * artPixelSize;
-
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      this.raster,
-      Math.round(screenX - dw / 2),
-      Math.round(screenY - dh / 2),
-      dw,
-      dh,
+    this.sprite.draw(
+      ctx,
+      aim.x - cameraX,
+      aim.y,
+      aim.angle,
+      artPixelSize,
     );
-    ctx.restore();
 
     this.drawBullets(ctx, cameraX, artPixelSize);
   }
 
   getBulletRenderSize(artPixelSize) {
-    // Vector itself is a plain black square with no outline. The projectile
-    // is exactly one physical screen pixel smaller than that visible square.
+    // Keep projectiles just slightly smaller than Vector's outlined body.
     const visibleWeaponSize = this.bodyArtSize * artPixelSize;
     return Math.max(1, visibleWeaponSize - 1);
   }
