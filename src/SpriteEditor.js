@@ -6,10 +6,16 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=44';
+} from './SpriteAssets.js?v=45';
 import {
   rasterize,
-} from './pixelShapes.js?v=44';
+} from './pixelShapes.js?v=45';
+import {
+  normalizeAnimations,
+  evaluateAnimation,
+  applyAnimationPose,
+  upsertKeyframe,
+} from './SpriteAnimation.js?v=45';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -103,6 +109,17 @@ export class SpriteEditor {
     weaponToolsRoot,
     weaponMarkerInfo,
     weaponTestControls,
+    animationPanelRoot,
+    animationClipInput,
+    animationPropertyInput,
+    animationEasingInput,
+    animationValueInput,
+    animationDurationInput,
+    animationLoopInput,
+    animationTimeInput,
+    animationTimeLabel,
+    animationTargetRoot,
+    animationKeysRoot,
     store,
     onClose = null,
     onSaved = null,
@@ -149,6 +166,28 @@ export class SpriteEditor {
       weaponMarkerInfo;
     this.weaponTestControls =
       weaponTestControls;
+    this.animationPanelRoot =
+      animationPanelRoot;
+    this.animationClipInput =
+      animationClipInput;
+    this.animationPropertyInput =
+      animationPropertyInput;
+    this.animationEasingInput =
+      animationEasingInput;
+    this.animationValueInput =
+      animationValueInput;
+    this.animationDurationInput =
+      animationDurationInput;
+    this.animationLoopInput =
+      animationLoopInput;
+    this.animationTimeInput =
+      animationTimeInput;
+    this.animationTimeLabel =
+      animationTimeLabel;
+    this.animationTargetRoot =
+      animationTargetRoot;
+    this.animationKeysRoot =
+      animationKeysRoot;
 
     this.store = store;
     this.onClose = onClose;
@@ -163,6 +202,8 @@ export class SpriteEditor {
       });
 
     this.selectedPartId = null;
+    this.selectedPartIds =
+      new Set();
     this.tool = 'select';
     this.material = 'gray';
     this.draftPoints = [];
@@ -182,6 +223,9 @@ export class SpriteEditor {
     this.opened = false;
     this.previewFrame = 0;
     this.previewLastTime = 0;
+    this.currentClipName = 'idle';
+    this.animationTime = 0;
+    this.animationPlaying = false;
 
     this.buildMaterialButtons();
     this.bindUi();
@@ -368,6 +412,113 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-action="group"]',
+    )?.addEventListener(
+      'click',
+      () => this.groupSelected(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="ungroup"]',
+    )?.addEventListener(
+      'click',
+      () => this.ungroupSelected(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-play"]',
+    )?.addEventListener(
+      'click',
+      () => {
+        if (!this.isWeaponMode()) return;
+        this.animationPlaying =
+          !this.animationPlaying;
+        this.previewLastTime =
+          performance.now();
+        this.renderAll();
+      },
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-key"]',
+    )?.addEventListener(
+      'click',
+      () => this.addAnimationKeyframe(),
+    );
+
+    this.animationClipInput?.addEventListener(
+      'change',
+      () => {
+        this.currentClipName =
+          this.animationClipInput.value;
+        this.animationTime = 0;
+        this.animationPlaying = false;
+        this.syncAnimationUi();
+        this.renderPreview();
+      },
+    );
+
+    this.animationPropertyInput?.addEventListener(
+      'change',
+      () => {
+        this.syncAnimationValueFromSelection();
+        this.syncAnimationUi();
+      },
+    );
+
+    this.animationDurationInput?.addEventListener(
+      'change',
+      () => {
+        const clip =
+          this.currentAnimationClip();
+        if (!clip) return;
+
+        clip.duration = clamp(
+          Number(
+            this.animationDurationInput.value,
+          ) || 1,
+          0.05,
+          60,
+        );
+
+        this.animationTime =
+          Math.min(
+            this.animationTime,
+            clip.duration,
+          );
+
+        this.future.length = 0;
+        this.syncAnimationUi();
+        this.renderPreview();
+      },
+    );
+
+    this.animationLoopInput?.addEventListener(
+      'change',
+      () => {
+        const clip =
+          this.currentAnimationClip();
+        if (!clip) return;
+        clip.loop =
+          this.animationLoopInput.checked;
+        this.future.length = 0;
+      },
+    );
+
+    this.animationTimeInput?.addEventListener(
+      'input',
+      () => {
+        this.animationTime =
+          Number(
+            this.animationTimeInput.value,
+          ) || 0;
+        this.animationPlaying = false;
+        this.syncAnimationUi();
+        this.renderPreview();
+      },
+    );
+
+    this.root.querySelector(
       '[data-editor-action="test-weapon"]',
     )?.addEventListener(
       'click',
@@ -540,6 +691,7 @@ export class SpriteEditor {
     }
 
     this.selectedPartId = null;
+    this.selectedPartIds.clear();
     this.tool = 'select';
     this.material = 'gray';
     this.draftPoints = [];
@@ -548,6 +700,30 @@ export class SpriteEditor {
     this.panX = 0;
     this.panY = 0;
     this.zoom = 12;
+    this.currentClipName = 'idle';
+    this.animationTime = 0;
+    this.animationPlaying = false;
+
+    if (
+      this.asset.type === 'weapon' &&
+      this.asset.parts.length === 0
+    ) {
+      this.asset.pivot = [0, 0];
+      this.asset.markers ??= {};
+
+      if (!this.asset.markers.muzzle) {
+        this.asset.markers.muzzle = {
+          x: 12,
+          y: 0,
+          rotation: 0,
+        };
+      }
+    }
+
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
 
     this.nameInput.value =
       this.asset.displayName ??
@@ -718,7 +894,14 @@ export class SpriteEditor {
     this.pushHistory();
     this.future.length = 0;
     this.asset = imported;
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
     this.selectedPartId = null;
+    this.selectedPartIds.clear();
+    this.animationTime = 0;
+    this.animationPlaying = false;
     this.draftPoints = [];
 
     this.nameInput.value =
@@ -769,6 +952,39 @@ export class SpriteEditor {
 
       this.previewLastTime = now;
 
+      let previewDirty = false;
+
+      if (
+        this.animationPlaying &&
+        this.isWeaponMode()
+      ) {
+        const clip =
+          this.currentAnimationClip();
+
+        if (clip) {
+          this.animationTime += dt;
+
+          if (clip.loop) {
+            this.animationTime =
+              (
+                this.animationTime %
+                clip.duration
+              );
+          } else if (
+            this.animationTime >=
+            clip.duration
+          ) {
+            this.animationTime =
+              clip.duration;
+            this.animationPlaying =
+              false;
+          }
+
+          this.syncAnimationUi();
+          previewDirty = true;
+        }
+      }
+
       if (this.spinInput?.checked) {
         let angle =
           Number(
@@ -784,6 +1000,10 @@ export class SpriteEditor {
             String(angle);
         }
 
+        previewDirty = true;
+      }
+
+      if (previewDirty) {
         this.renderPreview();
       }
 
@@ -819,12 +1039,19 @@ export class SpriteEditor {
         !weapon,
       );
 
+    this.animationPanelRoot
+      ?.classList.toggle(
+        'hidden',
+        !weapon,
+      );
+
     this.root?.classList.toggle(
       'weapon-editor-mode',
       weapon,
     );
 
     this.updateWeaponMarkerInfo();
+    this.syncAnimationUi();
   }
 
   updateWeaponMarkerInfo() {
@@ -876,8 +1103,8 @@ export class SpriteEditor {
       14 / scale;
 
     const playerCenter = [
-      pivot[0] - 3.5 / scale,
-      pivot[1] + 2.5 / scale,
+      pivot[0] - 4 / scale,
+      pivot[1] + 3.5 / scale,
     ];
 
     const [
@@ -1065,6 +1292,8 @@ export class SpriteEditor {
       asset: clone(this.asset),
       selectedPartId:
         this.selectedPartId,
+      selectedPartIds:
+        [...this.selectedPartIds],
     };
   }
 
@@ -1076,12 +1305,22 @@ export class SpriteEditor {
 
     this.selectedPartId =
       snapshot.selectedPartId;
+    this.selectedPartIds =
+      new Set(
+        snapshot.selectedPartIds ??
+        (
+          snapshot.selectedPartId
+            ? [snapshot.selectedPartId]
+            : []
+        ),
+      );
 
     if (
       this.selectedPartId &&
       !this.getSelectedPart()
     ) {
       this.selectedPartId = null;
+      this.selectedPartIds.clear();
     }
 
     this.nameInput.value =
@@ -1135,6 +1374,461 @@ export class SpriteEditor {
     ) ?? null;
   }
 
+  getSelectedParts() {
+    return this.asset.parts.filter(
+      part =>
+        this.selectedPartIds.has(
+          part.id,
+        ),
+    );
+  }
+
+  getGroup(groupId) {
+    return (
+      this.asset.groups?.find(
+        group =>
+          group.id === groupId,
+      ) ?? null
+    );
+  }
+
+  groupSelected() {
+    const parts =
+      this.getSelectedParts();
+
+    if (parts.length < 2) {
+      this.setStatus(
+        'Shift-click at least two parts to group them.',
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const existingIds =
+      new Set(
+        (this.asset.groups ?? [])
+          .map(group => group.id),
+      );
+
+    let index =
+      (this.asset.groups?.length ?? 0) + 1;
+
+    let id = `group-${index}`;
+
+    while (existingIds.has(id)) {
+      id =
+        `group-${++index}`;
+    }
+
+    const pivot = [
+      parts.reduce(
+        (sum, part) =>
+          sum + part.x,
+        0,
+      ) / parts.length,
+      parts.reduce(
+        (sum, part) =>
+          sum + part.y,
+        0,
+      ) / parts.length,
+    ];
+
+    this.asset.groups ??= [];
+
+    this.asset.groups.push({
+      id,
+      name: id,
+      pivot,
+    });
+
+    for (const part of parts) {
+      part.groupId = id;
+    }
+
+    this.setStatus(
+      `Grouped ${parts.length} parts as ${id}.`,
+    );
+
+    this.syncAnimationUi();
+    this.renderAll();
+  }
+
+  ungroupSelected() {
+    const parts =
+      this.getSelectedParts();
+
+    const groupIds =
+      new Set(
+        parts
+          .map(part => part.groupId)
+          .filter(Boolean),
+      );
+
+    if (!groupIds.size) {
+      this.setStatus(
+        'The selected parts are not grouped.',
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    for (const part of this.asset.parts) {
+      if (
+        groupIds.has(
+          part.groupId,
+        )
+      ) {
+        part.groupId = null;
+      }
+    }
+
+    this.asset.groups =
+      (this.asset.groups ?? [])
+        .filter(
+          group =>
+            !groupIds.has(
+              group.id,
+            ),
+        );
+
+    this.setStatus(
+      `Ungrouped ${groupIds.size} group${groupIds.size === 1 ? '' : 's'}.`,
+    );
+
+    this.syncAnimationUi();
+    this.renderAll();
+  }
+
+  currentAnimationClip() {
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
+
+    return (
+      this.asset.animations
+        .clips[
+          this.currentClipName
+        ] ?? null
+    );
+  }
+
+  currentAnimationTarget() {
+    const parts =
+      this.getSelectedParts();
+
+    if (!parts.length) {
+      return null;
+    }
+
+    const groupIds =
+      new Set(
+        parts
+          .map(part => part.groupId)
+          .filter(Boolean),
+      );
+
+    if (
+      groupIds.size === 1
+    ) {
+      const groupId =
+        [...groupIds][0];
+
+      const groupParts =
+        this.asset.parts.filter(
+          part =>
+            part.groupId ===
+            groupId,
+        );
+
+      const allSelected =
+        groupParts.every(
+          part =>
+            this.selectedPartIds.has(
+              part.id,
+            ),
+        );
+
+      if (
+        allSelected ||
+        parts.length === 1
+      ) {
+        return {
+          targetType: 'group',
+          targetId: groupId,
+        };
+      }
+    }
+
+    if (parts.length === 1) {
+      return {
+        targetType: 'part',
+        targetId: parts[0].id,
+      };
+    }
+
+    return null;
+  }
+
+  syncAnimationValueFromSelection() {
+    if (!this.animationValueInput) {
+      return;
+    }
+
+    const target =
+      this.currentAnimationTarget();
+
+    const property =
+      this.animationPropertyInput
+        ?.value ?? 'x';
+
+    if (!target) {
+      this.animationValueInput.value =
+        '0';
+      return;
+    }
+
+    if (
+      target.targetType === 'group'
+    ) {
+      this.animationValueInput.value =
+        '0';
+      return;
+    }
+
+    const part =
+      this.asset.parts.find(
+        item =>
+          item.id ===
+          target.targetId,
+      );
+
+    this.animationValueInput.value =
+      String(
+        Number(
+          part?.[property] ?? 0,
+        ),
+      );
+  }
+
+  syncAnimationUi() {
+    if (!this.isWeaponMode()) {
+      return;
+    }
+
+    const clip =
+      this.currentAnimationClip();
+
+    if (!clip) return;
+
+    if (this.animationClipInput) {
+      this.animationClipInput.value =
+        this.currentClipName;
+    }
+
+    if (this.animationDurationInput) {
+      this.animationDurationInput.value =
+        String(clip.duration);
+    }
+
+    if (this.animationLoopInput) {
+      this.animationLoopInput.checked =
+        !!clip.loop;
+    }
+
+    if (this.animationTimeInput) {
+      this.animationTimeInput.max =
+        String(clip.duration);
+
+      this.animationTimeInput.value =
+        String(
+          clamp(
+            this.animationTime,
+            0,
+            clip.duration,
+          ),
+        );
+    }
+
+    if (this.animationTimeLabel) {
+      this.animationTimeLabel.textContent =
+        `${this.animationTime.toFixed(2)}s`;
+    }
+
+    const target =
+      this.currentAnimationTarget();
+
+    if (this.animationTargetRoot) {
+      this.animationTargetRoot.innerHTML =
+        target
+          ? `<span>target: ${target.targetType} ${target.targetId}</span>`
+          : '<span>target: select one part or one complete group</span>';
+    }
+
+    this.renderAnimationKeys();
+  }
+
+  renderAnimationKeys() {
+    if (!this.animationKeysRoot) {
+      return;
+    }
+
+    const clip =
+      this.currentAnimationClip();
+
+    const target =
+      this.currentAnimationTarget();
+
+    const property =
+      this.animationPropertyInput
+        ?.value ?? 'x';
+
+    if (!clip || !target) {
+      this.animationKeysRoot.innerHTML =
+        '<span>no keyframes</span>';
+      return;
+    }
+
+    const track =
+      clip.tracks.find(
+        item =>
+          item.targetType ===
+            target.targetType &&
+          item.targetId ===
+            target.targetId &&
+          item.property ===
+            property,
+      );
+
+    if (
+      !track ||
+      !track.keyframes.length
+    ) {
+      this.animationKeysRoot.innerHTML =
+        '<span>no keyframes</span>';
+      return;
+    }
+
+    this.animationKeysRoot.innerHTML =
+      track.keyframes.map(
+        key =>
+          `<span>${key.time.toFixed(2)}s → ${key.value.toFixed(2)} · ${key.easing}</span>`,
+      ).join('');
+  }
+
+  addAnimationKeyframe() {
+    if (!this.isWeaponMode()) {
+      return;
+    }
+
+    const clip =
+      this.currentAnimationClip();
+
+    const target =
+      this.currentAnimationTarget();
+
+    if (!clip || !target) {
+      this.setStatus(
+        'Select one part or one complete group before adding a keyframe.',
+        true,
+      );
+      return;
+    }
+
+    const property =
+      this.animationPropertyInput
+        ?.value ?? 'x';
+
+    let value =
+      Number(
+        this.animationValueInput
+          ?.value,
+      );
+
+    if (!Number.isFinite(value)) {
+      value = 0;
+    }
+
+    if (
+      target.targetType === 'part'
+    ) {
+      const part =
+        this.asset.parts.find(
+          item =>
+            item.id ===
+            target.targetId,
+        );
+
+      if (part) {
+        value =
+          Number(
+            part[property] ?? value,
+          );
+
+        if (
+          this.animationValueInput
+        ) {
+          this.animationValueInput.value =
+            String(value);
+        }
+      }
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    upsertKeyframe(
+      clip,
+      {
+        targetType:
+          target.targetType,
+        targetId:
+          target.targetId,
+        property,
+        time:
+          this.animationTime,
+        value,
+        easing:
+          this.animationEasingInput
+            ?.value ??
+          'easeInOutSine',
+      },
+    );
+
+    this.setStatus(
+      `Keyed ${property} at ${this.animationTime.toFixed(2)}s.`,
+    );
+
+    this.syncAnimationUi();
+    this.renderPreview();
+  }
+
+  getAnimationPreviewAsset() {
+    const candidate =
+      this.currentCandidate();
+
+    if (
+      !this.isWeaponMode()
+    ) {
+      return candidate;
+    }
+
+    return applyAnimationPose(
+      candidate,
+      evaluateAnimation(
+        candidate.animations,
+        this.currentClipName,
+        this.animationTime,
+      ),
+    );
+  }
+
   uniquePartId(base = 'part') {
     const used = new Set(
       this.asset.parts.map(
@@ -1177,6 +1871,8 @@ export class SpriteEditor {
     this.asset.parts.push(copy);
     this.selectedPartId =
       copy.id;
+    this.selectedPartIds =
+      new Set([copy.id]);
     this.material =
       copy.material;
 
@@ -1184,21 +1880,62 @@ export class SpriteEditor {
   }
 
   deleteSelected() {
-    if (!this.selectedPartId) return;
+    const ids =
+      this.selectedPartIds.size
+        ? new Set(
+            this.selectedPartIds,
+          )
+        : this.selectedPartId
+          ? new Set([
+              this.selectedPartId,
+            ])
+          : new Set();
 
-    const index =
-      this.asset.parts.findIndex(
-        part =>
-          part.id ===
-          this.selectedPartId,
-      );
-
-    if (index < 0) return;
+    if (!ids.size) return;
 
     this.pushHistory();
     this.future.length = 0;
-    this.asset.parts.splice(index, 1);
+
+    const removedGroupIds =
+      new Set(
+        this.asset.parts
+          .filter(part =>
+            ids.has(part.id),
+          )
+          .map(part => part.groupId)
+          .filter(Boolean),
+      );
+
+    this.asset.parts =
+      this.asset.parts.filter(
+        part =>
+          !ids.has(part.id),
+      );
+
+    for (
+      const groupId
+      of removedGroupIds
+    ) {
+      const remaining =
+        this.asset.parts.some(
+          part =>
+            part.groupId ===
+            groupId,
+        );
+
+      if (!remaining) {
+        this.asset.groups =
+          (this.asset.groups ?? [])
+            .filter(
+              group =>
+                group.id !== groupId,
+            );
+      }
+    }
+
     this.selectedPartId = null;
+    this.selectedPartIds.clear();
+    this.syncAnimationUi();
     this.renderAll();
   }
 
@@ -1407,7 +2144,83 @@ export class SpriteEditor {
     return -1;
   }
 
+  distanceToSegment(
+    px,
+    py,
+    ax,
+    ay,
+    bx,
+    by,
+  ) {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const apx = px - ax;
+    const apy = py - ay;
+
+    const lengthSquared =
+      abx * abx +
+      aby * aby ||
+      0.000001;
+
+    const t = clamp(
+      (
+        apx * abx +
+        apy * aby
+      ) /
+      lengthSquared,
+      0,
+      1,
+    );
+
+    return Math.hypot(
+      px - (ax + abx * t),
+      py - (ay + aby * t),
+    );
+  }
+
+  polygonEdgeDistance(
+    local,
+    points,
+  ) {
+    let best = Infinity;
+
+    for (
+      let i = 0;
+      i < points.length;
+      i++
+    ) {
+      const a = points[i];
+      const b =
+        points[
+          (i + 1) %
+          points.length
+        ];
+
+      best = Math.min(
+        best,
+        this.distanceToSegment(
+          local[0],
+          local[1],
+          a[0],
+          a[1],
+          b[0],
+          b[1],
+        ),
+      );
+    }
+
+    return best;
+  }
+
   hitPart(worldPoint) {
+    const tolerance =
+      Math.max(
+        0.55,
+        10 / this.zoom,
+      );
+
+    let nearest = null;
+
     for (
       let i =
         this.asset.parts.length - 1;
@@ -1423,27 +2236,70 @@ export class SpriteEditor {
           worldPoint,
         );
 
+      let exact = false;
+      let distance = Infinity;
+
       if (part.type === 'rectangle') {
-        if (
+        exact =
           Math.abs(local[0]) <=
             part.width / 2 &&
           Math.abs(local[1]) <=
-            part.height / 2
-        ) {
-          return part;
+            part.height / 2;
+
+        if (!exact) {
+          const dx = Math.max(
+            0,
+            Math.abs(local[0]) -
+              part.width / 2,
+          );
+
+          const dy = Math.max(
+            0,
+            Math.abs(local[1]) -
+              part.height / 2,
+          );
+
+          distance =
+            Math.hypot(dx, dy);
         }
-      } else if (
-        pointInPolygon(
-          local[0],
-          local[1],
-          part.points,
+      } else {
+        exact =
+          pointInPolygon(
+            local[0],
+            local[1],
+            part.points,
+          );
+
+        if (!exact) {
+          distance =
+            this.polygonEdgeDistance(
+              local,
+              part.points,
+            );
+        }
+      }
+
+      if (exact) {
+        return part;
+      }
+
+      if (
+        distance <= tolerance &&
+        (
+          !nearest ||
+          distance <
+            nearest.distance
         )
       ) {
-        return part;
+        nearest = {
+          part,
+          distance,
+          z: i,
+        };
       }
     }
 
-    return null;
+    return nearest?.part ?? null;
   }
 
   onPointerDown(event) {
@@ -1558,6 +2414,39 @@ export class SpriteEditor {
       this.hitPart(world);
 
     if (hit) {
+      if (event.shiftKey) {
+        if (
+          this.selectedPartIds.has(
+            hit.id,
+          )
+        ) {
+          this.selectedPartIds.delete(
+            hit.id,
+          );
+        } else {
+          this.selectedPartIds.add(
+            hit.id,
+          );
+        }
+
+        if (
+          !this.selectedPartIds.size
+        ) {
+          this.selectedPartId = null;
+          this.renderAll();
+          return;
+        }
+      } else if (
+        !this.selectedPartIds.has(
+          hit.id,
+        )
+      ) {
+        this.selectedPartIds.clear();
+        this.selectedPartIds.add(
+          hit.id,
+        );
+      }
+
       this.selectedPartId =
         hit.id;
       this.material =
@@ -1574,9 +2463,15 @@ export class SpriteEditor {
         event.pointerId,
       );
 
+      this.syncAnimationValueFromSelection();
       this.renderAll();
     } else {
-      this.selectedPartId = null;
+      if (!event.shiftKey) {
+        this.selectedPartId = null;
+        this.selectedPartIds.clear();
+      }
+
+      this.syncAnimationUi();
       this.renderAll();
     }
   }
@@ -1637,12 +2532,63 @@ export class SpriteEditor {
         world[1] -
         this.lastPointerWorld[1];
 
-      part.x += dx;
-      part.y += dy;
+      let targets = [part];
+      let movedGroup = null;
 
-      if (this.snapInput?.checked) {
-        part.x = Math.round(part.x);
-        part.y = Math.round(part.y);
+      if (part.groupId) {
+        targets =
+          this.asset.parts.filter(
+            item =>
+              item.groupId ===
+              part.groupId,
+          );
+
+        movedGroup =
+          this.getGroup(
+            part.groupId,
+          );
+      } else if (
+        this.selectedPartIds.size > 1 &&
+        this.selectedPartIds.has(
+          part.id,
+        )
+      ) {
+        targets =
+          this.asset.parts.filter(
+            item =>
+              this.selectedPartIds.has(
+                item.id,
+              ),
+          );
+      }
+
+      for (const target of targets) {
+        target.x += dx;
+        target.y += dy;
+
+        if (this.snapInput?.checked) {
+          target.x =
+            Math.round(target.x);
+          target.y =
+            Math.round(target.y);
+        }
+      }
+
+      if (movedGroup) {
+        movedGroup.pivot[0] += dx;
+        movedGroup.pivot[1] += dy;
+
+        if (this.snapInput?.checked) {
+          movedGroup.pivot[0] =
+            Math.round(
+              movedGroup.pivot[0],
+            );
+
+          movedGroup.pivot[1] =
+            Math.round(
+              movedGroup.pivot[1],
+            );
+        }
       }
 
       this.lastPointerWorld =
@@ -1846,6 +2792,8 @@ export class SpriteEditor {
     }
 
     this.selectedPartId = id;
+    this.selectedPartIds =
+      new Set([id]);
     this.draftPoints = [];
     this.setTool('select');
 
@@ -1887,8 +2835,23 @@ export class SpriteEditor {
 
       row.classList.toggle(
         'active',
+        this.selectedPartIds.has(
+          part.id,
+        ) ||
         part.id ===
           this.selectedPartId,
+      );
+
+      row.classList.toggle(
+        'multi',
+        this.selectedPartIds.has(
+          part.id,
+        ),
+      );
+
+      row.classList.toggle(
+        'grouped',
+        !!part.groupId,
       );
 
       const select =
@@ -1898,7 +2861,9 @@ export class SpriteEditor {
         'sprite-layer-select';
 
       select.textContent =
-        part.name || part.id;
+        part.groupId
+          ? `${part.name || part.id} [${part.groupId}]`
+          : part.name || part.id;
 
       const material =
         getSpriteMaterial(
@@ -1914,12 +2879,38 @@ export class SpriteEditor {
 
       select.addEventListener(
         'click',
-        () => {
+        event => {
+          if (event.shiftKey) {
+            if (
+              this.selectedPartIds.has(
+                part.id,
+              )
+            ) {
+              this.selectedPartIds.delete(
+                part.id,
+              );
+            } else {
+              this.selectedPartIds.add(
+                part.id,
+              );
+            }
+          } else {
+            this.selectedPartIds.clear();
+            this.selectedPartIds.add(
+              part.id,
+            );
+          }
+
           this.selectedPartId =
-            part.id;
+            this.selectedPartIds.size
+              ? part.id
+              : null;
+
           this.material =
             part.material;
+
           this.setTool('select');
+          this.syncAnimationValueFromSelection();
           this.renderAll();
         },
       );
@@ -2672,7 +3663,7 @@ export class SpriteEditor {
 
     try {
       const candidate =
-        this.currentCandidate();
+        this.getAnimationPreviewAsset();
 
       compiled =
         compileSpriteAsset(
@@ -2955,6 +3946,7 @@ export class SpriteEditor {
 
   renderAll() {
     this.updateWeaponMarkerInfo();
+    this.syncAnimationUi();
     this.renderMaterialState();
     this.renderLayers();
     this.renderCanvas();
