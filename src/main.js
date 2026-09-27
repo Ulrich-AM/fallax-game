@@ -23,15 +23,15 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=40';
-import { DeveloperConsole } from './DeveloperConsole.js?v=40';
-import { SpriteEditor } from './SpriteEditor.js?v=40';
+import { GameAudio } from './AudioManager.js?v=41';
+import { DeveloperConsole } from './DeveloperConsole.js?v=41';
+import { SpriteEditor } from './SpriteEditor.js?v=41';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=40';
+} from './SpriteAssets.js?v=41';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
