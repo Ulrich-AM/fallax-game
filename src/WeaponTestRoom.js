@@ -1,9 +1,13 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=44';
+} from './SpriteAssets.js?v=45';
 import {
   rasterize,
-} from './pixelShapes.js?v=44';
+} from './pixelShapes.js?v=45';
+import {
+  evaluateAnimation,
+  applyAnimationPose,
+} from './SpriteAnimation.js?v=45';
 
 function clamp(value, min, max) {
   return Math.max(
@@ -58,6 +62,14 @@ export class WeaponTestRoom {
     this.frame = 0;
     this.rasterCache =
       new Map();
+    this.currentClipName = 'idle';
+    this.animationTime = 0;
+    this.animationLastTime = 0;
+    this.clipButtons = [
+      ...this.root.querySelectorAll(
+        '[data-test-clip]',
+      ),
+    ];
 
     this.canvas.addEventListener(
       'pointermove',
@@ -78,6 +90,20 @@ export class WeaponTestRoom {
       'click',
       () => this.close(),
     );
+
+    for (
+      const button
+      of this.clipButtons
+    ) {
+      button.addEventListener(
+        'click',
+        () => {
+          this.setClip(
+            button.dataset.testClip,
+          );
+        },
+      );
+    }
 
     this.root.addEventListener(
       'keydown',
@@ -118,6 +144,11 @@ export class WeaponTestRoom {
 
     this.rasterCache.clear();
     this.angle = 0;
+    this.currentClipName = 'idle';
+    this.animationTime = 0;
+    this.animationLastTime =
+      performance.now();
+    this.updateClipButtons();
 
     this.pointerX =
       this.canvas.width * 0.78;
@@ -184,6 +215,74 @@ export class WeaponTestRoom {
       );
   }
 
+  setClip(name) {
+    if (
+      !['idle', 'fire', 'special']
+        .includes(name)
+    ) {
+      return;
+    }
+
+    this.currentClipName = name;
+    this.animationTime = 0;
+    this.animationLastTime =
+      performance.now();
+    this.rasterCache.clear();
+    this.updateClipButtons();
+  }
+
+  updateClipButtons() {
+    for (
+      const button
+      of this.clipButtons
+    ) {
+      button.classList.toggle(
+        'active',
+        button.dataset.testClip ===
+          this.currentClipName,
+      );
+    }
+  }
+
+  updateAnimation(dt) {
+    const evaluation =
+      evaluateAnimation(
+        this.asset?.animations,
+        this.currentClipName,
+        this.animationTime,
+      );
+
+    const clip =
+      evaluation.clip;
+
+    if (!clip) return;
+
+    this.animationTime += dt;
+
+    if (clip.loop) {
+      if (clip.duration > 0) {
+        this.animationTime %=
+          clip.duration;
+      }
+      return;
+    }
+
+    if (
+      this.animationTime >=
+      clip.duration
+    ) {
+      if (
+        this.currentClipName !==
+        'idle'
+      ) {
+        this.setClip('idle');
+      } else {
+        this.animationTime =
+          clip.duration;
+      }
+    }
+  }
+
   startLoop() {
     if (this.frame) {
       cancelAnimationFrame(
@@ -191,13 +290,31 @@ export class WeaponTestRoom {
       );
     }
 
-    const tick = () => {
+    this.animationLastTime =
+      performance.now();
+
+    const tick = now => {
       if (!this.opened) {
         this.frame = 0;
         return;
       }
 
+      const dt = Math.min(
+        0.05,
+        Math.max(
+          0,
+          (
+            now -
+            this.animationLastTime
+          ) /
+          1000,
+        ),
+      );
+
+      this.animationLastTime = now;
+
       this.updateAim();
+      this.updateAnimation(dt);
       this.draw();
 
       this.frame =
@@ -274,29 +391,53 @@ export class WeaponTestRoom {
   }
 
   rasterEntry() {
-    const quantized =
+    const angleKey =
       Math.round(
         this.angle / 2,
       ) * 2;
 
+    const animationKey =
+      Math.round(
+        this.animationTime * 30,
+      ) / 30;
+
+    const key =
+      `${this.currentClipName}:${animationKey}:${angleKey}`;
+
     if (
-      this.rasterCache.has(
-        quantized,
-      )
+      this.rasterCache.has(key)
     ) {
       return this.rasterCache.get(
-        quantized,
+        key,
       );
     }
 
+    const evaluation =
+      evaluateAnimation(
+        this.asset.animations,
+        this.currentClipName,
+        animationKey,
+      );
+
+    const animatedAsset =
+      applyAnimationPose(
+        this.asset,
+        evaluation,
+      );
+
+    const compiled =
+      compileSpriteAsset(
+        animatedAsset,
+      );
+
     const base =
       rasterize(
-        this.compiled.shape,
-        quantized,
+        compiled.shape,
+        angleKey,
       );
 
     const glows =
-      this.compiled.glowParts
+      compiled.glowParts
         .map(part => ({
           color:
             part.glow.color,
@@ -305,18 +446,19 @@ export class WeaponTestRoom {
           raster:
             rasterize(
               part.shape,
-              quantized,
+              angleKey,
             ),
         }));
 
     const entry = {
-      angle: quantized,
+      angle: angleKey,
       base,
       glows,
+      compiled,
     };
 
     if (
-      this.rasterCache.size >= 180
+      this.rasterCache.size >= 240
     ) {
       const firstKey =
         this.rasterCache
@@ -330,7 +472,7 @@ export class WeaponTestRoom {
     }
 
     this.rasterCache.set(
-      quantized,
+      key,
       entry,
     );
 
@@ -487,9 +629,9 @@ export class WeaponTestRoom {
     this.ctx.restore();
   }
 
-  drawMuzzle(pose) {
+  drawMuzzle(pose, compiled) {
     const marker =
-      this.compiled
+      compiled
         .markers
         .muzzle;
 
@@ -626,7 +768,10 @@ export class WeaponTestRoom {
       4,
     );
 
-    this.drawMuzzle(pose);
+    this.drawMuzzle(
+      pose,
+      entry.compiled,
+    );
 
     ctx.save();
     ctx.fillStyle = '#bfc6d0';
