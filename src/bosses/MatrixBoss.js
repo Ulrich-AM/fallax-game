@@ -166,6 +166,7 @@ export class MatrixBoss {
     this.compressionSecondSplitSpeed = 440;
     this.compressionSecondSplitLife = 3.2;
     this.compressionSecondSplitHealth = 3;
+    this.compressionSplitTransitionDuration = 0.12;
 
     // Core burst.
     this.coreBurstFired = false;
@@ -1037,6 +1038,11 @@ export class MatrixBoss {
       fadeDuration,
       orbiting: false,
       hitPlayer: false,
+      splitting: false,
+      splitTimer: 0,
+      splitDuration: 0,
+      splitAngle: 0,
+      splitStage: 0,
     });
   }
 
@@ -1102,6 +1108,35 @@ export class MatrixBoss {
     const compressionSplits = [];
 
     for (const bullet of this.bullets) {
+      if (bullet.splitting) {
+        bullet.splitTimer = Math.max(
+          0,
+          bullet.splitTimer - dt,
+        );
+
+        bullet.opacity =
+          bullet.splitDuration > 0
+            ? Math.max(
+                0.25,
+                bullet.splitTimer /
+                  bullet.splitDuration,
+              )
+            : 0.25;
+
+        if (bullet.splitTimer <= 0) {
+          compressionSplits.push({
+            x: bullet.x,
+            y: bullet.y,
+            angle: bullet.splitAngle,
+            stage: bullet.splitStage,
+          });
+
+          bullet.life = 0;
+        }
+
+        continue;
+      }
+
       if (
         bullet.kind === 'orbit' &&
         bullet.orbiting
@@ -1247,17 +1282,20 @@ export class MatrixBoss {
             y: bullet.y,
           });
 
-          compressionSplits.push({
-            x: bullet.x,
-            y: bullet.y,
-            angle: splitAngle,
-            stage:
-              bullet.kind === 'compression'
-                ? 1
-                : 2,
-          });
-
-          bullet.life = 0;
+          bullet.splitting = true;
+          bullet.splitDuration =
+            this.compressionSplitTransitionDuration;
+          bullet.splitTimer =
+            bullet.splitDuration;
+          bullet.splitAngle =
+            splitAngle;
+          bullet.splitStage =
+            bullet.kind === 'compression'
+              ? 1
+              : 2;
+          bullet.vx = 0;
+          bullet.vy = 0;
+          bullet.opacity = 1;
         }
       }
 
@@ -1741,10 +1779,42 @@ export class MatrixBoss {
         (bullet.life / bullet.maxLife) *
         (bullet.opacity ?? 1);
 
-      const half = bullet.size / 2;
+      let renderSize =
+        bullet.size;
+
+      let renderAlpha =
+        Math.max(0, alpha);
+
+      if (bullet.splitting) {
+        const t =
+          bullet.splitDuration > 0
+            ? 1 -
+              bullet.splitTimer /
+              bullet.splitDuration
+            : 1;
+
+        renderSize =
+          bullet.size *
+          lerp(
+            1,
+            0.42,
+            smoothstep(t),
+          );
+
+        renderAlpha =
+          Math.max(
+            renderAlpha,
+            0.45 +
+            Math.sin(t * Math.PI) *
+              0.45,
+          );
+      }
+
+      const half =
+        renderSize / 2;
 
       ctx.globalAlpha =
-        Math.max(0, alpha);
+        renderAlpha;
 
       const strongGlow =
         bullet.kind === 'burst' ||
@@ -1772,8 +1842,8 @@ export class MatrixBoss {
           bullet.y -
           half,
         ),
-        bullet.size,
-        bullet.size,
+        renderSize,
+        renderSize,
       );
     }
 
