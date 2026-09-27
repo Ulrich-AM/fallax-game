@@ -26,6 +26,7 @@ import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=55a';
 import { GameAudio } from './AudioManager.js?v=54';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
@@ -42,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55';
+const BUILD_VERSION = 'v55a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -226,6 +227,7 @@ const economy = new Economy();
 renderDenariusBalance();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
+const monolithBoss = new MonolithBoss(world);
 const audio = new GameAudio();
 let activeBoss = null;
 
@@ -700,6 +702,7 @@ const CHAPTERS = [
     bosses: [
       { id: 'prologue', label: 'prologue', playable: true },
       { id: 'matrix', label: 'matrix', playable: true },
+      { id: 'monolith', label: 'monolith', playable: true },
     ],
   },
   { id: 'unknown-2', label: '?', bosses: [{ id: 'unknown-2-boss', label: '?', playable: false }] },
@@ -1299,7 +1302,10 @@ function showScreen(name) {
   currentScreen = name;
 
   if (name === 'game') {
-    if (activeBoss === matrixBoss) {
+    if (
+      activeBoss === matrixBoss ||
+      activeBoss === monolithBoss
+    ) {
       audio.setTheme('matrix');
     } else {
       audio.setTheme('prologue');
@@ -2193,6 +2199,10 @@ function startMatrix() {
   prepareEncounter(matrixBoss);
 }
 
+function startMonolith() {
+  prepareEncounter(monolithBoss);
+}
+
 function renderChapterSelect() {
   chapterTabs.innerHTML = '';
   bossList.innerHTML = '';
@@ -2225,6 +2235,8 @@ function renderChapterSelect() {
       button.addEventListener('click', startPrologue);
     } else if (boss.id === 'matrix') {
       button.addEventListener('click', startMatrix);
+    } else if (boss.id === 'monolith') {
+      button.addEventListener('click', startMonolith);
     }
 
     bossList.appendChild(button);
