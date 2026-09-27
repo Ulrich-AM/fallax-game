@@ -89,6 +89,8 @@ export class WeaponTestRoom {
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationLastTime = 0;
+    this.movementAccumulator = 0;
+    this.movementStep = 1 / 120;
     this.clipButtons = [
       ...this.root.querySelectorAll(
         '[data-test-clip]',
@@ -108,7 +110,12 @@ export class WeaponTestRoom {
           this.opened &&
           event.button === 0
         ) {
-          this.setClip('fire');
+          if (
+            this.currentClipName !==
+            'special'
+          ) {
+            this.setClip('fire');
+          }
           event.preventDefault();
           event.stopPropagation();
         }
@@ -259,6 +266,7 @@ export class WeaponTestRoom {
     this.animationTime = 0;
     this.animationLastTime =
       performance.now();
+    this.movementAccumulator = 0;
     this.updateClipButtons();
 
     this.pointerX =
@@ -493,7 +501,25 @@ export class WeaponTestRoom {
 
       this.animationLastTime = now;
 
-      this.updatePlayer(dt);
+      this.movementAccumulator =
+        Math.min(
+          0.25,
+          this.movementAccumulator +
+            dt,
+        );
+
+      while (
+        this.movementAccumulator >=
+        this.movementStep
+      ) {
+        this.updatePlayer(
+          this.movementStep,
+        );
+
+        this.movementAccumulator -=
+          this.movementStep;
+      }
+
       this.updateAim();
       this.updateAnimation(dt);
       this.draw();
