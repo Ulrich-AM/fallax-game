@@ -1435,7 +1435,7 @@ export class SpriteEditor {
     const before =
       this.asset.hitboxes?.length ?? 0;
 
-    this.asset.hitboxes =
+    const remaining =
       (this.asset.hitboxes ?? [])
         .filter(
           hitbox =>
@@ -1444,7 +1444,7 @@ export class SpriteEditor {
         );
 
     if (
-      this.asset.hitboxes.length ===
+      remaining.length ===
       before
     ) {
       this.setStatus(
@@ -1456,6 +1456,8 @@ export class SpriteEditor {
 
     this.pushHistory();
     this.future.length = 0;
+    this.asset.hitboxes =
+      remaining;
 
     this.setStatus(
       `Deleted hitbox "${name}".`,
@@ -3199,7 +3201,10 @@ export class SpriteEditor {
 
     if (
       this.tool === 'pivot' ||
-      this.tool === 'muzzle'
+      this.tool === 'muzzle' ||
+      this.tool === 'group-pivot' ||
+      this.tool === 'marker' ||
+      this.tool === 'hitbox'
     ) {
       this.pushHistory();
       this.future.length = 0;
@@ -3213,7 +3218,9 @@ export class SpriteEditor {
         this.setStatus(
           `Pivot set to ${world[0]}, ${world[1]}.`,
         );
-      } else {
+      } else if (
+        this.tool === 'muzzle'
+      ) {
         this.asset.markers = {
           ...(this.asset.markers ?? {}),
           muzzle: {
@@ -3226,10 +3233,137 @@ export class SpriteEditor {
         this.setStatus(
           `Muzzle set to ${world[0]}, ${world[1]}.`,
         );
+      } else if (
+        this.tool === 'group-pivot'
+      ) {
+        const group =
+          this.currentSelectedGroup();
+
+        if (!group) {
+          this.setStatus(
+            'Select one complete group before setting its pivot.',
+            true,
+          );
+        } else {
+          group.pivot = [
+            world[0],
+            world[1],
+          ];
+
+          this.setStatus(
+            `Group pivot "${group.id}" set to ${world[0]}, ${world[1]}.`,
+          );
+        }
+      } else if (
+        this.tool === 'marker'
+      ) {
+        const name =
+          this.sanitizeEditorName(
+            this.bossMarkerNameInput
+              ?.value,
+            'core',
+          );
+
+        this.asset.markers ??= {};
+
+        this.asset.markers[name] = {
+          x: world[0],
+          y: world[1],
+          rotation: 0,
+        };
+
+        if (
+          this.bossMarkerNameInput
+        ) {
+          this.bossMarkerNameInput.value =
+            name;
+        }
+
+        this.setStatus(
+          `Marker "${name}" set to ${world[0]}, ${world[1]}.`,
+        );
+      } else {
+        const name =
+          this.sanitizeEditorName(
+            this.hitboxNameInput?.value,
+            'body',
+          );
+
+        const type =
+          this.hitboxTypeInput?.value ===
+          'rect'
+            ? 'rect'
+            : 'circle';
+
+        const sizeX =
+          Math.max(
+            0.25,
+            Number(
+              this.hitboxSizeXInput
+                ?.value,
+            ) || 16,
+          );
+
+        const sizeY =
+          Math.max(
+            0.25,
+            Number(
+              this.hitboxSizeYInput
+                ?.value,
+            ) || sizeX,
+          );
+
+        this.asset.hitboxes ??= [];
+
+        const existing =
+          this.asset.hitboxes.find(
+            hitbox =>
+              hitbox.id === name ||
+              hitbox.name === name,
+          );
+
+        const next = {
+          id: name,
+          name,
+          type,
+          x: world[0],
+          y: world[1],
+        };
+
+        if (type === 'rect') {
+          next.width = sizeX;
+          next.height = sizeY;
+        } else {
+          next.radius = sizeX;
+        }
+
+        if (existing) {
+          Object.assign(
+            existing,
+            next,
+          );
+        } else {
+          this.asset.hitboxes.push(
+            next,
+          );
+        }
+
+        this.selectedHitboxId =
+          name;
+
+        if (this.hitboxNameInput) {
+          this.hitboxNameInput.value =
+            name;
+        }
+
+        this.setStatus(
+          `Hitbox "${name}" placed at ${world[0]}, ${world[1]}.`,
+        );
       }
 
       this.setTool('select');
       this.updateWeaponMarkerInfo();
+      this.syncBossToolUi();
       this.renderAll();
       event.preventDefault();
       return;
