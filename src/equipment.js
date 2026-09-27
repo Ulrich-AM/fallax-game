@@ -41,6 +41,13 @@ export const ITEM_LIBRARY = {
     description: 'Dash propulsion that sprays a rear-facing bullet fan.',
     appearance: 'ability module',
   },
+  strike: {
+    id: 'strike',
+    name: 'Strike',
+    category: 'abilities',
+    description: 'An upward dash within ±15° becomes a powerful melee strike.',
+    appearance: 'ability module',
+  },
 };
 
 export const ownedItems = ['vector', 'euclid'];
