@@ -1,4 +1,91 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=33';
+import {
+  WeaponSpriteRenderer,
+} from './WeaponSpriteRenderer.js?v=54b';
+
+const EUCLID_SPRITE_ASSET = {
+  version: 2,
+  name: 'euclid',
+  displayName: 'Euclid',
+  type: 'weapon',
+  scale: 1,
+  pivot: [0, 0],
+  parts: [
+    {
+      id: 'polygon-1',
+      name: 'polygon-1',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 0,
+      y: 1,
+      rotation: 0,
+      outline: null,
+      points: [
+        [3, -1],
+        [3, -2],
+        [12, -2],
+        [12, 0],
+        [3, 0],
+      ],
+    },
+    {
+      id: 'polygon-2',
+      name: 'polygon-2',
+      type: 'polygon',
+      material: 'glow-white',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [12, 1],
+        [12, -1],
+        [13, -1],
+        [13, 1],
+      ],
+    },
+  ],
+  groups: [],
+  animations: {
+    clips: {
+      idle: {
+        name: 'idle',
+        duration: 1,
+        loop: true,
+        tracks: [],
+      },
+      fire: {
+        name: 'fire',
+        duration: 0.25,
+        loop: false,
+        tracks: [],
+      },
+      special: {
+        name: 'special',
+        duration: 0.6,
+        loop: false,
+        tracks: [],
+      },
+    },
+  },
+  markers: {
+    muzzle: {
+      x: 13,
+      y: 0,
+      rotation: 0,
+    },
+  },
+  render: {
+    mergeOutlines: true,
+    outline: {
+      enabled: true,
+      color: '#35383e',
+      thickness: 1,
+    },
+    padding: 2,
+  },
+};
 
 function rayCircleHit(originX, originY, dirX, dirY, maxDistance, circleX, circleY, radius) {
   const ox = originX - circleX;
@@ -48,19 +135,10 @@ export class EuclidWeapon {
       beamEndY: 0,
     };
 
-    this.definition = group([
-      rectangle({
-        width: this.bodyLength,
-        height: this.bodyThickness,
-        color: '#6f747c',
-      }),
-    ], {
-      mergeOutlines: true,
-      outline: false,
-      padding: 1,
-    });
-
-    this.rasterCache = new Map();
+    this.sprite =
+      new WeaponSpriteRenderer(
+        EUCLID_SPRITE_ASSET,
+      );
   }
 
   reset() {
@@ -196,16 +274,10 @@ export class EuclidWeapon {
     };
   }
 
-  getRaster(angleRadians) {
-    const degrees = angleRadians * 180 / Math.PI;
-    const quantized = Math.round(degrees / 3) * 3;
-    const key = ((quantized % 360) + 360) % 360;
-
-    if (!this.rasterCache.has(key)) {
-      this.rasterCache.set(key, rasterize(this.definition, key));
-    }
-
-    return this.rasterCache.get(key);
+  getSpriteEntry(angleRadians = 0) {
+    return this.sprite.getEntry(
+      angleRadians,
+    );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
@@ -215,20 +287,13 @@ export class EuclidWeapon {
           player,
           this.getTargetAngle(player, pointerWorld),
         );
-    const raster = this.getRaster(aim.angle);
-    const dw = raster.width * artPixelSize;
-    const dh = raster.height * artPixelSize;
-
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      raster,
-      Math.round(aim.x - cameraX - dw / 2),
-      Math.round(aim.y - dh / 2),
-      dw,
-      dh,
+    this.sprite.draw(
+      ctx,
+      aim.x - cameraX,
+      aim.y,
+      aim.angle,
+      artPixelSize,
     );
-    ctx.restore();
 
     if (!this.firing) return;
 
