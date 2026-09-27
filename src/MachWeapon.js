@@ -115,7 +115,7 @@ export class MachWeapon {
 
     this.recoil = 190;
     this.jetpackRecoil = 560;
-    this.orbitRadius = 43;
+    this.orbitRadius = 36;
 
     this.specialCooldown = 16;
     this.specialCooldownTimer = this.specialCooldown;
@@ -262,9 +262,19 @@ export class MachWeapon {
   emitWave(player, pointerWorld) {
     const aim = this.getAim(player, pointerWorld);
 
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          aim.x,
+          aim.y,
+          aim.angle,
+          4,
+        );
+
     this.waves.push({
-      x: aim.x,
-      y: aim.y,
+      x: muzzle.x,
+      y: muzzle.y,
       angle: aim.angle,
       radius: this.waveStartRadius,
       previousRadius: this.waveStartRadius,
@@ -354,10 +364,19 @@ export class MachWeapon {
     wave.hitTarget = true;
   }
 
-  getSpriteEntry(angleRadians = 0) {
-    return this.sprite.getEntry(
-      angleRadians,
-    );
+  getSpriteEntry(
+    angleRadians = 0,
+    centered = false,
+  ) {
+    return centered
+      ? this.sprite
+          .getCenteredEntry(
+            angleRadians,
+          )
+      : this.sprite
+          .getEntry(
+            angleRadians,
+          );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
