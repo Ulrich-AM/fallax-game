@@ -191,6 +191,18 @@
           </select>
         </label>
 
+        <label>
+          <span>scale</span>
+          <input
+            id="sprite-editor-scale"
+            type="number"
+            min="0.1"
+            max="8"
+            step="0.05"
+            value="1"
+          />
+        </label>
+
         <button data-editor-action="save">save draft</button>
         <button data-editor-action="close">close</button>
       </header>
@@ -270,6 +282,44 @@
             <input id="sprite-preview-player" type="checkbox" checked />
             <span>show player comparison</span>
           </label>
+
+          <label class="sprite-inline-check">
+            <input id="sprite-preview-spin" type="checkbox" />
+            <span>continuous spin</span>
+          </label>
+
+          <label class="sprite-inline-check">
+            <input id="sprite-preview-glow" type="checkbox" checked />
+            <span>show glow</span>
+          </label>
+
+          <label class="sprite-rotation-row">
+            <span>glow</span>
+            <input
+              id="sprite-preview-glow-strength"
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value="1"
+            />
+            <strong id="sprite-preview-glow-label">1.0×</strong>
+          </label>
+        </section>
+
+        <section>
+          <h3>asset files</h3>
+          <div class="sprite-tool-grid">
+            <button data-editor-action="export">export json</button>
+            <button data-editor-action="import">import json</button>
+          </div>
+          <input
+            id="sprite-editor-import-file"
+            class="hidden"
+            type="file"
+            accept=".json,application/json"
+          />
+          <small>Imported files open as editable drafts. Save when ready.</small>
         </section>
       </aside>
     </section>
