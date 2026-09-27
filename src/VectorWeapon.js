@@ -55,6 +55,8 @@ export class VectorWeapon {
     });
 
     this.raster = rasterize(this.definition);
+    this.previewRasterCache =
+      new Map();
   }
 
   reset() {
@@ -195,6 +197,41 @@ export class VectorWeapon {
       trailTimer: 0,
       trail: [],
     });
+  }
+
+  getSpriteEntry(angleRadians = 0) {
+    const degrees =
+      angleRadians *
+      180 /
+      Math.PI;
+
+    const quantized =
+      Math.round(degrees / 2) * 2;
+
+    const key =
+      ((quantized % 360) + 360) %
+      360;
+
+    if (
+      !this.previewRasterCache
+        .has(key)
+    ) {
+      this.previewRasterCache.set(
+        key,
+        {
+          angle: key,
+          base: rasterize(
+            this.definition,
+            key,
+          ),
+          glows: [],
+        },
+      );
+    }
+
+    return this.previewRasterCache.get(
+      key,
+    );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
