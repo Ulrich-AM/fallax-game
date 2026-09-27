@@ -23,15 +23,16 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=43';
-import { DeveloperConsole } from './DeveloperConsole.js?v=43';
-import { SpriteEditor } from './SpriteEditor.js?v=43';
+import { GameAudio } from './AudioManager.js?v=44';
+import { DeveloperConsole } from './DeveloperConsole.js?v=44';
+import { SpriteEditor } from './SpriteEditor.js?v=44';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=44';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=43';
+} from './SpriteAssets.js?v=44';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -75,6 +76,13 @@ const spritePreviewGlow = document.querySelector('#sprite-preview-glow');
 const spritePreviewGlowStrength = document.querySelector('#sprite-preview-glow-strength');
 const spritePreviewGlowLabel = document.querySelector('#sprite-preview-glow-label');
 const spriteEditorImportFile = document.querySelector('#sprite-editor-import-file');
+const spriteWeaponTools = document.querySelector('#sprite-weapon-tools');
+const spriteWeaponMarkerInfo = document.querySelector('#sprite-weapon-marker-info');
+const spriteWeaponTestControls = document.querySelector('#sprite-weapon-test-controls');
+const weaponTestRoot = document.querySelector('#weapon-test-room');
+const weaponTestCanvas = document.querySelector('#weapon-test-canvas');
+const weaponTestAngle = document.querySelector('#weapon-test-angle');
+const weaponTestExit = document.querySelector('#weapon-test-exit');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
 const shopItems = document.querySelector('#shop-items');
@@ -183,6 +191,17 @@ const spriteAssetStore =
 
 let selectedSpriteDraftName = null;
 
+const weaponTestRoom =
+  new WeaponTestRoom({
+    root: weaponTestRoot,
+    canvas: weaponTestCanvas,
+    angleLabel: weaponTestAngle,
+    exitButton: weaponTestExit,
+    onClose: () => {
+      spriteEditorRoot?.focus();
+    },
+  });
+
 const spriteEditor =
   new SpriteEditor({
     root: spriteEditorRoot,
@@ -204,6 +223,9 @@ const spriteEditor =
     importFileInput: spriteEditorImportFile,
     snapInput: spriteEditorSnap,
     symmetryInput: spriteEditorSymmetry,
+    weaponToolsRoot: spriteWeaponTools,
+    weaponMarkerInfo: spriteWeaponMarkerInfo,
+    weaponTestControls: spriteWeaponTestControls,
     store: spriteAssetStore,
     onClose: () => {
       audio.setSuspended(devConsole.isOpen);
@@ -213,6 +235,10 @@ const spriteEditor =
     },
     onSaved: asset => {
       selectedSpriteDraftName = asset.name;
+    },
+    onTestWeapon: asset => {
+      audio.setSuspended(true);
+      weaponTestRoom.open(asset);
     },
   });
 
@@ -1254,7 +1280,8 @@ addEventListener('keydown', (e) => {
 
   if (
     devConsole.isOpen ||
-    spriteEditor.isOpen
+    spriteEditor.isOpen ||
+    weaponTestRoom.isOpen
   ) {
     if (
       e.target !== devConsoleInput
@@ -1318,7 +1345,8 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => {
   if (
     devConsole.isOpen ||
-    spriteEditor.isOpen
+    spriteEditor.isOpen ||
+    weaponTestRoom.isOpen
   ) {
     e.preventDefault();
     return;
@@ -2308,4 +2336,5 @@ window.BOSSFIGHTS = {
   devConsole,
   spriteAssetStore,
   spriteEditor,
+  weaponTestRoom,
 };
