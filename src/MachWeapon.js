@@ -1,4 +1,98 @@
-import { rectangle, group, rasterize } from './pixelShapes.js?v=33';
+import {
+  WeaponSpriteRenderer,
+} from './WeaponSpriteRenderer.js?v=54b';
+
+const MACH_SPRITE_ASSET = {
+  version: 2,
+  name: 'mach',
+  displayName: 'Mach',
+  type: 'weapon',
+  scale: 1,
+  pivot: [0, 0],
+  parts: [
+    {
+      id: 'polygon-1',
+      name: 'polygon-1',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 7,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [5, 0],
+        [5, -2],
+        [5, -7],
+        [7, -5],
+        [8, 0],
+        [7, 5],
+        [5, 7],
+        [5, 2],
+      ],
+    },
+    {
+      id: 'polygon-2',
+      name: 'polygon-2',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [11, 5],
+        [5, 2],
+        [5, -2],
+        [11, -5],
+        [11, -3],
+        [11, -1],
+        [11, 1],
+        [11, 3],
+      ],
+    },
+  ],
+  groups: [],
+  animations: {
+    clips: {
+      idle: {
+        name: 'idle',
+        duration: 1,
+        loop: true,
+        tracks: [],
+      },
+      fire: {
+        name: 'fire',
+        duration: 0.25,
+        loop: false,
+        tracks: [],
+      },
+      special: {
+        name: 'special',
+        duration: 0.6,
+        loop: false,
+        tracks: [],
+      },
+    },
+  },
+  markers: {
+    muzzle: {
+      x: 15,
+      y: 0,
+      rotation: 0,
+    },
+  },
+  render: {
+    mergeOutlines: true,
+    outline: {
+      enabled: true,
+      color: '#35383e',
+      thickness: 1,
+    },
+    padding: 2,
+  },
+};
 
 function shortestAngleDelta(a, b) {
   return ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -42,19 +136,10 @@ export class MachWeapon {
 
     this.waves = [];
 
-    this.definition = group([
-      rectangle({
-        width: this.bodyWidth,
-        height: this.bodyHeight,
-        color: '#6f747c',
-      }),
-    ], {
-      mergeOutlines: true,
-      outline: false,
-      padding: 1,
-    });
-
-    this.rasterCache = new Map();
+    this.sprite =
+      new WeaponSpriteRenderer(
+        MACH_SPRITE_ASSET,
+      );
   }
 
   reset() {
@@ -269,37 +354,21 @@ export class MachWeapon {
     wave.hitTarget = true;
   }
 
-  getRaster(angleRadians) {
-    const degrees = angleRadians * 180 / Math.PI;
-    const quantized = Math.round(degrees / 3) * 3;
-    const key = ((quantized % 360) + 360) % 360;
-
-    if (!this.rasterCache.has(key)) {
-      this.rasterCache.set(
-        key,
-        rasterize(this.definition, key),
-      );
-    }
-
-    return this.rasterCache.get(key);
+  getSpriteEntry(angleRadians = 0) {
+    return this.sprite.getEntry(
+      angleRadians,
+    );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
     const aim = this.getAim(player, pointerWorld);
-    const raster = this.getRaster(aim.angle);
-    const dw = raster.width * artPixelSize;
-    const dh = raster.height * artPixelSize;
-
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      raster,
-      Math.round(aim.x - cameraX - dw / 2),
-      Math.round(aim.y - dh / 2),
-      dw,
-      dh,
+    this.sprite.draw(
+      ctx,
+      aim.x - cameraX,
+      aim.y,
+      aim.angle,
+      artPixelSize,
     );
-    ctx.restore();
 
     this.drawWaves(ctx, cameraX);
   }
