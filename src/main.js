@@ -24,6 +24,13 @@ import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
 import { GameAudio } from './AudioManager.js?v=36';
+import { DeveloperConsole } from './DeveloperConsole.js?v=38';
+import {
+  SpriteAssetStore,
+  compileSpriteAsset,
+  listSpriteMaterials,
+  serializeSpriteAsset,
+} from './SpriteAssets.js?v=38';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -45,6 +52,9 @@ const keybindButtons = [
 ];
 const keybindStatus = document.querySelector('#keybind-status');
 const resetKeybindsButton = document.querySelector('#reset-keybinds');
+const devConsoleRoot = document.querySelector('#dev-console');
+const devConsoleOutput = document.querySelector('#dev-console-output');
+const devConsoleInput = document.querySelector('#dev-console-input');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
 const shopItems = document.querySelector('#shop-items');
@@ -148,6 +158,326 @@ const pointer = {
   firing: false,
 };
 
+const spriteAssetStore =
+  new SpriteAssetStore();
+
+let selectedSpriteDraftName = null;
+
+const devConsole =
+  new DeveloperConsole({
+    root: devConsoleRoot,
+    output: devConsoleOutput,
+    input: devConsoleInput,
+    onOpen: () => {
+      pointer.firing = false;
+      keys.clear();
+      pressed.clear();
+      released.clear();
+    },
+    onClose: () => {
+      keys.clear();
+      pressed.clear();
+      released.clear();
+    },
+  });
+
+function registerDeveloperCommands() {
+  devConsole.register('help', {
+    description:
+      'list commands or show help for one command',
+    usage: 'help [command]',
+    execute: ({ args, console }) => {
+      const requested =
+        args[0]?.toLowerCase();
+
+      if (requested) {
+        const command =
+          console.commands.get(requested);
+
+        if (!command) {
+          throw new Error(
+            `unknown command: ${requested}`,
+          );
+        }
+
+        return [
+          command.usage,
+          command.description,
+        ];
+      }
+
+      return console
+        .listCommands()
+        .map(
+          command =>
+            `${command.usage} — ${command.description}`,
+        );
+    },
+  });
+
+  devConsole.register('clear', {
+    description: 'clear console output',
+    usage: 'clear',
+    execute: ({ console }) => {
+      console.clear();
+      return null;
+    },
+  });
+
+  devConsole.register('sprite.editor', {
+    description:
+      'open the sprite creator (Phase C hook)',
+    usage:
+      'sprite.editor [boss|weapon|generic]',
+    execute: ({ args }) => {
+      const type =
+        args[0]?.toLowerCase() ??
+        'generic';
+
+      if (
+        !['boss', 'weapon', 'generic']
+          .includes(type)
+      ) {
+        throw new Error(
+          'asset type must be boss, weapon, or generic.',
+        );
+      }
+
+      return [
+        `sprite editor hook ready for "${type}".`,
+        'Phase C editor UI is not installed yet; Phase A+B are active.',
+      ];
+    },
+  });
+
+  devConsole.register('sprite.new', {
+    description:
+      'create an empty local sprite draft',
+    usage:
+      'sprite.new <name> [boss|weapon|generic]',
+    execute: ({ args }) => {
+      const name = args[0];
+      const type =
+        args[1]?.toLowerCase() ??
+        'generic';
+
+      if (!name) {
+        throw new Error(
+          'usage: sprite.new <name> [type]',
+        );
+      }
+
+      if (
+        !['boss', 'weapon', 'generic']
+          .includes(type)
+      ) {
+        throw new Error(
+          'asset type must be boss, weapon, or generic.',
+        );
+      }
+
+      if (spriteAssetStore.has(name)) {
+        throw new Error(
+          `sprite draft "${name}" already exists.`,
+        );
+      }
+
+      const asset =
+        spriteAssetStore.create(
+          name,
+          type,
+        );
+
+      selectedSpriteDraftName =
+        asset.name;
+
+      return `created ${asset.type} sprite draft "${asset.name}".`;
+    },
+  });
+
+  devConsole.register('sprite.list', {
+    description:
+      'list local sprite drafts',
+    usage: 'sprite.list',
+    execute: () => {
+      const drafts =
+        spriteAssetStore.list();
+
+      if (!drafts.length) {
+        return 'no local sprite drafts.';
+      }
+
+      return drafts.map(asset => {
+        const selected =
+          asset.name ===
+          selectedSpriteDraftName
+            ? ' *'
+            : '';
+
+        return (
+          `${asset.name} [${asset.type}] — ` +
+          `${asset.parts.length} parts${selected}`
+        );
+      });
+    },
+  });
+
+  devConsole.register('sprite.load', {
+    description:
+      'validate and select a local sprite draft',
+    usage: 'sprite.load <name>',
+    execute: ({ args }) => {
+      const name = args[0];
+
+      if (!name) {
+        throw new Error(
+          'usage: sprite.load <name>',
+        );
+      }
+
+      const asset =
+        spriteAssetStore.get(name);
+
+      if (!asset) {
+        throw new Error(
+          `sprite draft "${name}" not found.`,
+        );
+      }
+
+      const compiled =
+        compileSpriteAsset(asset);
+
+      selectedSpriteDraftName =
+        compiled.asset.name;
+
+      return [
+        `loaded "${compiled.asset.name}" [${compiled.asset.type}].`,
+        `${compiled.asset.parts.length} parts, ${compiled.glowParts.length} glowing parts.`,
+      ];
+    },
+  });
+
+  devConsole.register('sprite.info', {
+    description:
+      'show summary information for a sprite draft',
+    usage: 'sprite.info [name]',
+    execute: ({ args }) => {
+      const name =
+        args[0] ??
+        selectedSpriteDraftName;
+
+      if (!name) {
+        throw new Error(
+          'no sprite selected. use sprite.load <name>.',
+        );
+      }
+
+      const asset =
+        spriteAssetStore.get(name);
+
+      if (!asset) {
+        throw new Error(
+          `sprite draft "${name}" not found.`,
+        );
+      }
+
+      const glowCount =
+        compileSpriteAsset(asset)
+          .glowParts.length;
+
+      const markerNames =
+        Object.keys(asset.markers);
+
+      return [
+        `name: ${asset.name}`,
+        `type: ${asset.type}`,
+        `pivot: ${asset.pivot[0]}, ${asset.pivot[1]}`,
+        `parts: ${asset.parts.length}`,
+        `glowing parts: ${glowCount}`,
+        `markers: ${markerNames.length ? markerNames.join(', ') : 'none'}`,
+      ];
+    },
+  });
+
+  devConsole.register('sprite.materials', {
+    description:
+      'list available sprite materials',
+    usage: 'sprite.materials',
+    execute: () =>
+      listSpriteMaterials().map(
+        material =>
+          material.glow
+            ? `${material.id} — ${material.color} — glow ${material.glow.color}`
+            : `${material.id} — ${material.color}`,
+      ),
+  });
+
+  devConsole.register('sprite.json', {
+    description:
+      'print normalized JSON for a sprite draft',
+    usage: 'sprite.json [name]',
+    execute: ({ args }) => {
+      const name =
+        args[0] ??
+        selectedSpriteDraftName;
+
+      if (!name) {
+        throw new Error(
+          'no sprite selected. use sprite.load <name>.',
+        );
+      }
+
+      const asset =
+        spriteAssetStore.get(name);
+
+      if (!asset) {
+        throw new Error(
+          `sprite draft "${name}" not found.`,
+        );
+      }
+
+      return serializeSpriteAsset(asset);
+    },
+  });
+
+  devConsole.register('sprite.delete', {
+    description:
+      'delete a local sprite draft',
+    usage: 'sprite.delete <name>',
+    execute: ({ args }) => {
+      const name = args[0];
+
+      if (!name) {
+        throw new Error(
+          'usage: sprite.delete <name>',
+        );
+      }
+
+      const asset =
+        spriteAssetStore.get(name);
+
+      if (!asset) {
+        throw new Error(
+          `sprite draft "${name}" not found.`,
+        );
+      }
+
+      spriteAssetStore.delete(name);
+
+      if (
+        selectedSpriteDraftName ===
+        asset.name
+      ) {
+        selectedSpriteDraftName = null;
+      }
+
+      return `deleted sprite draft "${asset.name}".`;
+    },
+  });
+}
+
+registerDeveloperCommands();
+
 const CHAPTERS = [
   {
     id: 'genesis',
@@ -203,7 +533,8 @@ try {
       if (
         typeof code === 'string' &&
         code.length > 0 &&
-        code !== 'Escape'
+        code !== 'Escape' &&
+        code !== 'Backquote'
       ) {
         controlBindings[action] = code;
       }
@@ -244,6 +575,7 @@ function keyLabel(code) {
     Enter: 'Enter',
     Tab: 'Tab',
     Backspace: 'Backspace',
+    Backquote: '~',
   };
 
   if (named[code]) return named[code];
@@ -276,7 +608,7 @@ function renderKeybinds() {
     keybindStatus.textContent =
       pendingBindingAction
         ? 'Press a key to bind it. Esc cancels.'
-        : 'Esc stays reserved for menus. Fire stays on LMB.';
+        : 'Esc and ~ stay reserved. Fire stays on LMB.';
   }
 }
 
@@ -284,7 +616,8 @@ function setControlBinding(action, newCode) {
   if (
     !Object.hasOwn(controlBindings, action) ||
     !newCode ||
-    newCode === 'Escape'
+    newCode === 'Escape' ||
+    newCode === 'Backquote'
   ) {
     return false;
   }
@@ -802,6 +1135,24 @@ document.addEventListener('pointerover', (e) => {
 });
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Backquote') {
+    if (pendingBindingAction) {
+      pendingBindingAction = null;
+      renderKeybinds();
+    }
+
+    devConsole.toggle();
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
+  if (devConsole.isOpen) {
+    devConsole.open();
+    e.preventDefault();
+    return;
+  }
+
   if (pendingBindingAction) {
     if (e.code === 'Escape') {
       pendingBindingAction = null;
@@ -853,6 +1204,11 @@ addEventListener('keydown', (e) => {
 });
 
 addEventListener('keyup', (e) => {
+  if (devConsole.isOpen) {
+    e.preventDefault();
+    return;
+  }
+
   keys.delete(e.code);
   released.add(e.code);
 });
@@ -942,6 +1298,13 @@ function getPointerWorld() {
 }
 
 function update(dt) {
+  if (devConsole.isOpen) {
+    pressed.clear();
+    released.clear();
+    pointer.firing = false;
+    return;
+  }
+
   if (currentScreen !== 'game') {
     pressed.clear();
     released.clear();
@@ -1824,4 +2187,6 @@ window.BOSSFIGHTS = {
   audio,
   fxSettings,
   controlBindings,
+  devConsole,
+  spriteAssetStore,
 };
