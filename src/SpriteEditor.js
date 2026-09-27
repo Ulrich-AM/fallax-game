@@ -4264,10 +4264,6 @@ export class SpriteEditor {
       ctx,
     );
 
-    this.drawBossConstructionGuide(
-      ctx,
-    );
-
     for (const part of this.asset.parts) {
       this.drawPart(
         ctx,
@@ -4276,6 +4272,10 @@ export class SpriteEditor {
           this.selectedPartId,
       );
     }
+
+    this.drawBossConstructionGuide(
+      ctx,
+    );
 
     if (this.draftPoints.length) {
       const drawDraftPath = (
