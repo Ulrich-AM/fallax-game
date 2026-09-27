@@ -245,6 +245,19 @@
           <small>symmetry mirrors new polygons across the sprite origin<br />mouse wheel: zoom<br />middle/right drag: pan</small>
         </section>
 
+        <section id="sprite-weapon-tools" class="hidden">
+          <h3>weapon setup</h3>
+          <div class="sprite-tool-grid">
+            <button data-editor-tool="pivot">set pivot</button>
+            <button data-editor-tool="muzzle">set muzzle</button>
+          </div>
+          <div id="sprite-weapon-marker-info" class="sprite-marker-info">
+            <span>pivot: 0, 0</span>
+            <span>muzzle: not set</span>
+          </div>
+          <small>draw facing right along the guide line. pivot is the rotation / hand point.</small>
+        </section>
+
         <section>
           <h3>materials</h3>
           <div id="sprite-editor-materials" class="sprite-materials"></div>
@@ -317,6 +330,12 @@
           </label>
         </section>
 
+        <section id="sprite-weapon-test-controls" class="hidden">
+          <h3>weapon test</h3>
+          <button data-editor-action="test-weapon" class="sprite-wide-button">open blank room</button>
+          <small>move the mouse to rotate the weapon. firing is disabled.</small>
+        </section>
+
         <section>
           <h3>asset files</h3>
           <div class="sprite-tool-grid">
@@ -332,6 +351,24 @@
           <small>Imported files open as editable drafts. Save when ready.</small>
         </section>
       </aside>
+    </section>
+
+    <section id="weapon-test-room" class="weapon-test-room hidden" aria-label="Weapon test room">
+      <canvas
+        id="weapon-test-canvas"
+        width="1280"
+        height="720"
+        aria-label="Weapon rotation test room"
+      ></canvas>
+
+      <div class="weapon-test-hud">
+        <div>
+          <strong>weapon test room</strong>
+          <span>move mouse to aim · no shooting</span>
+        </div>
+        <div id="weapon-test-angle">0°</div>
+        <button id="weapon-test-exit">return to editor</button>
+      </div>
     </section>
 
     <section id="dev-console" class="dev-console hidden" aria-label="Developer console">
