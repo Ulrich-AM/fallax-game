@@ -171,6 +171,8 @@ export class MatrixBoss {
     // Core burst.
     this.coreBurstFired = false;
     this.coreFlash = 0;
+    this.phaseTransitionReleased = false;
+    this.phase2OrbitCollapseReleased = false;
     this.burstBulletCount = 8;
     this.burstBulletSize = 30;
     this.burstBulletDamage = 22;
@@ -186,10 +188,42 @@ export class MatrixBoss {
     this.floodDirection = 1;
     this.floodFireTimer = 0;
 
+    // Phase 2 remixes existing projectile systems instead of only speeding
+    // everything up. The transition temporarily freezes the current field,
+    // then releases it at a rotated trajectory.
+    this.phaseTransitionReleased = false;
+    this.phaseTransitionRotateAngle = Math.PI / 4;
+
+    // Swirl + Orbit.
+    this.phase2SwirlFireInterval = 0.11;
+    this.phase2OrbitReleaseInterval = 0.30;
+
+    // Orbit Collapse.
+    this.phase2OrbitExpandRadius = 174;
+    this.phase2OrbitCollapseSpeed = 520;
+    this.phase2OrbitCollapseReleased = false;
+
+    // Compression Cascade.
+    this.phase2CascadeSpeed = 520;
+    this.phase2CascadeDamage = 10;
+    this.phase2CascadeHealth = 4;
+    this.phase2CascadeLife = 3.2;
+
     this.ai = new BossAI(this, {
       initialState: 'idle',
       phases: [
         { id: 'phase1', atOrBelow: 1.0 },
+        {
+          id: 'phase2',
+          atOrBelow: 0.5,
+          onEnter: (owner, ai, ctx) => {
+            if (owner.dead) return;
+            ai.changeState(
+              'phaseTransition',
+              ctx,
+            );
+          },
+        },
       ],
     });
 
@@ -201,7 +235,9 @@ export class MatrixBoss {
   }
 
   get phaseLabel() {
-    return 'phase 1';
+    return this.ai.phaseId === 'phase2'
+      ? 'phase 2'
+      : 'phase 1';
   }
 
   installStates(world) {
@@ -211,15 +247,28 @@ export class MatrixBoss {
           owner.shellOpen = 0;
           owner.attackAnchorY = owner.y;
 
+          const phase2 =
+            ai.phaseId === 'phase2';
+
           ai.setTimer(
             'attackDelay',
-            1.8 + Math.random() * 1.4,
+            phase2
+              ? 0.95 + Math.random() * 0.75
+              : 1.8 + Math.random() * 1.4,
           );
         },
 
         update: (owner, ai, dt) => {
-          owner.rotation += 12 * dt;
-          owner.coreRotation -= 68 * dt;
+          const phase2 =
+            ai.phaseId === 'phase2';
+
+          owner.rotation +=
+            (phase2 ? 22 : 12) *
+            dt;
+
+          owner.coreRotation -=
+            (phase2 ? 118 : 68) *
+            dt;
 
           owner.x +=
             owner.patrolDirection *
@@ -234,20 +283,48 @@ export class MatrixBoss {
             owner.patrolDirection = 1;
           }
 
-          owner.y = owner.spawnY;
+          owner.y =
+            owner.spawnY +
+            (
+              phase2
+                ? Math.sin(
+                    ai.stateTime *
+                    8.5,
+                  ) * 3
+                : 0
+            );
 
           if (ai.timerDone('attackDelay')) {
-            const choices = [
-              'swirl',
-              'floodSwirl',
-              'coreBurst',
-              'coreOrbit',
-              'compressionShot',
-            ].filter(name => name !== owner.lastAttack);
+            const choices =
+              phase2
+                ? [
+                    'phase2SwirlOrbit',
+                    'phase2OrbitCollapse',
+                    'phase2CompressionCascade',
+                    'floodSwirl',
+                    'coreBurst',
+                  ]
+                : [
+                    'swirl',
+                    'floodSwirl',
+                    'coreBurst',
+                    'coreOrbit',
+                    'compressionShot',
+                  ];
+
+            const filtered =
+              choices.filter(
+                name =>
+                  name !==
+                  owner.lastAttack,
+              );
 
             const next =
-              choices[
-                Math.floor(Math.random() * choices.length)
+              filtered[
+                Math.floor(
+                  Math.random() *
+                  filtered.length,
+                )
               ];
 
             owner.lastAttack = next;
@@ -639,7 +716,665 @@ export class MatrixBoss {
             ai.changeState('idle', ctx);
           }
         },
+      })
+
+      .addState('phaseTransition', {
+        enter: (owner, ai, ctx) => {
+          owner.attackAnchorY =
+            owner.y;
+
+          owner.shellOpen = 0;
+          owner.coreFlash = 1;
+          owner.phaseTransitionReleased =
+            false;
+
+          owner.freezeBulletsForPhaseTransition(
+            ai.targetPlayer(ctx),
+          );
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const closeEnd = 0.34;
+          const releaseTime = 0.82;
+          const openEnd = 1.28;
+          const end = 1.72;
+          const time = ai.stateTime;
+
+          owner.rotation += 58 * dt;
+          owner.coreRotation -= 360 * dt;
+
+          if (time < closeEnd) {
+            const t =
+              smoothstep(
+                time / closeEnd,
+              );
+
+            owner.shellOpen =
+              lerp(
+                0,
+                -1,
+                t,
+              );
+
+            owner.y =
+              owner.attackAnchorY +
+              Math.sin(
+                t *
+                Math.PI,
+              ) * 10;
+          } else if (time < releaseTime) {
+            owner.shellOpen = -1;
+            owner.y =
+              owner.attackAnchorY;
+          } else if (time < openEnd) {
+            if (
+              !owner
+                .phaseTransitionReleased
+            ) {
+              owner.phaseTransitionReleased =
+                true;
+
+              owner.releasePhaseTransitionBullets(
+                owner
+                  .phaseTransitionRotateAngle,
+              );
+
+              owner.coreFlash = 1;
+              ctx?.shakeCamera?.(
+                20,
+                0.28,
+              );
+            }
+
+            const t =
+              smoothstep(
+                (time - releaseTime) /
+                (openEnd -
+                releaseTime),
+              );
+
+            owner.shellOpen =
+              lerp(
+                -1,
+                1.22,
+                t,
+              );
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY,
+                owner.attackAnchorY - 20,
+                t,
+              );
+          } else {
+            const t =
+              smoothstep(
+                (time - openEnd) /
+                (end - openEnd),
+              );
+
+            owner.shellOpen =
+              lerp(
+                1.22,
+                0,
+                t,
+              );
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY - 20,
+                owner.spawnY,
+                easeOutCubic(t),
+              );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            owner.y = owner.spawnY;
+            owner.lastAttack = null;
+            ai.changeState(
+              'idle',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('phase2SwirlOrbit', {
+        enter: (owner) => {
+          owner.attackAnchorY =
+            owner.y;
+
+          owner.fireTimer = 0;
+          owner.orbitSpawned = false;
+          owner.orbitReleaseTimer = 0;
+          owner.orbitBulletsReleased = 0;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const openEnd = 0.44;
+          const orbitHoldEnd = 1.08;
+          const fireEnd = 3.52;
+          const end = 3.94;
+          const time = ai.stateTime;
+          const player =
+            ai.targetPlayer(ctx);
+
+          owner.rotation += 214 * dt;
+          owner.coreRotation -= 326 * dt;
+
+          if (time < openEnd) {
+            const t =
+              smoothstep(
+                time / openEnd,
+              );
+
+            owner.shellOpen =
+              lerp(0, 1.08, t);
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY,
+                owner.attackAnchorY - 22,
+                t,
+              );
+          } else if (time < fireEnd) {
+            owner.shellOpen = 1.08;
+            owner.y =
+              owner.attackAnchorY - 22;
+
+            if (!owner.orbitSpawned) {
+              owner.orbitSpawned = true;
+              owner.spawnCoreOrbit();
+              owner.coreFlash = 0.7;
+            }
+
+            owner.fireTimer -= dt;
+
+            while (
+              owner.fireTimer <= 0
+            ) {
+              owner.fireSwirlPair();
+              owner.fireTimer +=
+                owner
+                  .phase2SwirlFireInterval;
+            }
+
+            if (
+              time >=
+              orbitHoldEnd
+            ) {
+              owner.orbitReleaseTimer -= dt;
+
+              if (
+                owner.orbitBulletsReleased <
+                  owner.orbitBulletCount &&
+                owner.orbitReleaseTimer <= 0
+              ) {
+                owner.releaseNextOrbitBullet(
+                  player,
+                );
+
+                owner.orbitBulletsReleased++;
+
+                owner.orbitReleaseTimer =
+                  owner
+                    .phase2OrbitReleaseInterval;
+
+                owner.coreFlash =
+                  Math.max(
+                    owner.coreFlash,
+                    0.32,
+                  );
+              }
+            }
+          } else {
+            const t =
+              smoothstep(
+                (time - fireEnd) /
+                (end - fireEnd),
+              );
+
+            owner.shellOpen =
+              lerp(1.08, 0, t);
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY - 22,
+                owner.spawnY,
+                easeOutCubic(t),
+              );
+          }
+
+          if (time >= end) {
+            owner.releaseAllOrbitBullets(
+              player,
+            );
+
+            owner.shellOpen = 0;
+            ai.changeState(
+              'idle',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('phase2OrbitCollapse', {
+        enter: (owner) => {
+          owner.attackAnchorY =
+            owner.y;
+
+          owner.orbitSpawned = false;
+          owner.phase2OrbitCollapseReleased =
+            false;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const openEnd = 0.42;
+          const expandEnd = 1.45;
+          const collapseTime = 1.62;
+          const end = 2.38;
+          const time = ai.stateTime;
+
+          owner.rotation += 94 * dt;
+          owner.coreRotation -= 288 * dt;
+
+          if (time < openEnd) {
+            const t =
+              smoothstep(
+                time / openEnd,
+              );
+
+            owner.shellOpen =
+              lerp(0, 1.12, t);
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY,
+                owner.attackAnchorY - 18,
+                t,
+              );
+          } else if (time < collapseTime) {
+            owner.shellOpen = 1.12;
+            owner.y =
+              owner.attackAnchorY - 18;
+
+            if (!owner.orbitSpawned) {
+              owner.orbitSpawned = true;
+              owner.spawnCoreOrbit();
+              owner.coreFlash = 0.75;
+            }
+
+            const expandT =
+              smoothstep(
+                clamp(
+                  (time - openEnd) /
+                    (expandEnd -
+                    openEnd),
+                  0,
+                  1,
+                ),
+              );
+
+            owner.setOrbitRadius(
+              lerp(
+                owner.orbitBulletRadius,
+                owner
+                  .phase2OrbitExpandRadius,
+                expandT,
+              ),
+            );
+          } else {
+            if (
+              !owner
+                .phase2OrbitCollapseReleased
+            ) {
+              owner
+                .phase2OrbitCollapseReleased =
+                true;
+
+              owner.releaseOrbitCollapse();
+
+              owner.coreFlash = 1;
+              ctx?.shakeCamera?.(
+                13,
+                0.18,
+              );
+            }
+
+            const t =
+              smoothstep(
+                (time - collapseTime) /
+                (end -
+                collapseTime),
+              );
+
+            owner.shellOpen =
+              lerp(
+                1.12,
+                0,
+                t,
+              );
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY - 18,
+                owner.spawnY,
+                easeOutCubic(t),
+              );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            ai.changeState(
+              'idle',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('phase2CompressionCascade', {
+        enter: (owner) => {
+          owner.attackAnchorY =
+            owner.y;
+
+          owner.compressionPulsesFired = 0;
+          owner.compressionShotFired = false;
+        },
+
+        update: (owner, ai, dt, ctx) => {
+          const pulseDuration = 0.43;
+          const chargeEnd =
+            owner.compressionPulseCount *
+            pulseDuration;
+
+          const revealEnd =
+            chargeEnd + 0.38;
+
+          const end =
+            revealEnd + 0.44;
+
+          const time = ai.stateTime;
+          const player =
+            ai.targetPlayer(ctx);
+
+          owner.rotation += 35 * dt;
+          owner.coreRotation -= 205 * dt;
+
+          if (time < chargeEnd) {
+            const pulseIndex =
+              Math.min(
+                owner.compressionPulseCount - 1,
+                Math.floor(
+                  time /
+                  pulseDuration,
+                ),
+              );
+
+            const local =
+              (
+                time -
+                pulseIndex *
+                  pulseDuration
+              ) /
+              pulseDuration;
+
+            if (local < 0.54) {
+              const down =
+                easeOutBounce(
+                  local / 0.54,
+                );
+
+              owner.shellOpen = -down;
+
+              owner.y =
+                owner.attackAnchorY +
+                down * 11;
+            } else {
+              const up =
+                easeOutCubic(
+                  (local - 0.54) /
+                  0.46,
+                );
+
+              owner.shellOpen =
+                lerp(
+                  -1,
+                  0.16,
+                  up,
+                );
+
+              owner.y =
+                lerp(
+                  owner.attackAnchorY + 11,
+                  owner.attackAnchorY,
+                  up,
+                );
+            }
+
+            if (
+              local >= 0.48 &&
+              owner.compressionPulsesFired <=
+                pulseIndex
+            ) {
+              owner.compressionPulsesFired++;
+
+              owner.coreFlash =
+                Math.min(
+                  1,
+                  0.42 +
+                    owner
+                      .compressionPulsesFired *
+                    0.19,
+                );
+
+              ctx?.shakeCamera?.(
+                5 +
+                  owner.compressionPulsesFired *
+                  2,
+                0.10,
+              );
+            }
+          } else if (
+            time < revealEnd
+          ) {
+            const t =
+              smoothstep(
+                (time - chargeEnd) /
+                (revealEnd -
+                chargeEnd),
+              );
+
+            owner.shellOpen =
+              lerp(
+                0.16,
+                1.18,
+                t,
+              );
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY,
+                owner.attackAnchorY - 15,
+                t,
+              );
+
+            if (
+              !owner.compressionShotFired &&
+              t >= 0.43 &&
+              player
+            ) {
+              owner.compressionShotFired = true;
+              owner.coreFlash = 1;
+
+              owner.fireCompressionShot(
+                player,
+                true,
+              );
+
+              ctx?.shakeCamera?.(
+                18,
+                0.23,
+              );
+            }
+          } else {
+            const t =
+              smoothstep(
+                (time - revealEnd) /
+                (end - revealEnd),
+              );
+
+            owner.shellOpen =
+              lerp(
+                1.18,
+                0,
+                t,
+              );
+
+            owner.y =
+              lerp(
+                owner.attackAnchorY - 15,
+                owner.spawnY,
+                easeOutCubic(t),
+              );
+          }
+
+          if (time >= end) {
+            owner.shellOpen = 0;
+            ai.changeState(
+              'idle',
+              ctx,
+            );
+          }
+        },
       });
+  }
+
+  freezeBulletsForPhaseTransition(
+    player,
+  ) {
+    // Orbiting bullets need a velocity first so the transition can rotate them
+    // together with the rest of the field.
+    this.releaseAllOrbitBullets(
+      player,
+    );
+
+    for (const bullet of this.bullets) {
+      if (
+        bullet.life <= 0 ||
+        bullet.health <= 0
+      ) {
+        continue;
+      }
+
+      bullet.phaseFrozen = true;
+      bullet.phaseFrozenVX =
+        bullet.vx ?? 0;
+
+      bullet.phaseFrozenVY =
+        bullet.vy ?? 0;
+
+      bullet.vx = 0;
+      bullet.vy = 0;
+    }
+  }
+
+  releasePhaseTransitionBullets(
+    rotation,
+  ) {
+    const c =
+      Math.cos(rotation);
+
+    const s =
+      Math.sin(rotation);
+
+    for (const bullet of this.bullets) {
+      if (!bullet.phaseFrozen) {
+        continue;
+      }
+
+      const vx =
+        bullet.phaseFrozenVX ?? 0;
+
+      const vy =
+        bullet.phaseFrozenVY ?? 0;
+
+      bullet.vx =
+        vx * c -
+        vy * s;
+
+      bullet.vy =
+        vx * s +
+        vy * c;
+
+      bullet.phaseFrozen = false;
+      delete bullet.phaseFrozenVX;
+      delete bullet.phaseFrozenVY;
+    }
+
+    this.shotSerial++;
+  }
+
+  setOrbitRadius(radius) {
+    for (const bullet of this.bullets) {
+      if (
+        bullet.kind === 'orbit' &&
+        bullet.orbiting
+      ) {
+        bullet.orbitRadius =
+          radius;
+      }
+    }
+  }
+
+  releaseOrbitCollapse() {
+    let released = false;
+
+    for (const bullet of this.bullets) {
+      if (
+        bullet.kind !== 'orbit' ||
+        !bullet.orbiting ||
+        bullet.life <= 0 ||
+        bullet.health <= 0
+      ) {
+        continue;
+      }
+
+      const dx =
+        this.x - bullet.x;
+
+      const dy =
+        this.y - bullet.y;
+
+      const length =
+        Math.hypot(dx, dy) || 1;
+
+      bullet.orbiting = false;
+
+      bullet.vx =
+        dx /
+        length *
+        this.phase2OrbitCollapseSpeed;
+
+      bullet.vy =
+        dy /
+        length *
+        this.phase2OrbitCollapseSpeed;
+
+      bullet.life =
+        this.orbitBulletLife;
+
+      bullet.maxLife =
+        this.orbitBulletLife;
+
+      released = true;
+    }
+
+    if (released) {
+      this.shotSerial++;
+    }
   }
 
   getPredictedIntercept(
@@ -840,7 +1575,10 @@ export class MatrixBoss {
     if (released) this.shotSerial++;
   }
 
-  fireCompressionShot(player) {
+  fireCompressionShot(
+    player,
+    cascade = false,
+  ) {
     const dx = player.x - this.x;
     const dy = player.y - this.y;
     const length = Math.hypot(dx, dy) || 1;
@@ -859,6 +1597,7 @@ export class MatrixBoss {
         life: this.compressionBulletLife,
         health: this.compressionBulletHealth,
         kind: 'compression',
+        cascade,
       },
     );
   }
@@ -867,6 +1606,7 @@ export class MatrixBoss {
     x,
     y,
     inwardAngle,
+    cascade = false,
   ) {
     this.shotSerial++;
 
@@ -898,6 +1638,7 @@ export class MatrixBoss {
           life: this.compressionFirstSplitLife,
           health: this.compressionFirstSplitHealth,
           kind: 'compressionSplit1',
+          cascade,
         },
       );
     }
@@ -941,6 +1682,54 @@ export class MatrixBoss {
         },
       );
     }
+  }
+
+  spawnCompressionCascadeReturn(
+    x,
+    y,
+    player,
+  ) {
+    if (!player) return;
+
+    const predicted =
+      this.getPredictedIntercept(
+        player,
+        this.phase2CascadeSpeed,
+        x,
+        y,
+      );
+
+    const dx =
+      predicted.x - x;
+
+    const dy =
+      predicted.y - y;
+
+    const length =
+      Math.hypot(dx, dy) || 1;
+
+    this.shotSerial++;
+
+    this.spawnBullet(
+      x,
+      y,
+      dx / length,
+      dy / length,
+      {
+        size:
+          this.compressionSecondSplitSize,
+        damage:
+          this.phase2CascadeDamage,
+        speed:
+          this.phase2CascadeSpeed,
+        life:
+          this.phase2CascadeLife,
+        health:
+          this.phase2CascadeHealth,
+        kind:
+          'compressionSplit2',
+      },
+    );
   }
 
   fireCoreBurst() {
@@ -1016,6 +1805,7 @@ export class MatrixBoss {
       fading = false,
       fadeTimer = 0,
       fadeDuration = 0,
+      cascade = false,
     } = {},
   ) {
     this.bullets.push({
@@ -1043,6 +1833,8 @@ export class MatrixBoss {
       splitDuration: 0,
       splitAngle: 0,
       splitStage: 0,
+      cascade,
+      phaseFrozen: false,
     });
   }
 
@@ -1108,6 +1900,10 @@ export class MatrixBoss {
     const compressionSplits = [];
 
     for (const bullet of this.bullets) {
+      if (bullet.phaseFrozen) {
+        continue;
+      }
+
       if (bullet.splitting) {
         bullet.splitTimer = Math.max(
           0,
@@ -1129,6 +1925,8 @@ export class MatrixBoss {
             y: bullet.y,
             angle: bullet.splitAngle,
             stage: bullet.splitStage,
+            cascade:
+              !!bullet.cascade,
           });
 
           bullet.life = 0;
@@ -1292,7 +2090,11 @@ export class MatrixBoss {
           bullet.splitStage =
             bullet.kind === 'compression'
               ? 1
-              : 2;
+              : (
+                  bullet.cascade
+                    ? 3
+                    : 2
+                );
           bullet.vx = 0;
           bullet.vy = 0;
           bullet.opacity = 1;
@@ -1352,6 +2154,13 @@ export class MatrixBoss {
           split.x,
           split.y,
           split.angle,
+          split.cascade,
+        );
+      } else if (split.stage === 3) {
+        this.spawnCompressionCascadeReturn(
+          split.x,
+          split.y,
+          player,
         );
       } else {
         this.spawnCompressionSecondSplit(
