@@ -100,9 +100,13 @@ export class SpriteEditor {
     importFileInput,
     snapInput,
     symmetryInput,
+    weaponToolsRoot,
+    weaponMarkerInfo,
+    weaponTestControls,
     store,
     onClose = null,
     onSaved = null,
+    onTestWeapon = null,
   }) {
     this.root = root;
     this.canvas = canvas;
@@ -139,10 +143,18 @@ export class SpriteEditor {
     this.snapInput = snapInput;
     this.symmetryInput =
       symmetryInput;
+    this.weaponToolsRoot =
+      weaponToolsRoot;
+    this.weaponMarkerInfo =
+      weaponMarkerInfo;
+    this.weaponTestControls =
+      weaponTestControls;
 
     this.store = store;
     this.onClose = onClose;
     this.onSaved = onSaved;
+    this.onTestWeapon =
+      onTestWeapon;
 
     this.asset =
       createSpriteAsset({
@@ -280,6 +292,8 @@ export class SpriteEditor {
       () => {
         this.asset.type =
           this.typeSelect.value;
+        this.updateModeUi();
+        this.renderAll();
       },
     );
 
@@ -337,6 +351,28 @@ export class SpriteEditor {
     )?.addEventListener(
       'click',
       () => this.deleteSelected(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="test-weapon"]',
+    )?.addEventListener(
+      'click',
+      () => {
+        if (!this.isWeaponMode()) {
+          return;
+        }
+
+        try {
+          this.onTestWeapon?.(
+            this.currentCandidate(),
+          );
+        } catch (error) {
+          this.setStatus(
+            error?.message ?? String(error),
+            true,
+          );
+        }
+      },
     );
 
     this.root.querySelector(
@@ -512,6 +548,7 @@ export class SpriteEditor {
     }
 
     this.opened = true;
+    this.updateModeUi();
     this.root.classList.remove('hidden');
     this.root.tabIndex = -1;
     this.root.focus();
@@ -682,6 +719,7 @@ export class SpriteEditor {
     }
 
     this.setTool('select');
+    this.updateModeUi();
 
     this.setStatus(
       `Imported "${imported.name}". Save Draft to keep it locally.`,
@@ -743,10 +781,217 @@ export class SpriteEditor {
       requestAnimationFrame(tick);
   }
 
+  isWeaponMode() {
+    return (
+      this.typeSelect?.value ===
+        'weapon' ||
+      this.asset.type === 'weapon'
+    );
+  }
+
+  updateModeUi() {
+    const weapon =
+      this.isWeaponMode();
+
+    this.weaponToolsRoot
+      ?.classList.toggle(
+        'hidden',
+        !weapon,
+      );
+
+    this.weaponTestControls
+      ?.classList.toggle(
+        'hidden',
+        !weapon,
+      );
+
+    this.root?.classList.toggle(
+      'weapon-editor-mode',
+      weapon,
+    );
+
+    this.updateWeaponMarkerInfo();
+  }
+
+  updateWeaponMarkerInfo() {
+    if (!this.weaponMarkerInfo) {
+      return;
+    }
+
+    const pivot =
+      this.asset.pivot ?? [0, 0];
+
+    const muzzle =
+      this.asset.markers?.muzzle;
+
+    const format = value =>
+      Number(value)
+        .toFixed(2)
+        .replace(/\.00$/, '');
+
+    this.weaponMarkerInfo.innerHTML =
+      `<span>pivot: ${format(pivot[0])}, ${format(pivot[1])}</span>` +
+      (
+        muzzle
+          ? `<span>muzzle: ${format(muzzle.x)}, ${format(muzzle.y)}</span>`
+          : '<span>muzzle: not set</span>'
+      );
+  }
+
+  drawWeaponConstructionGuide(ctx) {
+    if (!this.isWeaponMode()) {
+      return;
+    }
+
+    const pivot =
+      this.asset.pivot ?? [0, 0];
+
+    const scale = Math.max(
+      0.1,
+      Number(
+        this.scaleInput?.value ??
+        this.asset.scale ??
+        1,
+      ) || 1,
+    );
+
+    const playerWidth =
+      8 / scale;
+
+    const playerHeight =
+      14 / scale;
+
+    const playerCenter = [
+      pivot[0] - 3.5 / scale,
+      pivot[1] + 2.5 / scale,
+    ];
+
+    const [
+      playerLeft,
+      playerTop,
+    ] = this.worldToScreen([
+      playerCenter[0] -
+        playerWidth / 2,
+      playerCenter[1] -
+        playerHeight / 2,
+    ]);
+
+    const playerScreenW =
+      playerWidth * this.zoom;
+
+    const playerScreenH =
+      playerHeight * this.zoom;
+
+    const [px, py] =
+      this.worldToScreen(pivot);
+
+    ctx.save();
+
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = '#8a8e95';
+    ctx.fillRect(
+      playerLeft,
+      playerTop,
+      playerScreenW,
+      playerScreenH,
+    );
+
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = '#7c8490';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      playerLeft + 0.5,
+      playerTop + 0.5,
+      playerScreenW,
+      playerScreenH,
+    );
+
+    ctx.globalAlpha = 0.34;
+    ctx.strokeStyle = '#aeb8c5';
+    ctx.setLineDash([8, 8]);
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(
+      px + 38 * this.zoom,
+      py,
+    );
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#c9d1dc';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(
+      px,
+      py,
+      6,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+
+    ctx.fillStyle = '#c9d1dc';
+    ctx.font =
+      '10px Arial, sans-serif';
+    ctx.fillText(
+      'pivot',
+      px + 9,
+      py - 8,
+    );
+
+    const muzzle =
+      this.asset.markers?.muzzle;
+
+    if (muzzle) {
+      const [mx, my] =
+        this.worldToScreen([
+          muzzle.x,
+          muzzle.y,
+        ]);
+
+      ctx.strokeStyle = '#ff7777';
+      ctx.fillStyle = '#ff7777';
+
+      ctx.beginPath();
+      ctx.arc(
+        mx,
+        my,
+        6,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+
+      ctx.fillText(
+        'muzzle',
+        mx + 9,
+        my - 8,
+      );
+    }
+
+    ctx.restore();
+  }
+
   setTool(tool) {
     if (
       tool !== 'select' &&
-      tool !== 'polygon'
+      tool !== 'polygon' &&
+      tool !== 'pivot' &&
+      tool !== 'muzzle'
+    ) {
+      return;
+    }
+
+    if (
+      (
+        tool === 'pivot' ||
+        tool === 'muzzle'
+      ) &&
+      !this.isWeaponMode()
     ) {
       return;
     }
@@ -772,10 +1017,20 @@ export class SpriteEditor {
       );
     }
 
+    const statusByTool = {
+      polygon:
+        'Polygon: click vertices, click the first point or press Enter to close, Esc to cancel.',
+      pivot:
+        'Set pivot: click the weapon hand / rotation point.',
+      muzzle:
+        'Set muzzle: click where shots should originate.',
+      select:
+        'Select: click a shape; drag vertices or the whole shape.',
+    };
+
     this.setStatus(
-      tool === 'polygon'
-        ? 'Polygon: click vertices, click the first point or press Enter to close, Esc to cancel.'
-        : 'Select: click a shape; drag vertices or the whole shape.',
+      statusByTool[tool] ??
+        statusByTool.select,
     );
 
     this.renderCanvas();
@@ -826,6 +1081,7 @@ export class SpriteEditor {
         String(this.asset.scale ?? 1);
     }
 
+    this.updateModeUi();
     this.renderAll();
   }
 
@@ -1223,6 +1479,44 @@ export class SpriteEditor {
 
       this.draftPoints.push(world);
       this.renderCanvas();
+      event.preventDefault();
+      return;
+    }
+
+    if (
+      this.tool === 'pivot' ||
+      this.tool === 'muzzle'
+    ) {
+      this.pushHistory();
+      this.future.length = 0;
+
+      if (this.tool === 'pivot') {
+        this.asset.pivot = [
+          world[0],
+          world[1],
+        ];
+
+        this.setStatus(
+          `Pivot set to ${world[0]}, ${world[1]}.`,
+        );
+      } else {
+        this.asset.markers = {
+          ...(this.asset.markers ?? {}),
+          muzzle: {
+            x: world[0],
+            y: world[1],
+            rotation: 0,
+          },
+        };
+
+        this.setStatus(
+          `Muzzle set to ${world[0]}, ${world[1]}.`,
+        );
+      }
+
+      this.setTool('select');
+      this.updateWeaponMarkerInfo();
+      this.renderAll();
       event.preventDefault();
       return;
     }
@@ -1768,6 +2062,10 @@ export class SpriteEditor {
     ctx.lineTo(w, origin.y);
     ctx.stroke();
 
+    this.drawWeaponConstructionGuide(
+      ctx,
+    );
+
     for (const part of this.asset.parts) {
       this.drawPart(
         ctx,
@@ -2275,6 +2573,7 @@ export class SpriteEditor {
   }
 
   renderAll() {
+    this.updateWeaponMarkerInfo();
     this.renderMaterialState();
     this.renderLayers();
     this.renderCanvas();
