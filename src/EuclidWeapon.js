@@ -1,6 +1,6 @@
 import {
   WeaponSpriteRenderer,
-} from './WeaponSpriteRenderer.js?v=54b';
+} from './WeaponSpriteRenderer.js?v=54c';
 
 const EUCLID_SPRITE_ASSET = {
   version: 2,
