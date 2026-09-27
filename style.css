@@ -1036,3 +1036,71 @@ canvas {
   border-color: #66707e;
   color: #ffffff;
 }
+
+
+/* Grouping + animation editor */
+.sprite-layer-row.multi .sprite-layer-select {
+  background: #18212c;
+  border-color: #5f748e;
+}
+
+.sprite-layer-row.grouped .sprite-layer-select::after {
+  content: "G";
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  color: #8fa7c3;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+#sprite-animation-panel {
+  display: grid;
+  gap: 10px;
+}
+
+#sprite-animation-panel input[type="number"],
+#sprite-animation-panel select {
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  border: 1px solid #343b46;
+  background: #111419;
+  color: #eef0f4;
+  padding: 0 7px;
+}
+
+.sprite-animation-keys {
+  display: grid;
+  gap: 4px;
+  max-height: 130px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #282e37;
+  background: #0a0c10;
+  color: #7f8793;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+}
+
+.weapon-test-animation-buttons {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.weapon-test-animation-buttons button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid #353c47;
+  background: rgba(18, 21, 26, 0.94);
+  color: #aeb4bf;
+  cursor: pointer;
+}
+
+.weapon-test-animation-buttons button.active,
+.weapon-test-animation-buttons button:hover {
+  background: #1c2027;
+  border-color: #66707e;
+  color: #ffffff;
+}
