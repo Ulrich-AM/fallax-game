@@ -6,7 +6,7 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=55';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
@@ -15,7 +15,7 @@ import {
   evaluateAnimation,
   applyAnimationPose,
   upsertKeyframe,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -98,6 +98,7 @@ export class SpriteEditor {
     rotationInput,
     rotationLabel,
     showPlayerInput,
+    trueSizeInput,
     spinInput,
     glowInput,
     glowStrengthInput,
@@ -109,8 +110,17 @@ export class SpriteEditor {
     weaponToolsRoot,
     weaponMarkerInfo,
     weaponTestControls,
+    bossToolsRoot,
+    bossMarkerNameInput,
+    bossMarkerInfo,
+    hitboxNameInput,
+    hitboxTypeInput,
+    hitboxSizeXInput,
+    hitboxSizeYInput,
+    hitboxListRoot,
     animationPanelRoot,
     animationClipInput,
+    animationClipNameInput,
     animationPropertyInput,
     animationEasingInput,
     animationValueInput,
@@ -149,6 +159,8 @@ export class SpriteEditor {
       rotationLabel;
     this.showPlayerInput =
       showPlayerInput;
+    this.trueSizeInput =
+      trueSizeInput;
     this.spinInput =
       spinInput;
     this.glowInput =
@@ -170,10 +182,28 @@ export class SpriteEditor {
       weaponMarkerInfo;
     this.weaponTestControls =
       weaponTestControls;
+    this.bossToolsRoot =
+      bossToolsRoot;
+    this.bossMarkerNameInput =
+      bossMarkerNameInput;
+    this.bossMarkerInfo =
+      bossMarkerInfo;
+    this.hitboxNameInput =
+      hitboxNameInput;
+    this.hitboxTypeInput =
+      hitboxTypeInput;
+    this.hitboxSizeXInput =
+      hitboxSizeXInput;
+    this.hitboxSizeYInput =
+      hitboxSizeYInput;
+    this.hitboxListRoot =
+      hitboxListRoot;
     this.animationPanelRoot =
       animationPanelRoot;
     this.animationClipInput =
       animationClipInput;
+    this.animationClipNameInput =
+      animationClipNameInput;
     this.animationPropertyInput =
       animationPropertyInput;
     this.animationEasingInput =
@@ -238,6 +268,7 @@ export class SpriteEditor {
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
 
     this.buildMaterialButtons();
     this.bindUi();
@@ -293,6 +324,11 @@ export class SpriteEditor {
     );
 
     this.showPlayerInput?.addEventListener(
+      'change',
+      () => this.renderPreview(),
+    );
+
+    this.trueSizeInput?.addEventListener(
       'change',
       () => this.renderPreview(),
     );
@@ -382,6 +418,27 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-tool="group-pivot"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('group-pivot'),
+    );
+
+    this.root.querySelector(
+      '[data-editor-tool="marker"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('marker'),
+    );
+
+    this.root.querySelector(
+      '[data-editor-tool="hitbox"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('hitbox'),
+    );
+
+    this.root.querySelector(
       '[data-editor-action="save"]',
     )?.addEventListener(
       'click',
@@ -457,11 +514,17 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-action="mirror-selected"]',
+    )?.addEventListener(
+      'click',
+      () => this.mirrorSelected(),
+    );
+
+    this.root.querySelector(
       '[data-editor-action="anim-play"]',
     )?.addEventListener(
       'click',
       () => {
-        if (!this.isWeaponMode()) return;
         this.animationPlaying =
           !this.animationPlaying;
         this.previewLastTime =
@@ -477,11 +540,57 @@ export class SpriteEditor {
       () => this.addAnimationKeyframe(),
     );
 
+    this.root.querySelector(
+      '[data-editor-action="anim-new"]',
+    )?.addEventListener(
+      'click',
+      () => this.createAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-rename"]',
+    )?.addEventListener(
+      'click',
+      () => this.renameAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-delete"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="delete-marker"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteBossMarker(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="delete-hitbox"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteBossHitbox(),
+    );
+
+    this.hitboxTypeInput?.addEventListener(
+      'change',
+      () => this.syncBossToolUi(),
+    );
+
     this.animationClipInput?.addEventListener(
       'change',
       () => {
         this.currentClipName =
           this.animationClipInput.value;
+
+        if (this.animationClipNameInput) {
+          this.animationClipNameInput.value =
+            this.currentClipName;
+        }
+
         this.animationTime = 0;
         this.animationPlaying = false;
         this.syncAnimationUi();
@@ -791,6 +900,7 @@ export class SpriteEditor {
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
 
     if (
       this.asset.type === 'weapon' &&
@@ -990,6 +1100,7 @@ export class SpriteEditor {
     this.selectedPartIds.clear();
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
     this.draftPoints = [];
 
     this.nameInput.value =
@@ -1043,8 +1154,7 @@ export class SpriteEditor {
       let previewDirty = false;
 
       if (
-        this.animationPlaying &&
-        this.isWeaponMode()
+        this.animationPlaying
       ) {
         const clip =
           this.currentAnimationClip();
