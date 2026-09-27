@@ -248,7 +248,7 @@ export class VectorWeapon {
           'muzzle',
           aim.x,
           aim.y,
-          shotAngle,
+          aim.angle,
           4,
         );
 
