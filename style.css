@@ -920,3 +920,17 @@ canvas {
 .sprite-rotation-row input {
   width: 100%;
 }
+
+
+#sprite-editor-scale {
+  min-width: 86px;
+  width: 86px;
+}
+
+.sprite-editor-right small {
+  display: block;
+  margin-top: 8px;
+  color: #6f7783;
+  font-size: 10px;
+  line-height: 1.45;
+}
