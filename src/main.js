@@ -21,28 +21,28 @@ import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
-import { StrikeAbility } from './StrikeAbility.js?v=52';
+import { StrikeAbility } from './StrikeAbility.js?v=55';
 import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
 import { GameAudio } from './AudioManager.js?v=54';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
-import { SpriteEditor } from './SpriteEditor.js?v=53';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=53';
+import { SpriteEditor } from './SpriteEditor.js?v=55';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=55';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=55';
 import {
   drawRasterAtPivot,
 } from './WeaponSpriteRenderer.js?v=54c';
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v54d';
+const BUILD_VERSION = 'v55';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -78,6 +78,7 @@ const spriteEditorStatus = document.querySelector('#sprite-editor-status');
 const spritePreviewRotation = document.querySelector('#sprite-preview-rotation');
 const spritePreviewRotationLabel = document.querySelector('#sprite-preview-rotation-label');
 const spritePreviewPlayer = document.querySelector('#sprite-preview-player');
+const spritePreviewTrueSize = document.querySelector('#sprite-preview-true-size');
 const spriteEditorSnap = document.querySelector('#sprite-editor-snap');
 const spriteEditorSymmetry = document.querySelector('#sprite-editor-symmetry');
 const spriteEditorScale = document.querySelector('#sprite-editor-scale');
@@ -89,8 +90,17 @@ const spriteEditorImportFile = document.querySelector('#sprite-editor-import-fil
 const spriteWeaponTools = document.querySelector('#sprite-weapon-tools');
 const spriteWeaponMarkerInfo = document.querySelector('#sprite-weapon-marker-info');
 const spriteWeaponTestControls = document.querySelector('#sprite-weapon-test-controls');
+const spriteBossTools = document.querySelector('#sprite-boss-tools');
+const spriteBossMarkerName = document.querySelector('#sprite-boss-marker-name');
+const spriteBossMarkerInfo = document.querySelector('#sprite-boss-marker-info');
+const spriteHitboxName = document.querySelector('#sprite-hitbox-name');
+const spriteHitboxType = document.querySelector('#sprite-hitbox-type');
+const spriteHitboxSizeX = document.querySelector('#sprite-hitbox-size-x');
+const spriteHitboxSizeY = document.querySelector('#sprite-hitbox-size-y');
+const spriteHitboxList = document.querySelector('#sprite-hitbox-list');
 const spriteAnimationPanel = document.querySelector('#sprite-animation-panel');
 const spriteAnimationClip = document.querySelector('#sprite-animation-clip');
+const spriteAnimationClipName = document.querySelector('#sprite-animation-clip-name');
 const spriteAnimationProperty = document.querySelector('#sprite-animation-property');
 const spriteAnimationEasing = document.querySelector('#sprite-animation-easing');
 const spriteAnimationValue = document.querySelector('#sprite-animation-value');
@@ -268,6 +278,7 @@ const spriteEditor =
     rotationInput: spritePreviewRotation,
     rotationLabel: spritePreviewRotationLabel,
     showPlayerInput: spritePreviewPlayer,
+    trueSizeInput: spritePreviewTrueSize,
     spinInput: spritePreviewSpin,
     glowInput: spritePreviewGlow,
     glowStrengthInput: spritePreviewGlowStrength,
@@ -279,8 +290,17 @@ const spriteEditor =
     weaponToolsRoot: spriteWeaponTools,
     weaponMarkerInfo: spriteWeaponMarkerInfo,
     weaponTestControls: spriteWeaponTestControls,
+    bossToolsRoot: spriteBossTools,
+    bossMarkerNameInput: spriteBossMarkerName,
+    bossMarkerInfo: spriteBossMarkerInfo,
+    hitboxNameInput: spriteHitboxName,
+    hitboxTypeInput: spriteHitboxType,
+    hitboxSizeXInput: spriteHitboxSizeX,
+    hitboxSizeYInput: spriteHitboxSizeY,
+    hitboxListRoot: spriteHitboxList,
     animationPanelRoot: spriteAnimationPanel,
     animationClipInput: spriteAnimationClip,
+    animationClipNameInput: spriteAnimationClipName,
     animationPropertyInput: spriteAnimationProperty,
     animationEasingInput: spriteAnimationEasing,
     animationValueInput: spriteAnimationValue,

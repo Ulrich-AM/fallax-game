@@ -1,13 +1,13 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=55';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
 import {
   evaluateAnimation,
   applyAnimationPose,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 import {
   PlayerController,
 } from './PlayerController.js?v=49';
@@ -91,11 +91,12 @@ export class WeaponTestRoom {
     this.animationLastTime = 0;
     this.movementAccumulator = 0;
     this.movementStep = 1 / 120;
-    this.clipButtons = [
-      ...this.root.querySelectorAll(
-        '[data-test-clip]',
-      ),
-    ];
+    this.clipButtonsRoot =
+      this.root.querySelector(
+        '.weapon-test-animation-buttons',
+      );
+
+    this.clipButtons = [];
 
     this.canvas.addEventListener(
       'pointermove',
@@ -126,20 +127,6 @@ export class WeaponTestRoom {
       'click',
       () => this.close(),
     );
-
-    for (
-      const button
-      of this.clipButtons
-    ) {
-      button.addEventListener(
-        'click',
-        () => {
-          this.setClip(
-            button.dataset.testClip,
-          );
-        },
-      );
-    }
 
     this.root.addEventListener(
       'keydown',
@@ -264,11 +251,26 @@ export class WeaponTestRoom {
     this.pressed.clear();
     this.released.clear();
     this.player.reset();
-    this.currentClipName = 'idle';
+
+    const clipNames =
+      Object.keys(
+        this.asset.animations?.clips ??
+        {},
+      );
+
+    this.currentClipName =
+      clipNames.includes('idle')
+        ? 'idle'
+        : (
+            clipNames[0] ??
+            'idle'
+          );
+
     this.animationTime = 0;
     this.animationLastTime =
       performance.now();
     this.movementAccumulator = 0;
+    this.rebuildClipButtons();
     this.updateClipButtons();
 
     this.pointerX =
@@ -407,8 +409,8 @@ export class WeaponTestRoom {
 
   setClip(name) {
     if (
-      !['idle', 'fire', 'special']
-        .includes(name)
+      !this.asset?.animations
+        ?.clips?.[name]
     ) {
       return;
     }
@@ -419,6 +421,47 @@ export class WeaponTestRoom {
       performance.now();
     this.rasterCache.clear();
     this.updateClipButtons();
+  }
+
+  rebuildClipButtons() {
+    if (!this.clipButtonsRoot) {
+      return;
+    }
+
+    this.clipButtonsRoot.innerHTML =
+      '';
+
+    const names =
+      Object.keys(
+        this.asset?.animations
+          ?.clips ?? {},
+      );
+
+    this.clipButtons = [];
+
+    for (const name of names) {
+      const button =
+        document.createElement(
+          'button',
+        );
+
+      button.dataset.testClip =
+        name;
+
+      button.textContent = name;
+
+      button.addEventListener(
+        'click',
+        () => this.setClip(name),
+      );
+
+      this.clipButtonsRoot
+        .appendChild(button);
+
+      this.clipButtons.push(
+        button,
+      );
+    }
   }
 
   updateClipButtons() {
@@ -450,8 +493,7 @@ export class WeaponTestRoom {
     this.animationTime += dt;
 
     if (
-      this.currentClipName ===
-        'idle' &&
+      clip.loop &&
       clip.duration > 0
     ) {
       this.animationTime %=
@@ -465,7 +507,9 @@ export class WeaponTestRoom {
     ) {
       if (
         this.currentClipName !==
-        'idle'
+          'idle' &&
+        this.asset?.animations
+          ?.clips?.idle
       ) {
         this.setClip('idle');
       } else {

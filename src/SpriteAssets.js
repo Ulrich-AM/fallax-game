@@ -6,7 +6,7 @@ import {
 import {
   createDefaultAnimations,
   normalizeAnimations,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 
 export const SPRITE_ASSET_VERSION = 2;
 export const SPRITE_DRAFT_STORAGE_KEY = 'bossfights.sprite-drafts.v1';
@@ -147,6 +147,55 @@ function normalizeMarker(marker) {
   };
 }
 
+function normalizeHitbox(hitbox, index) {
+  const source =
+    hitbox &&
+    typeof hitbox === 'object'
+      ? hitbox
+      : {};
+
+  const type =
+    source.type === 'rect'
+      ? 'rect'
+      : 'circle';
+
+  const normalized = {
+    id: sanitizeName(
+      source.id,
+      `hitbox-${index + 1}`,
+    ),
+    name:
+      String(
+        source.name ??
+        source.id ??
+        `hitbox ${index + 1}`,
+      ).trim() ||
+      `hitbox ${index + 1}`,
+    type,
+    x: finite(Number(source.x), 0),
+    y: finite(Number(source.y), 0),
+  };
+
+  if (type === 'rect') {
+    normalized.width = Math.max(
+      0.25,
+      finite(Number(source.width), 8),
+    );
+
+    normalized.height = Math.max(
+      0.25,
+      finite(Number(source.height), 8),
+    );
+  } else {
+    normalized.radius = Math.max(
+      0.25,
+      finite(Number(source.radius), 8),
+    );
+  }
+
+  return normalized;
+}
+
 function normalizeGroup(groupValue, index) {
   const source =
     groupValue &&
@@ -269,6 +318,7 @@ export function createSpriteAsset({
     pivot: [0, 0],
     parts: [],
     groups: [],
+    hitboxes: [],
     animations:
       createDefaultAnimations(),
     markers: {},
@@ -324,6 +374,7 @@ export function normalizeSpriteAsset(input) {
     pivot: normalizePoint(input.pivot),
     parts: [],
     groups: [],
+    hitboxes: [],
     animations:
       normalizeAnimations(
         input.animations,
@@ -418,6 +469,36 @@ export function normalizeSpriteAsset(input) {
 
     ids.add(id);
     asset.parts.push(part);
+  }
+
+  const hitboxIds = new Set();
+  const hitboxes =
+    Array.isArray(input.hitboxes)
+      ? input.hitboxes
+      : [];
+
+  for (
+    let i = 0;
+    i < hitboxes.length;
+    i++
+  ) {
+    const hitbox =
+      normalizeHitbox(
+        hitboxes[i],
+        i,
+      );
+
+    let id = hitbox.id;
+    let suffix = 2;
+
+    while (hitboxIds.has(id)) {
+      id =
+        `${hitbox.id}-${suffix++}`;
+    }
+
+    hitbox.id = id;
+    hitboxIds.add(id);
+    asset.hitboxes.push(hitbox);
   }
 
   if (
@@ -564,11 +645,42 @@ export function compileSpriteAsset(input) {
     };
   }
 
+  const hitboxes =
+    (asset.hitboxes ?? [])
+      .map(hitbox => {
+        const base = {
+          ...deepClone(hitbox),
+          x:
+            (hitbox.x - pivot[0]) *
+            scale,
+          y:
+            (hitbox.y - pivot[1]) *
+            scale,
+        };
+
+        if (hitbox.type === 'rect') {
+          base.width =
+            hitbox.width *
+            scale;
+
+          base.height =
+            hitbox.height *
+            scale;
+        } else {
+          base.radius =
+            hitbox.radius *
+            scale;
+        }
+
+        return base;
+      });
+
   return {
     asset,
     shape,
     glowParts,
     markers,
+    hitboxes,
     scale,
   };
 }

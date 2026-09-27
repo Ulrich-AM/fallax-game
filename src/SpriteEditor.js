@@ -6,7 +6,7 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=55';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
@@ -15,7 +15,7 @@ import {
   evaluateAnimation,
   applyAnimationPose,
   upsertKeyframe,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -98,6 +98,7 @@ export class SpriteEditor {
     rotationInput,
     rotationLabel,
     showPlayerInput,
+    trueSizeInput,
     spinInput,
     glowInput,
     glowStrengthInput,
@@ -109,8 +110,17 @@ export class SpriteEditor {
     weaponToolsRoot,
     weaponMarkerInfo,
     weaponTestControls,
+    bossToolsRoot,
+    bossMarkerNameInput,
+    bossMarkerInfo,
+    hitboxNameInput,
+    hitboxTypeInput,
+    hitboxSizeXInput,
+    hitboxSizeYInput,
+    hitboxListRoot,
     animationPanelRoot,
     animationClipInput,
+    animationClipNameInput,
     animationPropertyInput,
     animationEasingInput,
     animationValueInput,
@@ -149,6 +159,8 @@ export class SpriteEditor {
       rotationLabel;
     this.showPlayerInput =
       showPlayerInput;
+    this.trueSizeInput =
+      trueSizeInput;
     this.spinInput =
       spinInput;
     this.glowInput =
@@ -170,10 +182,28 @@ export class SpriteEditor {
       weaponMarkerInfo;
     this.weaponTestControls =
       weaponTestControls;
+    this.bossToolsRoot =
+      bossToolsRoot;
+    this.bossMarkerNameInput =
+      bossMarkerNameInput;
+    this.bossMarkerInfo =
+      bossMarkerInfo;
+    this.hitboxNameInput =
+      hitboxNameInput;
+    this.hitboxTypeInput =
+      hitboxTypeInput;
+    this.hitboxSizeXInput =
+      hitboxSizeXInput;
+    this.hitboxSizeYInput =
+      hitboxSizeYInput;
+    this.hitboxListRoot =
+      hitboxListRoot;
     this.animationPanelRoot =
       animationPanelRoot;
     this.animationClipInput =
       animationClipInput;
+    this.animationClipNameInput =
+      animationClipNameInput;
     this.animationPropertyInput =
       animationPropertyInput;
     this.animationEasingInput =
@@ -238,6 +268,7 @@ export class SpriteEditor {
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
 
     this.buildMaterialButtons();
     this.bindUi();
@@ -293,6 +324,11 @@ export class SpriteEditor {
     );
 
     this.showPlayerInput?.addEventListener(
+      'change',
+      () => this.renderPreview(),
+    );
+
+    this.trueSizeInput?.addEventListener(
       'change',
       () => this.renderPreview(),
     );
@@ -382,6 +418,27 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-tool="group-pivot"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('group-pivot'),
+    );
+
+    this.root.querySelector(
+      '[data-editor-tool="marker"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('marker'),
+    );
+
+    this.root.querySelector(
+      '[data-editor-tool="hitbox"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('hitbox'),
+    );
+
+    this.root.querySelector(
       '[data-editor-action="save"]',
     )?.addEventListener(
       'click',
@@ -457,11 +514,17 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-action="mirror-selected"]',
+    )?.addEventListener(
+      'click',
+      () => this.mirrorSelected(),
+    );
+
+    this.root.querySelector(
       '[data-editor-action="anim-play"]',
     )?.addEventListener(
       'click',
       () => {
-        if (!this.isWeaponMode()) return;
         this.animationPlaying =
           !this.animationPlaying;
         this.previewLastTime =
@@ -477,11 +540,57 @@ export class SpriteEditor {
       () => this.addAnimationKeyframe(),
     );
 
+    this.root.querySelector(
+      '[data-editor-action="anim-new"]',
+    )?.addEventListener(
+      'click',
+      () => this.createAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-rename"]',
+    )?.addEventListener(
+      'click',
+      () => this.renameAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="anim-delete"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteAnimationClip(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="delete-marker"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteBossMarker(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="delete-hitbox"]',
+    )?.addEventListener(
+      'click',
+      () => this.deleteBossHitbox(),
+    );
+
+    this.hitboxTypeInput?.addEventListener(
+      'change',
+      () => this.syncBossToolUi(),
+    );
+
     this.animationClipInput?.addEventListener(
       'change',
       () => {
         this.currentClipName =
           this.animationClipInput.value;
+
+        if (this.animationClipNameInput) {
+          this.animationClipNameInput.value =
+            this.currentClipName;
+        }
+
         this.animationTime = 0;
         this.animationPlaying = false;
         this.syncAnimationUi();
@@ -791,6 +900,7 @@ export class SpriteEditor {
     this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
 
     if (
       this.asset.type === 'weapon' &&
@@ -990,6 +1100,7 @@ export class SpriteEditor {
     this.selectedPartIds.clear();
     this.animationTime = 0;
     this.animationPlaying = false;
+    this.selectedHitboxId = null;
     this.draftPoints = [];
 
     this.nameInput.value =
@@ -1043,8 +1154,7 @@ export class SpriteEditor {
       let previewDirty = false;
 
       if (
-        this.animationPlaying &&
-        this.isWeaponMode()
+        this.animationPlaying
       ) {
         const clip =
           this.currentAnimationClip();
@@ -1111,9 +1221,39 @@ export class SpriteEditor {
     );
   }
 
+  isBossMode() {
+    return (
+      this.typeSelect?.value ===
+        'boss' ||
+      this.asset.type === 'boss'
+    );
+  }
+
+  sanitizeEditorName(
+    value,
+    fallback = 'item',
+  ) {
+    const cleaned =
+      String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9-_ ]+/g,
+          '',
+        )
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    return cleaned || fallback;
+  }
+
   updateModeUi() {
     const weapon =
       this.isWeaponMode();
+
+    const boss =
+      this.isBossMode();
 
     this.weaponToolsRoot
       ?.classList.toggle(
@@ -1127,10 +1267,17 @@ export class SpriteEditor {
         !weapon,
       );
 
-    this.animationPanelRoot
+    this.bossToolsRoot
       ?.classList.toggle(
         'hidden',
-        !weapon,
+        !boss,
+      );
+
+    // Animation clips are useful for every sprite type. Bosses especially
+    // need arbitrary named clips that can later be bound to attacks.
+    this.animationPanelRoot
+      ?.classList.remove(
+        'hidden',
       );
 
     this.root?.classList.toggle(
@@ -1138,7 +1285,13 @@ export class SpriteEditor {
       weapon,
     );
 
+    this.root?.classList.toggle(
+      'boss-editor-mode',
+      boss,
+    );
+
     this.updateWeaponMarkerInfo();
+    this.syncBossToolUi();
     this.syncAnimationUi();
   }
 
@@ -1165,6 +1318,168 @@ export class SpriteEditor {
           ? `<span>muzzle: ${format(muzzle.x)}, ${format(muzzle.y)}</span>`
           : '<span>muzzle: not set</span>'
       );
+  }
+
+  syncBossToolUi() {
+    if (
+      this.hitboxSizeYInput
+    ) {
+      this.hitboxSizeYInput.disabled =
+        this.hitboxTypeInput?.value !==
+        'rect';
+    }
+
+    this.updateBossMarkerInfo();
+    this.renderHitboxList();
+  }
+
+  updateBossMarkerInfo() {
+    if (!this.bossMarkerInfo) {
+      return;
+    }
+
+    const entries =
+      Object.entries(
+        this.asset.markers ?? {},
+      );
+
+    if (!entries.length) {
+      this.bossMarkerInfo.innerHTML =
+        '<span>no boss markers</span>';
+      return;
+    }
+
+    const format = value =>
+      Number(value)
+        .toFixed(2)
+        .replace(/\.00$/, '');
+
+    this.bossMarkerInfo.innerHTML =
+      entries
+        .map(
+          ([name, marker]) =>
+            `<span>${name}: ${format(marker.x)}, ${format(marker.y)}</span>`,
+        )
+        .join('');
+  }
+
+  renderHitboxList() {
+    if (!this.hitboxListRoot) {
+      return;
+    }
+
+    const hitboxes =
+      this.asset.hitboxes ?? [];
+
+    if (!hitboxes.length) {
+      this.hitboxListRoot.innerHTML =
+        '<span>no hitboxes</span>';
+      return;
+    }
+
+    this.hitboxListRoot.innerHTML =
+      hitboxes
+        .map(hitbox => {
+          const size =
+            hitbox.type === 'rect'
+              ? `${hitbox.width}×${hitbox.height}`
+              : `r${hitbox.radius}`;
+
+          return (
+            `<span>${hitbox.name || hitbox.id}: ${hitbox.type} ${size} @ ${hitbox.x}, ${hitbox.y}</span>`
+          );
+        })
+        .join('');
+  }
+
+  deleteBossMarker() {
+    if (!this.isBossMode()) return;
+
+    const name =
+      this.sanitizeEditorName(
+        this.bossMarkerNameInput
+          ?.value,
+        'core',
+      );
+
+    if (
+      !this.asset.markers?.[name]
+    ) {
+      this.setStatus(
+        `Marker "${name}" does not exist.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+    delete this.asset.markers[name];
+
+    this.setStatus(
+      `Deleted marker "${name}".`,
+    );
+
+    this.renderAll();
+  }
+
+  deleteBossHitbox() {
+    if (!this.isBossMode()) return;
+
+    const name =
+      this.sanitizeEditorName(
+        this.hitboxNameInput?.value,
+        'body',
+      );
+
+    const before =
+      this.asset.hitboxes?.length ?? 0;
+
+    const remaining =
+      (this.asset.hitboxes ?? [])
+        .filter(
+          hitbox =>
+            hitbox.id !== name &&
+            hitbox.name !== name,
+        );
+
+    if (
+      remaining.length ===
+      before
+    ) {
+      this.setStatus(
+        `Hitbox "${name}" does not exist.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+    this.asset.hitboxes =
+      remaining;
+
+    this.setStatus(
+      `Deleted hitbox "${name}".`,
+    );
+
+    this.renderAll();
+  }
+
+  currentSelectedGroup() {
+    const target =
+      this.currentAnimationTarget();
+
+    if (
+      target?.targetType !==
+      'group'
+    ) {
+      return null;
+    }
+
+    return this.getGroup(
+      target.targetId,
+    );
   }
 
   drawWeaponConstructionGuide(ctx) {
@@ -1308,13 +1623,140 @@ export class SpriteEditor {
     ctx.restore();
   }
 
-  setTool(tool) {
-    if (
-      tool !== 'select' &&
-      tool !== 'polygon' &&
-      tool !== 'pivot' &&
-      tool !== 'muzzle'
+  drawBossConstructionGuide(ctx) {
+    if (!this.isBossMode()) {
+      return;
+    }
+
+    ctx.save();
+    ctx.font =
+      "10px 'Pixel Arial 11', Arial, sans-serif";
+
+    for (
+      const group
+      of this.asset.groups ?? []
     ) {
+      const [gx, gy] =
+        this.worldToScreen(
+          group.pivot ?? [0, 0],
+        );
+
+      ctx.strokeStyle = '#75b7ff';
+      ctx.fillStyle = '#75b7ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(
+        gx,
+        gy,
+        6,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+
+      ctx.fillText(
+        group.id,
+        gx + 9,
+        gy - 7,
+      );
+    }
+
+    for (
+      const [name, marker]
+      of Object.entries(
+        this.asset.markers ?? {},
+      )
+    ) {
+      const [mx, my] =
+        this.worldToScreen([
+          marker.x,
+          marker.y,
+        ]);
+
+      ctx.strokeStyle = '#ffd66b';
+      ctx.fillStyle = '#ffd66b';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(mx - 6, my);
+      ctx.lineTo(mx + 6, my);
+      ctx.moveTo(mx, my - 6);
+      ctx.lineTo(mx, my + 6);
+      ctx.stroke();
+
+      ctx.fillText(
+        name,
+        mx + 8,
+        my - 8,
+      );
+    }
+
+    ctx.setLineDash([7, 5]);
+    ctx.strokeStyle = '#ff78d7';
+    ctx.fillStyle = '#ff78d7';
+
+    for (
+      const hitbox
+      of this.asset.hitboxes ?? []
+    ) {
+      const [hx, hy] =
+        this.worldToScreen([
+          hitbox.x,
+          hitbox.y,
+        ]);
+
+      if (hitbox.type === 'rect') {
+        const w =
+          hitbox.width *
+          this.zoom;
+
+        const h =
+          hitbox.height *
+          this.zoom;
+
+        ctx.strokeRect(
+          hx - w / 2,
+          hy - h / 2,
+          w,
+          h,
+        );
+      } else {
+        ctx.beginPath();
+        ctx.arc(
+          hx,
+          hy,
+          hitbox.radius *
+            this.zoom,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+
+      ctx.fillText(
+        hitbox.name ||
+          hitbox.id,
+        hx + 8,
+        hy + 12,
+      );
+    }
+
+    ctx.restore();
+  }
+
+  setTool(tool) {
+    const allowed =
+      new Set([
+        'select',
+        'polygon',
+        'pivot',
+        'muzzle',
+        'group-pivot',
+        'marker',
+        'hitbox',
+      ]);
+
+    if (!allowed.has(tool)) {
       return;
     }
 
@@ -1325,6 +1767,27 @@ export class SpriteEditor {
       ) &&
       !this.isWeaponMode()
     ) {
+      return;
+    }
+
+    if (
+      (
+        tool === 'marker' ||
+        tool === 'hitbox'
+      ) &&
+      !this.isBossMode()
+    ) {
+      return;
+    }
+
+    if (
+      tool === 'group-pivot' &&
+      !this.currentSelectedGroup()
+    ) {
+      this.setStatus(
+        'Select one complete group before setting its pivot.',
+        true,
+      );
       return;
     }
 
@@ -1349,6 +1812,18 @@ export class SpriteEditor {
       );
     }
 
+    const markerName =
+      this.sanitizeEditorName(
+        this.bossMarkerNameInput?.value,
+        'core',
+      );
+
+    const hitboxName =
+      this.sanitizeEditorName(
+        this.hitboxNameInput?.value,
+        'body',
+      );
+
     const statusByTool = {
       polygon:
         'Polygon: click vertices, click the first point or press Enter to close, Esc to cancel.',
@@ -1356,6 +1831,12 @@ export class SpriteEditor {
         'Set pivot: click the weapon hand / rotation point.',
       muzzle:
         'Set muzzle: click where shots should originate.',
+      'group-pivot':
+        'Set group pivot: click the point this selected group should rotate around.',
+      marker:
+        `Place marker "${markerName}": click its boss-space position.`,
+      hitbox:
+        `Place hitbox "${hitboxName}": click its center. Reusing the name updates it.`,
       select:
         'Select: click a shape; drag vertices or the whole shape.',
     };
@@ -1621,18 +2102,337 @@ export class SpriteEditor {
     this.renderAll();
   }
 
+  mirrorSelected() {
+    const mode =
+      this.getSymmetryMode();
+
+    if (mode === 'off') {
+      this.setStatus(
+        'Choose vertical or horizontal symmetry before mirroring.',
+        true,
+      );
+      return;
+    }
+
+    const parts =
+      this.getSelectedParts();
+
+    if (!parts.length) {
+      this.setStatus(
+        'Select at least one part to mirror.',
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const created = [];
+
+    for (const part of parts) {
+      const copy = clone(part);
+      copy.id =
+        this.uniquePartId(
+          'mirror',
+        );
+
+      copy.name =
+        `${part.name || part.id} mirror`;
+
+      copy.groupId = null;
+
+      if (mode === 'vertical') {
+        copy.x = -copy.x;
+
+        if (
+          copy.type === 'polygon'
+        ) {
+          copy.points =
+            copy.points
+              .map(
+                ([x, y]) =>
+                  [-x, y],
+              )
+              .reverse();
+        }
+      } else {
+        copy.y = -copy.y;
+
+        if (
+          copy.type === 'polygon'
+        ) {
+          copy.points =
+            copy.points
+              .map(
+                ([x, y]) =>
+                  [x, -y],
+              )
+              .reverse();
+        }
+      }
+
+      copy.rotation =
+        -(copy.rotation ?? 0);
+
+      this.asset.parts.push(copy);
+      created.push(copy.id);
+    }
+
+    this.selectedPartIds =
+      new Set(created);
+
+    this.selectedPartId =
+      created[0] ?? null;
+
+    this.setStatus(
+      `Mirrored ${created.length} part${created.length === 1 ? '' : 's'} across the ${mode} axis.`,
+    );
+
+    this.renderAll();
+  }
+
   currentAnimationClip() {
     this.asset.animations =
       normalizeAnimations(
         this.asset.animations,
       );
 
+    const clips =
+      this.asset.animations.clips;
+
+    if (
+      !clips[
+        this.currentClipName
+      ]
+    ) {
+      const first =
+        Object.keys(clips)[0];
+
+      if (first) {
+        this.currentClipName =
+          first;
+      }
+    }
+
     return (
-      this.asset.animations
-        .clips[
-          this.currentClipName
-        ] ?? null
+      clips[
+        this.currentClipName
+      ] ?? null
     );
+  }
+
+  syncAnimationClipOptions() {
+    if (!this.animationClipInput) {
+      return;
+    }
+
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
+
+    const names =
+      Object.keys(
+        this.asset.animations.clips,
+      );
+
+    this.animationClipInput.innerHTML =
+      '';
+
+    for (const name of names) {
+      const option =
+        document.createElement(
+          'option',
+        );
+
+      option.value = name;
+      option.textContent = name;
+      this.animationClipInput
+        .appendChild(option);
+    }
+
+    if (
+      names.length &&
+      !names.includes(
+        this.currentClipName,
+      )
+    ) {
+      this.currentClipName =
+        names[0];
+    }
+
+    if (names.length) {
+      this.animationClipInput.value =
+        this.currentClipName;
+    }
+
+    if (
+      this.animationClipNameInput
+    ) {
+      this.animationClipNameInput.value =
+        this.currentClipName ??
+        '';
+    }
+  }
+
+  createAnimationClip() {
+    const requested =
+      this.animationClipNameInput
+        ?.value;
+
+    const name =
+      this.sanitizeEditorName(
+        requested,
+        `animation-${
+          Object.keys(
+            this.asset.animations
+              ?.clips ?? {},
+          ).length + 1
+        }`,
+      );
+
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
+
+    if (
+      this.asset.animations
+        .clips[name]
+    ) {
+      this.setStatus(
+        `Animation clip "${name}" already exists.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    this.asset.animations
+      .clips[name] = {
+        name,
+        duration: 1,
+        loop: false,
+        tracks: [],
+      };
+
+    this.currentClipName = name;
+    this.animationTime = 0;
+    this.animationPlaying = false;
+
+    this.setStatus(
+      `Created animation clip "${name}".`,
+    );
+
+    this.syncAnimationUi();
+    this.renderPreview();
+  }
+
+  renameAnimationClip() {
+    const clip =
+      this.currentAnimationClip();
+
+    if (!clip) return;
+
+    const nextName =
+      this.sanitizeEditorName(
+        this.animationClipNameInput
+          ?.value,
+        this.currentClipName,
+      );
+
+    if (
+      nextName ===
+      this.currentClipName
+    ) {
+      return;
+    }
+
+    if (
+      this.asset.animations
+        .clips[nextName]
+    ) {
+      this.setStatus(
+        `Animation clip "${nextName}" already exists.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const previous =
+      this.currentClipName;
+
+    delete this.asset.animations
+      .clips[previous];
+
+    clip.name = nextName;
+
+    this.asset.animations
+      .clips[nextName] = clip;
+
+    this.currentClipName =
+      nextName;
+
+    this.setStatus(
+      `Renamed "${previous}" to "${nextName}".`,
+    );
+
+    this.syncAnimationUi();
+  }
+
+  deleteAnimationClip() {
+    const clip =
+      this.currentAnimationClip();
+
+    if (!clip) return;
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const removed =
+      this.currentClipName;
+
+    delete this.asset.animations
+      .clips[removed];
+
+    let names =
+      Object.keys(
+        this.asset.animations.clips,
+      );
+
+    if (!names.length) {
+      const fallback =
+        'animation-1';
+
+      this.asset.animations
+        .clips[fallback] = {
+          name: fallback,
+          duration: 1,
+          loop: false,
+          tracks: [],
+        };
+
+      names = [fallback];
+    }
+
+    this.currentClipName =
+      names[0];
+
+    this.animationTime = 0;
+    this.animationPlaying = false;
+
+    this.setStatus(
+      `Deleted animation clip "${removed}".`,
+    );
+
+    this.syncAnimationUi();
+    this.renderPreview();
   }
 
   currentAnimationTarget() {
@@ -1734,9 +2534,7 @@ export class SpriteEditor {
   }
 
   syncAnimationUi() {
-    if (!this.isWeaponMode()) {
-      return;
-    }
+    this.syncAnimationClipOptions();
 
     const clip =
       this.currentAnimationClip();
@@ -1842,17 +2640,106 @@ export class SpriteEditor {
     }
 
     this.animationKeysRoot.innerHTML =
-      track.keyframes.map(
-        key =>
-          `<span>${key.time.toFixed(2)}s → ${key.value.toFixed(2)} · ${key.easing}</span>`,
-      ).join('');
+      '';
+
+    for (
+      const key
+      of track.keyframes
+    ) {
+      const row =
+        document.createElement(
+          'div',
+        );
+
+      row.className =
+        'sprite-animation-key-row';
+
+      const seek =
+        document.createElement(
+          'button',
+        );
+
+      seek.className =
+        'sprite-animation-key-seek';
+
+      seek.textContent =
+        `${key.time.toFixed(2)}s → ${key.value.toFixed(2)} · ${key.easing}`;
+
+      seek.addEventListener(
+        'click',
+        () => {
+          this.animationTime =
+            key.time;
+
+          this.animationPlaying =
+            false;
+
+          if (
+            this.animationValueInput
+          ) {
+            this.animationValueInput.value =
+              String(key.value);
+          }
+
+          this.syncAnimationUi();
+          this.renderPreview();
+        },
+      );
+
+      const remove =
+        document.createElement(
+          'button',
+        );
+
+      remove.className =
+        'sprite-animation-key-delete';
+
+      remove.textContent = '×';
+      remove.title =
+        'delete keyframe';
+
+      remove.addEventListener(
+        'click',
+        () => {
+          this.pushHistory();
+          this.future.length = 0;
+
+          track.keyframes =
+            track.keyframes.filter(
+              entry =>
+                entry !== key,
+            );
+
+          if (
+            !track.keyframes.length
+          ) {
+            clip.tracks =
+              clip.tracks.filter(
+                entry =>
+                  entry !== track,
+              );
+          }
+
+          this.setStatus(
+            `Deleted keyframe at ${key.time.toFixed(2)}s.`,
+          );
+
+          this.syncAnimationUi();
+          this.renderPreview();
+        },
+      );
+
+      row.append(
+        seek,
+        remove,
+      );
+
+      this.animationKeysRoot
+        .appendChild(row);
+    }
   }
 
   addAnimationKeyframe() {
-    if (!this.isWeaponMode()) {
-      return;
-    }
-
     const clip =
       this.currentAnimationClip();
 
@@ -1913,12 +2800,6 @@ export class SpriteEditor {
   getAnimationPreviewAsset() {
     const candidate =
       this.currentCandidate();
-
-    if (
-      !this.isWeaponMode()
-    ) {
-      return candidate;
-    }
 
     return applyAnimationPose(
       candidate,
@@ -2534,7 +3415,10 @@ export class SpriteEditor {
 
     if (
       this.tool === 'pivot' ||
-      this.tool === 'muzzle'
+      this.tool === 'muzzle' ||
+      this.tool === 'group-pivot' ||
+      this.tool === 'marker' ||
+      this.tool === 'hitbox'
     ) {
       this.pushHistory();
       this.future.length = 0;
@@ -2548,7 +3432,9 @@ export class SpriteEditor {
         this.setStatus(
           `Pivot set to ${world[0]}, ${world[1]}.`,
         );
-      } else {
+      } else if (
+        this.tool === 'muzzle'
+      ) {
         this.asset.markers = {
           ...(this.asset.markers ?? {}),
           muzzle: {
@@ -2561,10 +3447,137 @@ export class SpriteEditor {
         this.setStatus(
           `Muzzle set to ${world[0]}, ${world[1]}.`,
         );
+      } else if (
+        this.tool === 'group-pivot'
+      ) {
+        const group =
+          this.currentSelectedGroup();
+
+        if (!group) {
+          this.setStatus(
+            'Select one complete group before setting its pivot.',
+            true,
+          );
+        } else {
+          group.pivot = [
+            world[0],
+            world[1],
+          ];
+
+          this.setStatus(
+            `Group pivot "${group.id}" set to ${world[0]}, ${world[1]}.`,
+          );
+        }
+      } else if (
+        this.tool === 'marker'
+      ) {
+        const name =
+          this.sanitizeEditorName(
+            this.bossMarkerNameInput
+              ?.value,
+            'core',
+          );
+
+        this.asset.markers ??= {};
+
+        this.asset.markers[name] = {
+          x: world[0],
+          y: world[1],
+          rotation: 0,
+        };
+
+        if (
+          this.bossMarkerNameInput
+        ) {
+          this.bossMarkerNameInput.value =
+            name;
+        }
+
+        this.setStatus(
+          `Marker "${name}" set to ${world[0]}, ${world[1]}.`,
+        );
+      } else {
+        const name =
+          this.sanitizeEditorName(
+            this.hitboxNameInput?.value,
+            'body',
+          );
+
+        const type =
+          this.hitboxTypeInput?.value ===
+          'rect'
+            ? 'rect'
+            : 'circle';
+
+        const sizeX =
+          Math.max(
+            0.25,
+            Number(
+              this.hitboxSizeXInput
+                ?.value,
+            ) || 16,
+          );
+
+        const sizeY =
+          Math.max(
+            0.25,
+            Number(
+              this.hitboxSizeYInput
+                ?.value,
+            ) || sizeX,
+          );
+
+        this.asset.hitboxes ??= [];
+
+        const existing =
+          this.asset.hitboxes.find(
+            hitbox =>
+              hitbox.id === name ||
+              hitbox.name === name,
+          );
+
+        const next = {
+          id: name,
+          name,
+          type,
+          x: world[0],
+          y: world[1],
+        };
+
+        if (type === 'rect') {
+          next.width = sizeX;
+          next.height = sizeY;
+        } else {
+          next.radius = sizeX;
+        }
+
+        if (existing) {
+          Object.assign(
+            existing,
+            next,
+          );
+        } else {
+          this.asset.hitboxes.push(
+            next,
+          );
+        }
+
+        this.selectedHitboxId =
+          name;
+
+        if (this.hitboxNameInput) {
+          this.hitboxNameInput.value =
+            name;
+        }
+
+        this.setStatus(
+          `Hitbox "${name}" placed at ${world[0]}, ${world[1]}.`,
+        );
       }
 
       this.setTool('select');
       this.updateWeaponMarkerInfo();
+      this.syncBossToolUi();
       this.renderAll();
       event.preventDefault();
       return;
@@ -3260,6 +4273,10 @@ export class SpriteEditor {
       );
     }
 
+    this.drawBossConstructionGuide(
+      ctx,
+    );
+
     if (this.draftPoints.length) {
       const drawDraftPath = (
         points,
@@ -3582,14 +4599,19 @@ export class SpriteEditor {
         maxY - minY,
       );
 
+    const trueSize =
+      !!this.trueSizeInput?.checked;
+
     const fit =
-      Math.min(
-        1,
-        (w - padding * 2) /
-          naturalW,
-        (h - padding * 2) /
-          naturalH,
-      );
+      trueSize
+        ? 1
+        : Math.min(
+            1,
+            (w - padding * 2) /
+              naturalW,
+            (h - padding * 2) /
+              naturalH,
+          );
 
     const contentW =
       naturalW * fit;
@@ -3816,16 +4838,21 @@ export class SpriteEditor {
 
     ctx.restore();
 
-    if (fit < 0.999) {
+    if (
+      trueSize ||
+      fit < 0.999
+    ) {
       ctx.fillStyle = '#68717e';
       ctx.font =
         "10px 'Pixel Arial 11', Arial, sans-serif";
       ctx.textAlign = 'right';
 
       ctx.fillText(
-        `preview fit ${Math.round(
-          fit * 100,
-        )}%`,
+        trueSize
+          ? 'preview 1:1 game size'
+          : `preview fit ${Math.round(
+              fit * 100,
+            )}%`,
         w - 8,
         h - 8,
       );
@@ -3953,20 +4980,25 @@ export class SpriteEditor {
 
     const padding = 18;
 
+    const trueSize =
+      !!this.trueSizeInput?.checked;
+
     const fit =
-      Math.min(
-        1,
-        (w - padding * 2) /
-          Math.max(
+      trueSize
+        ? 1
+        : Math.min(
             1,
-            totalNaturalW,
-          ),
-        (h - padding * 2) /
-          Math.max(
-            1,
-            totalNaturalH,
-          ),
-      );
+            (w - padding * 2) /
+              Math.max(
+                1,
+                totalNaturalW,
+              ),
+            (h - padding * 2) /
+              Math.max(
+                1,
+                totalNaturalH,
+              ),
+          );
 
     const rasterScale =
       naturalGameScale * fit;
@@ -4092,6 +5124,126 @@ export class SpriteEditor {
       spriteH,
     );
 
+    if (
+      compiled.asset.type ===
+      'boss'
+    ) {
+      const pivotX =
+        spriteLeft -
+        baseBounds.minX *
+        rasterScale;
+
+      const pivotY =
+        spriteTop -
+        baseBounds.minY *
+        rasterScale;
+
+      ctx.save();
+      ctx.font =
+        "9px 'Pixel Arial 11', Arial, sans-serif";
+
+      for (
+        const [name, marker]
+        of Object.entries(
+          compiled.markers ?? {},
+        )
+      ) {
+        const [mx, my] =
+          rotatePoint(
+            marker.x,
+            marker.y,
+            angle,
+          );
+
+        const x =
+          pivotX +
+          mx * rasterScale;
+
+        const y =
+          pivotY +
+          my * rasterScale;
+
+        ctx.strokeStyle = '#ffd66b';
+        ctx.fillStyle = '#ffd66b';
+        ctx.beginPath();
+        ctx.moveTo(x - 5, y);
+        ctx.lineTo(x + 5, y);
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x, y + 5);
+        ctx.stroke();
+
+        ctx.fillText(
+          name,
+          x + 7,
+          y - 7,
+        );
+      }
+
+      ctx.strokeStyle = '#ff78d7';
+      ctx.fillStyle = '#ff78d7';
+      ctx.setLineDash([5, 4]);
+
+      for (
+        const hitbox
+        of compiled.hitboxes ?? []
+      ) {
+        const [hx, hy] =
+          rotatePoint(
+            hitbox.x,
+            hitbox.y,
+            angle,
+          );
+
+        const x =
+          pivotX +
+          hx * rasterScale;
+
+        const y =
+          pivotY +
+          hy * rasterScale;
+
+        if (
+          hitbox.type === 'rect'
+        ) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(
+            angle *
+            Math.PI /
+            180,
+          );
+
+          ctx.strokeRect(
+            -hitbox.width *
+              rasterScale /
+              2,
+            -hitbox.height *
+              rasterScale /
+              2,
+            hitbox.width *
+              rasterScale,
+            hitbox.height *
+              rasterScale,
+          );
+
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(
+            x,
+            y,
+            hitbox.radius *
+              rasterScale,
+            0,
+            Math.PI * 2,
+          );
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
     if (hasPlayer) {
       const playerY =
         centerY -
@@ -4147,9 +5299,11 @@ export class SpriteEditor {
       ctx.textAlign = 'right';
 
       ctx.fillText(
-        `preview fit ${Math.round(
-          fit * 100,
-        )}%`,
+        trueSize
+          ? 'preview 1:1 game size'
+          : `preview fit ${Math.round(
+              fit * 100,
+            )}%`,
         w - 8,
         h - 8,
       );
@@ -4158,6 +5312,7 @@ export class SpriteEditor {
 
   renderAll() {
     this.updateWeaponMarkerInfo();
+    this.syncBossToolUi();
     this.updateSelectionInspector();
     this.syncAnimationUi();
     this.renderMaterialState();
