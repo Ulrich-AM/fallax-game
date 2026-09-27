@@ -159,9 +159,17 @@ export class GameAudio {
   }
 
   setLoop(key, active) {
-    this.loopStates.set(key, !!active);
+    const next = !!active;
+    const previous =
+      this.loopStates.get(key) ?? false;
 
-    if (!active) {
+    // syncWeaponAudio runs from the fixed 120 Hz simulation. Avoid touching
+    // HTMLAudioElement state unless the requested loop state actually changed.
+    if (previous === next) return;
+
+    this.loopStates.set(key, next);
+
+    if (!next) {
       this.stopLoop(key);
       return;
     }
@@ -185,8 +193,20 @@ export class GameAudio {
   stopLoop(key) {
     const audio = this.loops[key];
     if (!audio) return;
-    audio.pause();
-    audio.currentTime = 0;
+
+    if (!audio.paused) {
+      audio.pause();
+    }
+
+    // Seeking a media element can trigger browser/media work. Only reset a
+    // loop when it has actually advanced instead of doing this every tick.
+    if (audio.currentTime > 0) {
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Ignore browsers that reject a seek before metadata is ready.
+      }
+    }
   }
 
   setSuspended(suspended) {
@@ -230,8 +250,7 @@ export class GameAudio {
 
   stopWeaponLoops() {
     for (const key of Object.keys(this.loops)) {
-      this.loopStates.set(key, false);
-      this.stopLoop(key);
+      this.setLoop(key, false);
     }
   }
 
