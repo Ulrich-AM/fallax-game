@@ -118,6 +118,30 @@
             <input id="setting-impact-camera" type="checkbox" />
           </label>
         </section>
+
+        <section class="equipment-panel settings-panel">
+          <div class="section-heading">
+            <h3>controls / hotkeys</h3>
+            <span>click a binding, then press a new key</span>
+          </div>
+
+          <div class="controls-grid">
+            <div class="control-row"><span>move left</span><button class="keybind-button" data-bind-action="moveLeft"></button></div>
+            <div class="control-row"><span>move right</span><button class="keybind-button" data-bind-action="moveRight"></button></div>
+            <div class="control-row"><span>jump</span><button class="keybind-button" data-bind-action="jump"></button></div>
+            <div class="control-row"><span>sprint</span><button class="keybind-button" data-bind-action="sprint"></button></div>
+            <div class="control-row"><span>dash</span><button class="keybind-button" data-bind-action="dash"></button></div>
+            <div class="control-row"><span>special</span><button class="keybind-button" data-bind-action="special"></button></div>
+            <div class="control-row"><span>weapon slot 1</span><button class="keybind-button" data-bind-action="weapon1"></button></div>
+            <div class="control-row"><span>weapon slot 2</span><button class="keybind-button" data-bind-action="weapon2"></button></div>
+            <div class="control-row"><span>restart fight</span><button class="keybind-button" data-bind-action="restart"></button></div>
+          </div>
+
+          <div class="controls-footer">
+            <span id="keybind-status">Esc stays reserved for menus. Fire stays on LMB.</span>
+            <button id="reset-keybinds" class="back-button controls-reset">reset defaults</button>
+          </div>
+        </section>
       </main>
     </section>
 
