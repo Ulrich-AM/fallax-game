@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fallax - boss rush</title>
-  <link rel="stylesheet" href="style.css?v=54d" />
+  <link rel="stylesheet" href="style.css?v=55" />
 </head>
 <body>
   <div id="app">
@@ -260,8 +260,10 @@
           <div class="sprite-tool-grid">
             <button data-editor-action="group">group selected</button>
             <button data-editor-action="ungroup">ungroup</button>
+            <button data-editor-tool="group-pivot">set group pivot</button>
+            <button data-editor-action="mirror-selected">mirror selected</button>
           </div>
-          <small>Shift-click shapes or layer rows to multi-select. Dragging one grouped part moves the whole group.</small>
+          <small>Each group has its own animation pivot. Select a complete group, then set its pivot. Mirror Selected uses the current symmetry axis.</small>
         </section>
 
         <section>
@@ -300,8 +302,68 @@
             <span>2. Set pivot where it should rotate on the player.</span>
             <span>3. Set muzzle at the barrel tip.</span>
             <span>4. Group moving pieces.</span>
-            <span>5. Add idle / fire / special keyframes.</span>
+            <span>5. Create named clips and add keyframes.</span>
             <span>6. Open the test room.</span>
+          </div>
+        </section>
+
+        <section id="sprite-boss-tools" class="hidden">
+          <h3>boss setup</h3>
+
+          <label class="sprite-select-row">
+            <span>marker name</span>
+            <input id="sprite-boss-marker-name" type="text" value="core" placeholder="core / weakpoint / hand..." />
+          </label>
+
+          <div class="sprite-tool-grid">
+            <button data-editor-tool="marker">place marker</button>
+            <button data-editor-action="delete-marker">delete marker</button>
+          </div>
+
+          <div id="sprite-boss-marker-info" class="sprite-marker-info">
+            <span>no boss markers</span>
+          </div>
+
+          <label class="sprite-select-row">
+            <span>hitbox</span>
+            <input id="sprite-hitbox-name" type="text" value="body" placeholder="body" />
+          </label>
+
+          <label class="sprite-select-row">
+            <span>shape</span>
+            <select id="sprite-hitbox-type">
+              <option value="circle">circle</option>
+              <option value="rect">rectangle</option>
+            </select>
+          </label>
+
+          <div class="sprite-transform-grid">
+            <label>
+              <span>size x / radius</span>
+              <input id="sprite-hitbox-size-x" type="number" min="0.25" step="0.25" value="16" />
+            </label>
+            <label>
+              <span>size y</span>
+              <input id="sprite-hitbox-size-y" type="number" min="0.25" step="0.25" value="16" />
+            </label>
+          </div>
+
+          <div class="sprite-tool-grid">
+            <button data-editor-tool="hitbox">place hitbox</button>
+            <button data-editor-action="delete-hitbox">delete last</button>
+          </div>
+
+          <div id="sprite-hitbox-list" class="sprite-marker-info">
+            <span>no hitboxes</span>
+          </div>
+
+          <div class="sprite-workflow">
+            <strong>boss workflow</strong>
+            <span>1. Group independently moving boss pieces.</span>
+            <span>2. Set each group pivot where that piece rotates.</span>
+            <span>3. Add named markers for cores, weakpoints, emitters, hands, etc.</span>
+            <span>4. Add one or more hitboxes.</span>
+            <span>5. Create named animation clips for attacks and phases.</span>
           </div>
         </section>
 
@@ -354,6 +416,11 @@
           </label>
 
           <label class="sprite-inline-check">
+            <input id="sprite-preview-true-size" type="checkbox" />
+            <span>true 1:1 game size (crop if needed)</span>
+          </label>
+
+          <label class="sprite-inline-check">
             <input id="sprite-preview-spin" type="checkbox" />
             <span>continuous spin</span>
           </label>
@@ -382,12 +449,19 @@
 
           <label class="sprite-select-row">
             <span>clip</span>
-            <select id="sprite-animation-clip">
-              <option value="idle">idle</option>
-              <option value="fire">fire</option>
-              <option value="special">special</option>
-            </select>
+            <select id="sprite-animation-clip"></select>
           </label>
+
+          <label class="sprite-select-row">
+            <span>clip name</span>
+            <input id="sprite-animation-clip-name" type="text" value="animation-1" placeholder="jaw-open / phase-2 / animation-1" />
+          </label>
+
+          <div class="sprite-tool-grid">
+            <button data-editor-action="anim-new">new clip</button>
+            <button data-editor-action="anim-rename">rename</button>
+            <button data-editor-action="anim-delete">delete</button>
+          </div>
 
           <label class="sprite-select-row">
             <span>property</span>
@@ -445,7 +519,7 @@
 
           <div id="sprite-animation-target" class="sprite-marker-info">
             <span>target: none</span>
-            <span>Choose a part/group, property, time, value, then add a key.</span>
+            <span>Choose a part/group, property, time, value, then add a key. Clip names are arbitrary and can be wired to attacks later.</span>
           </div>
 
           <div id="sprite-animation-keys" class="sprite-animation-keys">
@@ -532,6 +606,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=54d"></script>
+  <script type="module" src="src/main.js?v=55"></script>
 </body>
 </html>
