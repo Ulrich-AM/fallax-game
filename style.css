@@ -934,3 +934,23 @@ canvas {
   font-size: 10px;
   line-height: 1.45;
 }
+
+
+.sprite-select-row {
+  margin-top: 9px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  color: #aeb4bf;
+  font-size: 12px;
+}
+
+.sprite-select-row select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #343b46;
+  background: #111419;
+  color: #eef0f4;
+  padding: 0 7px;
+}
