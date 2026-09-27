@@ -227,6 +227,30 @@
         </section>
 
         <section>
+          <h3>selection</h3>
+          <div id="sprite-selection-summary" class="sprite-selection-summary">
+            nothing selected
+          </div>
+
+          <div class="sprite-transform-grid">
+            <label>
+              <span>x</span>
+              <input id="sprite-selection-x" type="number" step="0.25" disabled />
+            </label>
+            <label>
+              <span>y</span>
+              <input id="sprite-selection-y" type="number" step="0.25" disabled />
+            </label>
+            <label>
+              <span>rotation</span>
+              <input id="sprite-selection-rotation" type="number" step="1" disabled />
+            </label>
+          </div>
+
+          <small>Click a shape to inspect it. Shift-click to select several. Dragging any member of a group moves the whole group.</small>
+        </section>
+
+        <section>
           <h3>grouping</h3>
           <div class="sprite-tool-grid">
             <button data-editor-action="group">group selected</button>
@@ -264,7 +288,15 @@
             <span>pivot: 0, 0</span>
             <span>muzzle: not set</span>
           </div>
-          <small>draw facing right along the guide line. pivot is the rotation / hand point.</small>
+          <div class="sprite-workflow">
+            <strong>weapon workflow</strong>
+            <span>1. Draw the gun facing right.</span>
+            <span>2. Set pivot where it should rotate on the player.</span>
+            <span>3. Set muzzle at the barrel tip.</span>
+            <span>4. Group moving pieces.</span>
+            <span>5. Add idle / fire / special keyframes.</span>
+            <span>6. Open the test room.</span>
+          </div>
         </section>
 
         <section>
@@ -402,11 +434,12 @@
 
           <div class="sprite-tool-grid">
             <button data-editor-action="anim-play">play / pause</button>
-            <button data-editor-action="anim-key">key current</button>
+            <button data-editor-action="anim-key">add / update key</button>
           </div>
 
           <div id="sprite-animation-target" class="sprite-marker-info">
             <span>target: none</span>
+            <span>Choose a part/group, property, time, value, then add a key.</span>
           </div>
 
           <div id="sprite-animation-keys" class="sprite-animation-keys">
@@ -417,7 +450,7 @@
         <section id="sprite-weapon-test-controls" class="hidden">
           <h3>weapon test</h3>
           <button data-editor-action="test-weapon" class="sprite-wide-button">open blank room</button>
-          <small>move the mouse to rotate the weapon. firing is disabled.</small>
+          <small>Uses your normal movement hotkeys. LMB previews fire, special hotkey previews special, and dash targets the mouse.</small>
         </section>
 
         <section>
