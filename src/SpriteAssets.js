@@ -2,11 +2,11 @@ import {
   rectangle,
   polygon,
   group,
-} from './pixelShapes.js?v=46';
+} from './pixelShapes.js?v=47';
 import {
   createDefaultAnimations,
   normalizeAnimations,
-} from './SpriteAnimation.js?v=46';
+} from './SpriteAnimation.js?v=47';
 
 export const SPRITE_ASSET_VERSION = 2;
 export const SPRITE_DRAFT_STORAGE_KEY = 'bossfights.sprite-drafts.v1';
