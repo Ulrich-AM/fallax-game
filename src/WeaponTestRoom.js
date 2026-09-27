@@ -1,16 +1,16 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=48';
+} from './SpriteAssets.js?v=49';
 import {
   rasterize,
-} from './pixelShapes.js?v=48';
+} from './pixelShapes.js?v=49';
 import {
   evaluateAnimation,
   applyAnimationPose,
-} from './SpriteAnimation.js?v=48';
+} from './SpriteAnimation.js?v=49';
 import {
   PlayerController,
-} from './PlayerController.js?v=48';
+} from './PlayerController.js?v=49';
 
 function clamp(value, min, max) {
   return Math.max(
