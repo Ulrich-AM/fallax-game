@@ -5,16 +5,10 @@ function clamp(value, min, max) {
   );
 }
 
-function degToRad(value) {
-  return value * Math.PI / 180;
-}
-
 export class StrikeAbility {
   constructor() {
     this.name = 'Strike';
     this.damage = 55;
-    this.upwardTolerance =
-      degToRad(15);
 
     this.lastDashSerial = 0;
     this.hitSerial = 0;
@@ -27,26 +21,6 @@ export class StrikeAbility {
 
     this.hitSerial = 0;
     this.lastHit = null;
-  }
-
-  isUpwardDash(dash) {
-    if (!dash) return false;
-
-    const upwardDot =
-      clamp(
-        -dash.ny,
-        -1,
-        1,
-      );
-
-    const angle =
-      Math.acos(upwardDot);
-
-    return (
-      dash.ny < 0 &&
-      angle <=
-        this.upwardTolerance
-    );
   }
 
   closestPointOnDash(
@@ -125,10 +99,7 @@ export class StrikeAbility {
       !equipped ||
       !player.lastDash ||
       !target ||
-      target.dead ||
-      !this.isUpwardDash(
-        player.lastDash,
-      )
+      target.dead
     ) {
       return false;
     }
