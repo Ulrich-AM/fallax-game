@@ -6,16 +6,16 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=47';
+} from './SpriteAssets.js?v=48';
 import {
   rasterize,
-} from './pixelShapes.js?v=47';
+} from './pixelShapes.js?v=48';
 import {
   normalizeAnimations,
   evaluateAnimation,
   applyAnimationPose,
   upsertKeyframe,
-} from './SpriteAnimation.js?v=47';
+} from './SpriteAnimation.js?v=48';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -120,6 +120,10 @@ export class SpriteEditor {
     animationTimeLabel,
     animationTargetRoot,
     animationKeysRoot,
+    selectionSummary,
+    selectionXInput,
+    selectionYInput,
+    selectionRotationInput,
     store,
     onClose = null,
     onSaved = null,
@@ -188,6 +192,14 @@ export class SpriteEditor {
       animationTargetRoot;
     this.animationKeysRoot =
       animationKeysRoot;
+    this.selectionSummary =
+      selectionSummary;
+    this.selectionXInput =
+      selectionXInput;
+    this.selectionYInput =
+      selectionYInput;
+    this.selectionRotationInput =
+      selectionRotationInput;
 
     this.store = store;
     this.onClose = onClose;
@@ -516,6 +528,63 @@ export class SpriteEditor {
         this.syncAnimationUi();
         this.renderPreview();
       },
+    );
+
+    const bindSelectionTransform = (
+      input,
+      property,
+    ) => {
+      input?.addEventListener(
+        'change',
+        () => {
+          const parts =
+            this.getSelectedParts();
+
+          if (
+            parts.length !== 1
+          ) {
+            return;
+          }
+
+          const value =
+            Number(input.value);
+
+          if (!Number.isFinite(value)) {
+            this.updateSelectionInspector();
+            return;
+          }
+
+          this.pushHistory();
+          this.future.length = 0;
+
+          parts[0][property] = value;
+
+          if (
+            this.animationPropertyInput
+              ?.value === property
+          ) {
+            this.animationValueInput.value =
+              String(value);
+          }
+
+          this.renderAll();
+        },
+      );
+    };
+
+    bindSelectionTransform(
+      this.selectionXInput,
+      'x',
+    );
+
+    bindSelectionTransform(
+      this.selectionYInput,
+      'y',
+    );
+
+    bindSelectionTransform(
+      this.selectionRotationInput,
+      'rotation',
     );
 
     this.root.querySelector(
@@ -1830,6 +1899,84 @@ export class SpriteEditor {
         this.animationTime,
       ),
     );
+  }
+
+  updateSelectionInspector() {
+    const parts =
+      this.getSelectedParts();
+
+    if (!this.selectionSummary) {
+      return;
+    }
+
+    const inputs = [
+      this.selectionXInput,
+      this.selectionYInput,
+      this.selectionRotationInput,
+    ];
+
+    if (!parts.length) {
+      this.selectionSummary.textContent =
+        'nothing selected';
+
+      for (const input of inputs) {
+        if (!input) continue;
+        input.value = '';
+        input.disabled = true;
+      }
+
+      return;
+    }
+
+    if (parts.length > 1) {
+      const groupIds =
+        new Set(
+          parts
+            .map(part => part.groupId)
+            .filter(Boolean),
+        );
+
+      this.selectionSummary.textContent =
+        groupIds.size === 1
+          ? `${parts.length} parts selected · ${[...groupIds][0]}`
+          : `${parts.length} parts selected`;
+
+      for (const input of inputs) {
+        if (!input) continue;
+        input.value = '';
+        input.disabled = true;
+      }
+
+      return;
+    }
+
+    const part = parts[0];
+
+    this.selectionSummary.textContent =
+      part.groupId
+        ? `${part.name || part.id} · ${part.groupId}`
+        : part.name || part.id;
+
+    const values = [
+      [this.selectionXInput, part.x],
+      [this.selectionYInput, part.y],
+      [
+        this.selectionRotationInput,
+        part.rotation ?? 0,
+      ],
+    ];
+
+    for (
+      const [input, value]
+      of values
+    ) {
+      if (!input) continue;
+      input.disabled = false;
+      input.value =
+        String(
+          Number(value ?? 0),
+        );
+    }
   }
 
   uniquePartId(base = 'part') {
@@ -3302,11 +3449,31 @@ export class SpriteEditor {
     const hasPlayer =
       !!this.showPlayerInput?.checked;
 
+    const pivot =
+      compiled.asset.pivot ?? [0, 0];
+
+    const assetScale =
+      compiled.asset.scale ?? 1;
+
+    const playerCenterX =
+      -pivot[0] *
+      assetScale *
+      artPixel;
+
+    const playerCenterY =
+      -pivot[1] *
+      assetScale *
+      artPixel;
+
     const playerBounds = {
-      minX: -30,
-      minY: -18,
-      maxX: 2,
-      maxY: 38,
+      minX:
+        playerCenterX - 16,
+      minY:
+        playerCenterY - 28,
+      maxX:
+        playerCenterX + 16,
+      maxY:
+        playerCenterY + 28,
     };
 
     let minX =
@@ -3421,8 +3588,14 @@ export class SpriteEditor {
         originY +
           playerBounds.minY *
           fit,
-        32 * fit,
-        56 * fit,
+        (
+          playerBounds.maxX -
+          playerBounds.minX
+        ) * fit,
+        (
+          playerBounds.maxY -
+          playerBounds.minY
+        ) * fit,
       );
 
       ctx.strokeStyle =
@@ -3437,8 +3610,14 @@ export class SpriteEditor {
           playerBounds.minY *
           fit +
           0.5,
-        32 * fit,
-        56 * fit,
+        (
+          playerBounds.maxX -
+          playerBounds.minX
+        ) * fit,
+        (
+          playerBounds.maxY -
+          playerBounds.minY
+        ) * fit,
       );
 
       ctx.restore();
@@ -3950,6 +4129,7 @@ export class SpriteEditor {
 
   renderAll() {
     this.updateWeaponMarkerInfo();
+    this.updateSelectionInspector();
     this.syncAnimationUi();
     this.renderMaterialState();
     this.renderLayers();
