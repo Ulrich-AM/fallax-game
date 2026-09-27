@@ -1043,7 +1043,7 @@ export class WeaponTestRoom {
     ctx.save();
     ctx.fillStyle = '#7f8793';
     ctx.font =
-      '12px Arial, sans-serif';
+      "12px 'Pixel Arial 11', Arial, sans-serif";
     ctx.textAlign = 'left';
     const dashReady =
       this.player.dashReady;
