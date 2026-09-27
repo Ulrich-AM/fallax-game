@@ -2,6 +2,7 @@ const PATHS = {
   themeMainmenu: 'audio/theme-mainmenu.mp3',
   themePrologue: 'audio/theme-prologue.mp3',
   themeMatrix: 'audio/theme-matrix.mp3',
+  themeMonolith: 'audio/theme-monolith.mp3',
   vectorShoot: 'audio/gun-vectorshoot.mp3',
   machShoot: 'audio/gun-machshoot.mp3',
   horizonShoot: 'audio/gun-horizonshoot.mp3',
@@ -16,6 +17,7 @@ const VOLUMES = {
   themeMainmenu: 0.42,
   themePrologue: 0.46,
   themeMatrix: 0.46,
+  themeMonolith: 0.46,
   vectorShoot: 0.62,
   machShoot: 0.54,
   horizonShoot: 0.68,
@@ -86,6 +88,7 @@ export class GameAudio {
       mainmenu: makeAudio('themeMainmenu', true),
       prologue: makeAudio('themePrologue', true),
       matrix: makeAudio('themeMatrix', true),
+      monolith: makeAudio('themeMonolith', true),
     };
 
     this.loops = {

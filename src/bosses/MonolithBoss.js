@@ -398,6 +398,12 @@ export class MonolithBoss {
     this.armSpring = 18;
     this.armDamping = 7.5;
 
+    // Only the hammer on the player's side actively tracks. A center deadzone
+    // keeps the selected arm stable while the player passes underneath, and
+    // the angular spring handles the visual handoff without snapping.
+    this.activeArmSide = 'right';
+    this.armSwitchDeadzone = 52;
+
     this.hurtFlash = 0;
     this.fxEvents = [];
     this.shotSerial = 0;
@@ -482,6 +488,7 @@ export class MonolithBoss {
       this.rightArmNeutral;
     this.leftArmAngularVelocity = 0;
     this.rightArmAngularVelocity = 0;
+    this.activeArmSide = 'right';
 
     this.animationRasterCache.clear();
     this.fxEvents.length = 0;
@@ -624,19 +631,42 @@ export class MonolithBoss {
     dt,
     player,
   ) {
+    if (player) {
+      const relativeX =
+        player.x - this.x;
+
+      if (
+        relativeX <
+        -this.armSwitchDeadzone
+      ) {
+        this.activeArmSide =
+          'left';
+      } else if (
+        relativeX >
+        this.armSwitchDeadzone
+      ) {
+        this.activeArmSide =
+          'right';
+      }
+    }
+
     const leftTarget =
-      this.desiredArmAngle(
-        'group-3',
-        player,
-        this.leftArmNeutral,
-      );
+      this.activeArmSide === 'left'
+        ? this.desiredArmAngle(
+            'group-3',
+            player,
+            this.leftArmNeutral,
+          )
+        : this.leftArmNeutral;
 
     const rightTarget =
-      this.desiredArmAngle(
-        'group-4',
-        player,
-        this.rightArmNeutral,
-      );
+      this.activeArmSide === 'right'
+        ? this.desiredArmAngle(
+            'group-4',
+            player,
+            this.rightArmNeutral,
+          )
+        : this.rightArmNeutral;
 
     const left =
       this.springArmAngle(

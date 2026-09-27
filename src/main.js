@@ -26,8 +26,8 @@ import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=55b';
-import { GameAudio } from './AudioManager.js?v=54';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=55ba';
+import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
 import { WeaponTestRoom } from './WeaponTestRoom.js?v=55';
@@ -43,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55b';
+const BUILD_VERSION = 'v55ba';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -1302,10 +1302,9 @@ function showScreen(name) {
   currentScreen = name;
 
   if (name === 'game') {
-    if (
-      activeBoss === matrixBoss ||
-      activeBoss === monolithBoss
-    ) {
+    if (activeBoss === monolithBoss) {
+      audio.setTheme('monolith');
+    } else if (activeBoss === matrixBoss) {
       audio.setTheme('matrix');
     } else {
       audio.setTheme('prologue');
@@ -1346,8 +1345,13 @@ settingsBack.addEventListener('click', () => showScreen('menu'));
 chapterBack.addEventListener('click', () => showScreen('menu'));
 
 deathRestart.addEventListener('click', () => {
-  if (activeBoss === matrixBoss) startMatrix();
-  else startPrologue();
+  if (activeBoss === monolithBoss) {
+    startMonolith();
+  } else if (activeBoss === matrixBoss) {
+    startMatrix();
+  } else {
+    startPrologue();
+  }
 });
 deathMenuButton.addEventListener('click', () => {
   encounterOver = false;
