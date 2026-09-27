@@ -227,12 +227,22 @@
         </section>
 
         <section>
-          <h3>grid</h3>
+          <h3>grid / symmetry</h3>
           <label class="sprite-inline-check">
             <input id="sprite-editor-snap" type="checkbox" checked />
             <span>snap to art pixels</span>
           </label>
-          <small>mouse wheel: zoom<br />middle/right drag: pan</small>
+
+          <label class="sprite-select-row">
+            <span>symmetry</span>
+            <select id="sprite-editor-symmetry">
+              <option value="off">off</option>
+              <option value="vertical">vertical</option>
+              <option value="horizontal">horizontal</option>
+            </select>
+          </label>
+
+          <small>symmetry mirrors new polygons across the sprite origin<br />mouse wheel: zoom<br />middle/right drag: pan</small>
         </section>
 
         <section>
