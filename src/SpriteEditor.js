@@ -6,16 +6,16 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=46';
+} from './SpriteAssets.js?v=47';
 import {
   rasterize,
-} from './pixelShapes.js?v=46';
+} from './pixelShapes.js?v=47';
 import {
   normalizeAnimations,
   evaluateAnimation,
   applyAnimationPose,
   upsertKeyframe,
-} from './SpriteAnimation.js?v=46';
+} from './SpriteAnimation.js?v=47';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -1102,9 +1102,12 @@ export class SpriteEditor {
     const playerHeight =
       14 / scale;
 
+    // The player reference is anchored at the sprite-space origin.
+    // The editable weapon pivot starts at this exact center, but can be moved
+    // independently (for example upward toward a shoulder/hand mount).
     const playerCenter = [
-      pivot[0] - 4 / scale,
-      pivot[1] + 3.5 / scale,
+      0,
+      0,
     ];
 
     const [
