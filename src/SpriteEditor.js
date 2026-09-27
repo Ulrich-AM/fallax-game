@@ -182,6 +182,11 @@ export class SpriteEditor {
       { passive: false },
     );
 
+    this.canvas.addEventListener(
+      'contextmenu',
+      event => event.preventDefault(),
+    );
+
     this.root.addEventListener(
       'keydown',
       event => this.onKeyDown(event),
