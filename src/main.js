@@ -23,16 +23,16 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=44';
-import { DeveloperConsole } from './DeveloperConsole.js?v=44';
-import { SpriteEditor } from './SpriteEditor.js?v=44';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=44';
+import { GameAudio } from './AudioManager.js?v=45';
+import { DeveloperConsole } from './DeveloperConsole.js?v=45';
+import { SpriteEditor } from './SpriteEditor.js?v=45';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=45';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=44';
+} from './SpriteAssets.js?v=45';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -79,6 +79,17 @@ const spriteEditorImportFile = document.querySelector('#sprite-editor-import-fil
 const spriteWeaponTools = document.querySelector('#sprite-weapon-tools');
 const spriteWeaponMarkerInfo = document.querySelector('#sprite-weapon-marker-info');
 const spriteWeaponTestControls = document.querySelector('#sprite-weapon-test-controls');
+const spriteAnimationPanel = document.querySelector('#sprite-animation-panel');
+const spriteAnimationClip = document.querySelector('#sprite-animation-clip');
+const spriteAnimationProperty = document.querySelector('#sprite-animation-property');
+const spriteAnimationEasing = document.querySelector('#sprite-animation-easing');
+const spriteAnimationValue = document.querySelector('#sprite-animation-value');
+const spriteAnimationDuration = document.querySelector('#sprite-animation-duration');
+const spriteAnimationLoop = document.querySelector('#sprite-animation-loop');
+const spriteAnimationTime = document.querySelector('#sprite-animation-time');
+const spriteAnimationTimeLabel = document.querySelector('#sprite-animation-time-label');
+const spriteAnimationTarget = document.querySelector('#sprite-animation-target');
+const spriteAnimationKeys = document.querySelector('#sprite-animation-keys');
 const weaponTestRoot = document.querySelector('#weapon-test-room');
 const weaponTestCanvas = document.querySelector('#weapon-test-canvas');
 const weaponTestAngle = document.querySelector('#weapon-test-angle');
@@ -226,6 +237,17 @@ const spriteEditor =
     weaponToolsRoot: spriteWeaponTools,
     weaponMarkerInfo: spriteWeaponMarkerInfo,
     weaponTestControls: spriteWeaponTestControls,
+    animationPanelRoot: spriteAnimationPanel,
+    animationClipInput: spriteAnimationClip,
+    animationPropertyInput: spriteAnimationProperty,
+    animationEasingInput: spriteAnimationEasing,
+    animationValueInput: spriteAnimationValue,
+    animationDurationInput: spriteAnimationDuration,
+    animationLoopInput: spriteAnimationLoop,
+    animationTimeInput: spriteAnimationTime,
+    animationTimeLabel: spriteAnimationTimeLabel,
+    animationTargetRoot: spriteAnimationTarget,
+    animationKeysRoot: spriteAnimationKeys,
     store: spriteAssetStore,
     onClose: () => {
       audio.setSuspended(devConsole.isOpen);
