@@ -1191,11 +1191,25 @@ export class PrologueBoss {
             owner.satelliteMode =
               'orbit';
 
+            const idleT =
+              owner.idleClock *
+              0.94;
+
             owner.figureCenterX =
-              owner.x;
+              owner.x -
+              Math.sin(idleT) *
+              owner.figureWidth;
 
             owner.figureCenterY =
-              owner.y;
+              owner.y -
+              Math.sin(
+                idleT * 2,
+              ) *
+              owner.figureHeight -
+              Math.sin(
+                idleT * 0.55,
+              ) *
+              8;
 
             owner.scaleX = 1;
             owner.scaleY = 1;
