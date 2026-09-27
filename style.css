@@ -1,5 +1,6 @@
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
+  font-synthesis: none;
   color: #f2f3f5;
   background: #090a0d;
 }
@@ -603,7 +604,7 @@ canvas {
   border: 1px solid #4a505c;
   background: rgba(7, 8, 11, 0.96);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.46);
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
 }
 
 .dev-console-output {
@@ -676,7 +677,7 @@ canvas {
   grid-template-rows: 58px minmax(0, 1fr);
   background: #08090c;
   color: #e8eaf0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
 }
 
 .sprite-editor-topbar {
@@ -963,7 +964,7 @@ canvas {
   gap: 4px;
   color: #7f8793;
   font-size: 11px;
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
 }
 
 .sprite-wide-button {
@@ -1079,7 +1080,7 @@ canvas {
   border: 1px solid #282e37;
   background: #0a0c10;
   color: #7f8793;
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
   font-size: 10px;
 }
 
@@ -1178,7 +1179,7 @@ canvas {
   pointer-events: none;
   user-select: none;
   color: rgba(185, 192, 202, 0.58);
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: lowercase;
@@ -1195,7 +1196,7 @@ canvas {
   pointer-events: none;
   user-select: none;
   color: rgba(226, 230, 236, 0.78);
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
   font-size: 11px;
   letter-spacing: 0.35px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
@@ -1205,6 +1206,6 @@ canvas {
   min-height: 18px;
   margin: -2px 0 8px;
   color: #c8cdd5;
-  font-family: Consolas, "Courier New", monospace;
+  font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
   font-size: 12px;
 }
