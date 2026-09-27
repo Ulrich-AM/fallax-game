@@ -2,7 +2,7 @@ import {
   rectangle,
   polygon,
   group,
-} from './pixelShapes.js?v=42';
+} from './pixelShapes.js?v=43';
 
 export const SPRITE_ASSET_VERSION = 1;
 export const SPRITE_DRAFT_STORAGE_KEY = 'bossfights.sprite-drafts.v1';
