@@ -78,6 +78,7 @@ function makePool(key, config) {
 export class GameAudio {
   constructor() {
     this.unlocked = false;
+    this.suspended = false;
     this.themeKey = null;
     this.currentThemeKey = null;
 
@@ -105,10 +106,15 @@ export class GameAudio {
   unlock() {
     if (this.unlocked) return;
     this.unlocked = true;
-    this.syncTheme();
+
+    if (!this.suspended) {
+      this.syncTheme();
+    }
 
     for (const [key, active] of this.loopStates) {
-      if (active) this.startLoop(key);
+      if (active && !this.suspended) {
+        this.startLoop(key);
+      }
     }
   }
 
@@ -131,7 +137,13 @@ export class GameAudio {
   }
 
   syncTheme() {
-    if (!this.unlocked || !this.themeKey) return;
+    if (
+      this.suspended ||
+      !this.unlocked ||
+      !this.themeKey
+    ) {
+      return;
+    }
 
     const audio = this.themes[this.themeKey];
     if (!audio) return;
@@ -154,12 +166,17 @@ export class GameAudio {
       return;
     }
 
-    if (this.unlocked) {
+    if (
+      this.unlocked &&
+      !this.suspended
+    ) {
       this.startLoop(key);
     }
   }
 
   startLoop(key) {
+    if (this.suspended) return;
+
     const audio = this.loops[key];
     if (!audio || !audio.paused) return;
     audio.play().catch(() => {});
@@ -170,6 +187,45 @@ export class GameAudio {
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
+  }
+
+  setSuspended(suspended) {
+    const next = !!suspended;
+
+    if (this.suspended === next) {
+      return;
+    }
+
+    this.suspended = next;
+
+    if (next) {
+      for (
+        const audio
+        of Object.values(this.themes)
+      ) {
+        audio.pause();
+      }
+
+      for (
+        const audio
+        of Object.values(this.loops)
+      ) {
+        audio.pause();
+      }
+
+      return;
+    }
+
+    this.syncTheme();
+
+    for (
+      const [key, active]
+      of this.loopStates
+    ) {
+      if (active) {
+        this.startLoop(key);
+      }
+    }
   }
 
   stopWeaponLoops() {
