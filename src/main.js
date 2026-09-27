@@ -34,6 +34,8 @@ import {
   serializeSpriteAsset,
 } from './SpriteAssets.js?v=49';
 
+const BUILD_VERSION = 'v50';
+
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
 const gameScreen = document.querySelector('#game-screen');
@@ -121,8 +123,13 @@ const equipmentSlots = document.querySelector('#equipment-slots');
 const equipmentInventory = document.querySelector('#equipment-inventory');
 const inventoryDropZone = document.querySelector('#inventory-drop-zone');
 
+const buildVersionLabel = document.querySelector('#build-version');
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
+
+if (buildVersionLabel) {
+  buildVersionLabel.textContent = BUILD_VERSION;
+}
 ctx.imageSmoothingEnabled = false;
 
 const W = canvas.width;
