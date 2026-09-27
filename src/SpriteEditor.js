@@ -1780,12 +1780,241 @@ export class SpriteEditor {
         this.asset.animations,
       );
 
+    const clips =
+      this.asset.animations.clips;
+
+    if (
+      !clips[
+        this.currentClipName
+      ]
+    ) {
+      const first =
+        Object.keys(clips)[0];
+
+      if (first) {
+        this.currentClipName =
+          first;
+      }
+    }
+
     return (
-      this.asset.animations
-        .clips[
-          this.currentClipName
-        ] ?? null
+      clips[
+        this.currentClipName
+      ] ?? null
     );
+  }
+
+  syncAnimationClipOptions() {
+    if (!this.animationClipInput) {
+      return;
+    }
+
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
+
+    const names =
+      Object.keys(
+        this.asset.animations.clips,
+      );
+
+    this.animationClipInput.innerHTML =
+      '';
+
+    for (const name of names) {
+      const option =
+        document.createElement(
+          'option',
+        );
+
+      option.value = name;
+      option.textContent = name;
+      this.animationClipInput
+        .appendChild(option);
+    }
+
+    if (
+      names.length &&
+      !names.includes(
+        this.currentClipName,
+      )
+    ) {
+      this.currentClipName =
+        names[0];
+    }
+
+    if (names.length) {
+      this.animationClipInput.value =
+        this.currentClipName;
+    }
+
+    if (
+      this.animationClipNameInput
+    ) {
+      this.animationClipNameInput.value =
+        this.currentClipName ??
+        '';
+    }
+  }
+
+  createAnimationClip() {
+    const requested =
+      this.animationClipNameInput
+        ?.value;
+
+    const name =
+      this.sanitizeEditorName(
+        requested,
+        `animation-${
+          Object.keys(
+            this.asset.animations
+              ?.clips ?? {},
+          ).length + 1
+        }`,
+      );
+
+    this.asset.animations =
+      normalizeAnimations(
+        this.asset.animations,
+      );
+
+    if (
+      this.asset.animations
+        .clips[name]
+    ) {
+      this.setStatus(
+        `Animation clip "${name}" already exists.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    this.asset.animations
+      .clips[name] = {
+        name,
+        duration: 1,
+        loop: false,
+        tracks: [],
+      };
+
+    this.currentClipName = name;
+    this.animationTime = 0;
+    this.animationPlaying = false;
+
+    this.setStatus(
+      `Created animation clip "${name}".`,
+    );
+
+    this.syncAnimationUi();
+    this.renderPreview();
+  }
+
+  renameAnimationClip() {
+    const clip =
+      this.currentAnimationClip();
+
+    if (!clip) return;
+
+    const nextName =
+      this.sanitizeEditorName(
+        this.animationClipNameInput
+          ?.value,
+        this.currentClipName,
+      );
+
+    if (
+      nextName ===
+      this.currentClipName
+    ) {
+      return;
+    }
+
+    if (
+      this.asset.animations
+        .clips[nextName]
+    ) {
+      this.setStatus(
+        `Animation clip "${nextName}" already exists.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const previous =
+      this.currentClipName;
+
+    delete this.asset.animations
+      .clips[previous];
+
+    clip.name = nextName;
+
+    this.asset.animations
+      .clips[nextName] = clip;
+
+    this.currentClipName =
+      nextName;
+
+    this.setStatus(
+      `Renamed "${previous}" to "${nextName}".`,
+    );
+
+    this.syncAnimationUi();
+  }
+
+  deleteAnimationClip() {
+    const clip =
+      this.currentAnimationClip();
+
+    if (!clip) return;
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const removed =
+      this.currentClipName;
+
+    delete this.asset.animations
+      .clips[removed];
+
+    let names =
+      Object.keys(
+        this.asset.animations.clips,
+      );
+
+    if (!names.length) {
+      const fallback =
+        'animation-1';
+
+      this.asset.animations
+        .clips[fallback] = {
+          name: fallback,
+          duration: 1,
+          loop: false,
+          tracks: [],
+        };
+
+      names = [fallback];
+    }
+
+    this.currentClipName =
+      names[0];
+
+    this.animationTime = 0;
+    this.animationPlaying = false;
+
+    this.setStatus(
+      `Deleted animation clip "${removed}".`,
+    );
+
+    this.syncAnimationUi();
+    this.renderPreview();
   }
 
   currentAnimationTarget() {
@@ -1887,9 +2116,7 @@ export class SpriteEditor {
   }
 
   syncAnimationUi() {
-    if (!this.isWeaponMode()) {
-      return;
-    }
+    this.syncAnimationClipOptions();
 
     const clip =
       this.currentAnimationClip();
@@ -2002,10 +2229,6 @@ export class SpriteEditor {
   }
 
   addAnimationKeyframe() {
-    if (!this.isWeaponMode()) {
-      return;
-    }
-
     const clip =
       this.currentAnimationClip();
 
@@ -2066,12 +2289,6 @@ export class SpriteEditor {
   getAnimationPreviewAsset() {
     const candidate =
       this.currentCandidate();
-
-    if (
-      !this.isWeaponMode()
-    ) {
-      return candidate;
-    }
 
     return applyAnimationPose(
       candidate,
