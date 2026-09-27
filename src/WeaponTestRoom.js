@@ -1,13 +1,13 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=55';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
 import {
   evaluateAnimation,
   applyAnimationPose,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 import {
   PlayerController,
 } from './PlayerController.js?v=49';
