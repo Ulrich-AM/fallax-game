@@ -424,6 +424,25 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-action="center-pivot"]',
+    )?.addEventListener(
+      'click',
+      () => {
+        if (!this.isWeaponMode()) {
+          return;
+        }
+
+        this.pushHistory();
+        this.future.length = 0;
+        this.asset.pivot = [0, 0];
+        this.setStatus(
+          'Weapon pivot centered on the player.',
+        );
+        this.renderAll();
+      },
+    );
+
+    this.root.querySelector(
       '[data-editor-action="group"]',
     )?.addEventListener(
       'click',
@@ -1762,10 +1781,20 @@ export class SpriteEditor {
       this.currentAnimationTarget();
 
     if (this.animationTargetRoot) {
+      const property =
+        this.animationPropertyInput
+          ?.value ?? 'x';
+
       this.animationTargetRoot.innerHTML =
         target
-          ? `<span>target: ${target.targetType} ${target.targetId}</span>`
-          : '<span>target: select one part or one complete group</span>';
+          ? (
+              `<span>target: ${target.targetType} ${target.targetId}</span>` +
+              `<span>keying: ${property} at ${this.animationTime.toFixed(2)}s</span>`
+            )
+          : (
+              '<span>target: select one part or one complete group</span>' +
+              '<span>Grouped parts animate together automatically.</span>'
+            );
     }
 
     this.renderAnimationKeys();
