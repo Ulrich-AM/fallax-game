@@ -664,3 +664,259 @@ canvas {
   font-size: 13px;
   caret-color: #ffffff;
 }
+
+
+/* Sprite editor */
+.sprite-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 320px;
+  grid-template-rows: 58px minmax(0, 1fr);
+  background: #08090c;
+  color: #e8eaf0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.sprite-editor-topbar {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #2a3039;
+  background: #0d0f13;
+}
+
+.sprite-editor-topbar > div:first-child {
+  min-width: 190px;
+  display: grid;
+  gap: 2px;
+}
+
+.sprite-editor-topbar strong {
+  font-size: 16px;
+  text-transform: lowercase;
+}
+
+#sprite-editor-status {
+  color: #7f8793;
+  font-size: 11px;
+}
+
+#sprite-editor-status.error {
+  color: #ff8e8e;
+}
+
+.sprite-editor-topbar label {
+  display: grid;
+  gap: 3px;
+  color: #7f8793;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.sprite-editor-topbar input,
+.sprite-editor-topbar select {
+  height: 30px;
+  min-width: 150px;
+  border: 1px solid #343b46;
+  background: #111419;
+  color: #eef0f4;
+  padding: 0 8px;
+}
+
+.sprite-editor-topbar button,
+.sprite-editor-left button,
+.sprite-editor-right button {
+  min-height: 32px;
+  border: 1px solid #353c47;
+  background: #12151a;
+  color: #d7dbe2;
+  cursor: pointer;
+}
+
+.sprite-editor-topbar button:hover,
+.sprite-editor-left button:hover,
+.sprite-editor-right button:hover,
+.sprite-editor-left button.active {
+  background: #1c2027;
+  border-color: #66707e;
+  color: #ffffff;
+}
+
+.sprite-editor-left,
+.sprite-editor-right {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  background: #0d0f13;
+}
+
+.sprite-editor-left {
+  border-right: 1px solid #252b34;
+}
+
+.sprite-editor-right {
+  border-left: 1px solid #252b34;
+}
+
+.sprite-editor-left section,
+.sprite-editor-right section {
+  margin-bottom: 22px;
+}
+
+.sprite-editor-left h3,
+.sprite-editor-right h3 {
+  margin: 0 0 9px;
+  color: #aeb4bf;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.sprite-editor-left small {
+  display: block;
+  margin-top: 8px;
+  color: #6f7783;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.sprite-tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sprite-inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aeb4bf;
+  font-size: 12px;
+}
+
+.sprite-inline-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: #8a8e95;
+}
+
+.sprite-materials {
+  display: grid;
+  gap: 5px;
+}
+
+.sprite-material-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  text-align: left;
+  font-size: 11px;
+}
+
+.sprite-material-button.active {
+  border-color: #88919e;
+  background: #20242b;
+}
+
+.sprite-material-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+.sprite-editor-stage {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: stretch;
+  overflow: hidden;
+  background: #07080b;
+}
+
+#sprite-editor-canvas {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  cursor: crosshair;
+  image-rendering: auto;
+}
+
+.sprite-layers {
+  display: grid;
+  gap: 5px;
+}
+
+.sprite-layer-row {
+  display: grid;
+  grid-template-columns: 1fr 30px 30px;
+  gap: 4px;
+}
+
+.sprite-layer-row > button {
+  min-height: 30px;
+}
+
+.sprite-layer-row.active .sprite-layer-select {
+  border-color: #8a929f;
+  background: #1c2027;
+}
+
+.sprite-layer-select {
+  position: relative;
+  padding-left: 25px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sprite-layer-select::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 9px;
+  width: 10px;
+  height: 10px;
+  background: var(--layer-color, #777b82);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.sprite-layer-empty {
+  color: #69717c;
+  font-size: 11px;
+}
+
+.sprite-preview-section {
+  display: grid;
+  gap: 10px;
+}
+
+#sprite-preview-canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid #2c323b;
+  background: #08090c;
+  image-rendering: pixelated;
+}
+
+.sprite-rotation-row {
+  display: grid;
+  grid-template-columns: auto 1fr 38px;
+  align-items: center;
+  gap: 8px;
+  color: #969da8;
+  font-size: 11px;
+}
+
+.sprite-rotation-row input {
+  width: 100%;
+}
