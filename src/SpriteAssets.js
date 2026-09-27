@@ -236,6 +236,7 @@ export function createSpriteAsset({
     type: VALID_ASSET_TYPES.has(type)
       ? type
       : 'generic',
+    scale: 1,
     pivot: [0, 0],
     parts: [],
     groups: [],
@@ -279,6 +280,16 @@ export function normalizeSpriteAsset(input) {
       ).trim() ||
       'untitled',
     type,
+    scale: Math.max(
+      0.1,
+      Math.min(
+        8,
+        finite(
+          Number(input.scale),
+          1,
+        ),
+      ),
+    ),
     pivot: normalizePoint(input.pivot),
     parts: [],
     groups:
@@ -355,14 +366,22 @@ export function normalizeSpriteAsset(input) {
   return asset;
 }
 
-function primitiveFromPart(part, pivot) {
+function primitiveFromPart(
+  part,
+  pivot,
+  scale = 1,
+) {
   const material =
     SPRITE_MATERIALS[part.material] ??
     SPRITE_MATERIALS.gray;
 
   const common = {
-    x: part.x - pivot[0],
-    y: part.y - pivot[1],
+    x:
+      (part.x - pivot[0]) *
+      scale,
+    y:
+      (part.y - pivot[1]) *
+      scale,
     rotation: part.rotation,
     color: material.color,
     outline: part.outline,
@@ -371,24 +390,38 @@ function primitiveFromPart(part, pivot) {
   if (part.type === 'rectangle') {
     return rectangle({
       ...common,
-      width: part.width,
-      height: part.height,
+      width:
+        part.width * scale,
+      height:
+        part.height * scale,
     });
   }
 
   return polygon({
     ...common,
-    points: part.points,
+    points:
+      part.points.map(
+        ([x, y]) => [
+          x * scale,
+          y * scale,
+        ],
+      ),
   });
 }
 
 export function compileSpriteAsset(input) {
   const asset = normalizeSpriteAsset(input);
   const pivot = asset.pivot;
+  const scale = asset.scale;
 
   const parts =
     asset.parts.map(
-      part => primitiveFromPart(part, pivot),
+      part =>
+        primitiveFromPart(
+          part,
+          pivot,
+          scale,
+        ),
     );
 
   const shape = group(parts, {
@@ -414,9 +447,20 @@ export function compileSpriteAsset(input) {
       return {
         partId: part.id,
         materialId: material.id,
-        glow: deepClone(material.glow),
+        glow: {
+          ...deepClone(material.glow),
+          radius:
+            material.glow.radius *
+            scale,
+        },
         shape: group(
-          [primitiveFromPart(part, pivot)],
+          [
+            primitiveFromPart(
+              part,
+              pivot,
+              scale,
+            ),
+          ],
           {
             mergeOutlines: false,
             outline: false,
@@ -427,10 +471,30 @@ export function compileSpriteAsset(input) {
       };
     });
 
+  const markers = {};
+
+  for (
+    const [name, marker]
+    of Object.entries(asset.markers)
+  ) {
+    markers[name] = {
+      x:
+        (marker.x - pivot[0]) *
+        scale,
+      y:
+        (marker.y - pivot[1]) *
+        scale,
+      rotation:
+        marker.rotation,
+    };
+  }
+
   return {
     asset,
     shape,
     glowParts,
+    markers,
+    scale,
   };
 }
 
