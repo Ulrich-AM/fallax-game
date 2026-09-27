@@ -99,6 +99,7 @@ export class SpriteEditor {
     scaleInput,
     importFileInput,
     snapInput,
+    symmetryInput,
     store,
     onClose = null,
     onSaved = null,
@@ -136,6 +137,8 @@ export class SpriteEditor {
     this.importFileInput =
       importFileInput;
     this.snapInput = snapInput;
+    this.symmetryInput =
+      symmetryInput;
 
     this.store = store;
     this.onClose = onClose;
@@ -239,6 +242,11 @@ export class SpriteEditor {
     this.glowStrengthInput?.addEventListener(
       'input',
       () => this.renderPreview(),
+    );
+
+    this.symmetryInput?.addEventListener(
+      'change',
+      () => this.renderCanvas(),
     );
 
     this.scaleInput?.addEventListener(
@@ -509,7 +517,7 @@ export class SpriteEditor {
     this.root.focus();
 
     this.setStatus(
-      'Select a part, or choose Polygon and click points. Enter closes a polygon.',
+      'Select a part, or choose Polygon and click points. Click the first point or press Enter to close.',
     );
 
     this.renderAll();
@@ -766,7 +774,7 @@ export class SpriteEditor {
 
     this.setStatus(
       tool === 'polygon'
-        ? 'Polygon: click vertices, Enter to close, Esc to cancel.'
+        ? 'Polygon: click vertices, click the first point or press Enter to close, Esc to cancel.'
         : 'Select: click a shape; drag vertices or the whole shape.',
     );
 
@@ -956,6 +964,84 @@ export class SpriteEditor {
     this.renderAll();
   }
 
+  getSymmetryMode() {
+    const mode =
+      this.symmetryInput?.value ??
+      'off';
+
+    return (
+      mode === 'vertical' ||
+      mode === 'horizontal'
+    )
+      ? mode
+      : 'off';
+  }
+
+  mirrorPoint(point) {
+    const mode =
+      this.getSymmetryMode();
+
+    if (mode === 'vertical') {
+      return [-point[0], point[1]];
+    }
+
+    if (mode === 'horizontal') {
+      return [point[0], -point[1]];
+    }
+
+    return [...point];
+  }
+
+  pointsApproximatelyEqual(
+    a,
+    b,
+    epsilon = 0.0001,
+  ) {
+    return (
+      Math.abs(a[0] - b[0]) <= epsilon &&
+      Math.abs(a[1] - b[1]) <= epsilon
+    );
+  }
+
+  mirroredPolygonIsDistinct(points) {
+    const mode =
+      this.getSymmetryMode();
+
+    if (
+      mode === 'off' ||
+      points.length < 3
+    ) {
+      return false;
+    }
+
+    const mirrored =
+      points.map(
+        point => this.mirrorPoint(point),
+      );
+
+    const directMatch =
+      points.every(
+        (point, index) =>
+          this.pointsApproximatelyEqual(
+            point,
+            mirrored[index],
+          ),
+      );
+
+    if (directMatch) return false;
+
+    const reversed =
+      [...mirrored].reverse();
+
+    return !points.every(
+      (point, index) =>
+        this.pointsApproximatelyEqual(
+          point,
+          reversed[index],
+        ),
+    );
+  }
+
   screenPoint(event) {
     const rect =
       this.canvas.getBoundingClientRect();
@@ -1116,6 +1202,25 @@ export class SpriteEditor {
     if (event.button !== 0) return;
 
     if (this.tool === 'polygon') {
+      if (this.draftPoints.length >= 3) {
+        const firstScreen =
+          this.worldToScreen(
+            this.draftPoints[0],
+          );
+
+        const closeDistance =
+          Math.hypot(
+            screen.x - firstScreen[0],
+            screen.y - firstScreen[1],
+          );
+
+        if (closeDistance <= 13) {
+          this.commitPolygon();
+          event.preventDefault();
+          return;
+        }
+      }
+
       this.draftPoints.push(world);
       this.renderCanvas();
       event.preventDefault();
@@ -1387,7 +1492,7 @@ export class SpriteEditor {
     const id =
       this.uniquePartId('polygon');
 
-    this.asset.parts.push({
+    const basePart = {
       id,
       name: id,
       type: 'polygon',
@@ -1401,14 +1506,47 @@ export class SpriteEditor {
         this.draftPoints.map(
           point => [...point],
         ),
-    });
+    };
+
+    this.asset.parts.push(basePart);
+
+    let mirrorId = null;
+
+    if (
+      this.mirroredPolygonIsDistinct(
+        this.draftPoints,
+      )
+    ) {
+      mirrorId =
+        this.uniquePartId(
+          'polygon-mirror',
+        );
+
+      this.asset.parts.push({
+        ...clone(basePart),
+        id: mirrorId,
+        name:
+          `${id} mirror`,
+        points:
+          this.draftPoints
+            .map(
+              point =>
+                this.mirrorPoint(point),
+            )
+            .reverse(),
+      });
+    }
 
     this.selectedPartId = id;
     this.draftPoints = [];
     this.setTool('select');
+
     this.setStatus(
-      `Created ${id}.`,
+      mirrorId
+        ? `Created ${id} + symmetric mirror.`
+        : `Created ${id}.`,
     );
+
     this.renderAll();
     return true;
   }
@@ -1640,32 +1778,92 @@ export class SpriteEditor {
     }
 
     if (this.draftPoints.length) {
-      ctx.strokeStyle = '#ffffff';
-      ctx.fillStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
+      const drawDraftPath = (
+        points,
+        {
+          color = '#ffffff',
+          alpha = 1,
+          handles = false,
+        } = {},
+      ) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
 
-      this.draftPoints.forEach(
-        (point, index) => {
-          const [x, y] =
-            this.worldToScreen(point);
+        points.forEach(
+          (point, index) => {
+            const [x, y] =
+              this.worldToScreen(point);
 
-          if (index === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
 
-          ctx.fillRect(
-            Math.round(x - 3),
-            Math.round(y - 3),
-            6,
-            6,
-          );
+            if (handles) {
+              ctx.fillRect(
+                Math.round(x - 3),
+                Math.round(y - 3),
+                6,
+                6,
+              );
+            }
+          },
+        );
+
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      drawDraftPath(
+        this.draftPoints,
+        {
+          color: '#ffffff',
+          handles: true,
         },
       );
 
-      ctx.stroke();
+      if (
+        this.getSymmetryMode() !== 'off'
+      ) {
+        drawDraftPath(
+          this.draftPoints.map(
+            point => this.mirrorPoint(point),
+          ),
+          {
+            color: '#8ea7c7',
+            alpha: 0.7,
+            handles: false,
+          },
+        );
+      }
+
+      if (
+        this.draftPoints.length >= 3
+      ) {
+        const [sx, sy] =
+          this.worldToScreen(
+            this.draftPoints[0],
+          );
+
+        ctx.save();
+        ctx.strokeStyle = '#9fd5a7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(
+          sx,
+          sy,
+          8,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 
@@ -1839,30 +2037,100 @@ export class SpriteEditor {
         angle,
       );
 
-    const gameScale = 4;
-    const dw =
-      raster.width * gameScale;
+    const naturalGameScale = 4;
+    const naturalSpriteW =
+      raster.width *
+      naturalGameScale;
 
-    const dh =
-      raster.height * gameScale;
+    const naturalSpriteH =
+      raster.height *
+      naturalGameScale;
 
-    const centerX =
-      this.showPlayerInput?.checked
-        ? w * 0.62
-        : w * 0.5;
+    const naturalPlayerW = 32;
+    const naturalPlayerH = 56;
+    const hasPlayer =
+      !!this.showPlayerInput?.checked;
+
+    const naturalGap =
+      hasPlayer ? 24 : 0;
+
+    const totalNaturalW =
+      naturalSpriteW +
+      (hasPlayer
+        ? naturalPlayerW +
+          naturalGap
+        : 0);
+
+    const totalNaturalH =
+      Math.max(
+        naturalSpriteH,
+        hasPlayer
+          ? naturalPlayerH + 18
+          : 0,
+      );
+
+    const padding = 18;
+
+    const fit =
+      Math.min(
+        1,
+        (w - padding * 2) /
+          Math.max(
+            1,
+            totalNaturalW,
+          ),
+        (h - padding * 2) /
+          Math.max(
+            1,
+            totalNaturalH,
+          ),
+      );
+
+    const rasterScale =
+      naturalGameScale * fit;
+
+    const spriteW =
+      raster.width *
+      rasterScale;
+
+    const spriteH =
+      raster.height *
+      rasterScale;
+
+    const playerW =
+      naturalPlayerW * fit;
+
+    const playerH =
+      naturalPlayerH * fit;
+
+    const gap =
+      naturalGap * fit;
+
+    const combinedW =
+      spriteW +
+      (hasPlayer
+        ? playerW + gap
+        : 0);
+
+    const groupLeft =
+      (w - combinedW) / 2;
 
     const centerY =
       h * 0.5;
 
-    const baseLeft =
-      Math.round(
-        centerX - dw / 2,
-      );
+    const playerX =
+      groupLeft;
 
-    const baseTop =
-      Math.round(
-        centerY - dh / 2,
-      );
+    const spriteLeft =
+      hasPlayer
+        ? groupLeft +
+          playerW +
+          gap
+        : groupLeft;
+
+    const spriteTop =
+      centerY -
+      spriteH / 2;
 
     const baseBounds =
       raster.shapeBounds ?? {
@@ -1891,37 +2159,42 @@ export class SpriteEditor {
           };
 
         const gx =
-          baseLeft +
+          spriteLeft +
           (
             glowBounds.minX -
             baseBounds.minX
           ) *
-          gameScale;
+          rasterScale;
 
         const gy =
-          baseTop +
+          spriteTop +
           (
             glowBounds.minY -
             baseBounds.minY
           ) *
-          gameScale;
+          rasterScale;
 
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha =
           0.82 * glowStrength;
+
         ctx.shadowColor =
           glowPart.glow.color;
+
         ctx.shadowBlur =
           glowPart.glow.radius *
-          glowStrength;
+          glowStrength *
+          fit;
 
         ctx.drawImage(
           glowRaster,
           Math.round(gx),
           Math.round(gy),
-          glowRaster.width * gameScale,
-          glowRaster.height * gameScale,
+          glowRaster.width *
+            rasterScale,
+          glowRaster.height *
+            rasterScale,
         );
 
         ctx.restore();
@@ -1931,43 +2204,72 @@ export class SpriteEditor {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       raster,
-      baseLeft,
-      baseTop,
-      dw,
-      dh,
+      Math.round(spriteLeft),
+      Math.round(spriteTop),
+      spriteW,
+      spriteH,
     );
 
-    if (this.showPlayerInput?.checked) {
-      const playerW = 32;
-      const playerH = 56;
-      const x = 34;
-      const y =
-        centerY - playerH / 2;
+    if (hasPlayer) {
+      const playerY =
+        centerY -
+        playerH / 2;
 
       ctx.fillStyle = '#8a8e95';
       ctx.fillRect(
-        x,
-        y,
+        playerX,
+        playerY,
         playerW,
         playerH,
       );
 
       ctx.strokeStyle = '#4b4f57';
+      ctx.lineWidth = Math.max(
+        1,
+        fit,
+      );
+
       ctx.strokeRect(
-        x + 0.5,
-        y + 0.5,
+        playerX + 0.5,
+        playerY + 0.5,
         playerW,
         playerH,
       );
 
       ctx.fillStyle = '#8b929d';
       ctx.font =
-        '11px Arial, sans-serif';
+        `${Math.max(
+          8,
+          11 * fit,
+        )}px Arial, sans-serif`;
+
       ctx.textAlign = 'center';
+
       ctx.fillText(
         'player',
-        x + playerW / 2,
-        y + playerH + 16,
+        playerX +
+          playerW / 2,
+        playerY +
+          playerH +
+          Math.max(
+            10,
+            14 * fit,
+          ),
+      );
+    }
+
+    if (fit < 0.999) {
+      ctx.fillStyle = '#68717e';
+      ctx.font =
+        '10px Arial, sans-serif';
+      ctx.textAlign = 'right';
+
+      ctx.fillText(
+        `preview fit ${Math.round(
+          fit * 100,
+        )}%`,
+        w - 8,
+        h - 8,
       );
     }
   }
