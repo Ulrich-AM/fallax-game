@@ -2640,10 +2640,103 @@ export class SpriteEditor {
     }
 
     this.animationKeysRoot.innerHTML =
-      track.keyframes.map(
-        key =>
-          `<span>${key.time.toFixed(2)}s → ${key.value.toFixed(2)} · ${key.easing}</span>`,
-      ).join('');
+      '';
+
+    for (
+      const key
+      of track.keyframes
+    ) {
+      const row =
+        document.createElement(
+          'div',
+        );
+
+      row.className =
+        'sprite-animation-key-row';
+
+      const seek =
+        document.createElement(
+          'button',
+        );
+
+      seek.className =
+        'sprite-animation-key-seek';
+
+      seek.textContent =
+        `${key.time.toFixed(2)}s → ${key.value.toFixed(2)} · ${key.easing}`;
+
+      seek.addEventListener(
+        'click',
+        () => {
+          this.animationTime =
+            key.time;
+
+          this.animationPlaying =
+            false;
+
+          if (
+            this.animationValueInput
+          ) {
+            this.animationValueInput.value =
+              String(key.value);
+          }
+
+          this.syncAnimationUi();
+          this.renderPreview();
+        },
+      );
+
+      const remove =
+        document.createElement(
+          'button',
+        );
+
+      remove.className =
+        'sprite-animation-key-delete';
+
+      remove.textContent = '×';
+      remove.title =
+        'delete keyframe';
+
+      remove.addEventListener(
+        'click',
+        () => {
+          this.pushHistory();
+          this.future.length = 0;
+
+          track.keyframes =
+            track.keyframes.filter(
+              entry =>
+                entry !== key,
+            );
+
+          if (
+            !track.keyframes.length
+          ) {
+            clip.tracks =
+              clip.tracks.filter(
+                entry =>
+                  entry !== track,
+              );
+          }
+
+          this.setStatus(
+            `Deleted keyframe at ${key.time.toFixed(2)}s.`,
+          );
+
+          this.syncAnimationUi();
+          this.renderPreview();
+        },
+      );
+
+      row.append(
+        seek,
+        remove,
+      );
+
+      this.animationKeysRoot
+        .appendChild(row);
+    }
   }
 
   addAnimationKeyframe() {
