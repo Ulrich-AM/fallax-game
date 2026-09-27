@@ -6,7 +6,7 @@ import {
 import {
   createDefaultAnimations,
   normalizeAnimations,
-} from './SpriteAnimation.js?v=49';
+} from './SpriteAnimation.js?v=55';
 
 export const SPRITE_ASSET_VERSION = 2;
 export const SPRITE_DRAFT_STORAGE_KEY = 'bossfights.sprite-drafts.v1';
