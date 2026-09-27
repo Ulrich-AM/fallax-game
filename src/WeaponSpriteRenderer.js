@@ -73,14 +73,10 @@ export function drawRasterAtPivot(
     raster,
     Math.round(left),
     Math.round(top),
-    Math.round(
-      raster.width *
+    raster.width *
       artPixelSize,
-    ),
-    Math.round(
-      raster.height *
+    raster.height *
       artPixelSize,
-    ),
   );
 
   ctx.restore();
