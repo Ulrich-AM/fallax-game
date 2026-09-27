@@ -4,10 +4,12 @@ import {
   compileSpriteAsset,
   listSpriteMaterials,
   getSpriteMaterial,
-} from './SpriteAssets.js?v=40';
+  serializeSpriteAsset,
+  parseSpriteAsset,
+} from './SpriteAssets.js?v=42';
 import {
   rasterize,
-} from './pixelShapes.js?v=40';
+} from './pixelShapes.js?v=42';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -90,6 +92,12 @@ export class SpriteEditor {
     rotationInput,
     rotationLabel,
     showPlayerInput,
+    spinInput,
+    glowInput,
+    glowStrengthInput,
+    glowLabel,
+    scaleInput,
+    importFileInput,
     snapInput,
     store,
     onClose = null,
@@ -115,6 +123,18 @@ export class SpriteEditor {
       rotationLabel;
     this.showPlayerInput =
       showPlayerInput;
+    this.spinInput =
+      spinInput;
+    this.glowInput =
+      glowInput;
+    this.glowStrengthInput =
+      glowStrengthInput;
+    this.glowLabel =
+      glowLabel;
+    this.scaleInput =
+      scaleInput;
+    this.importFileInput =
+      importFileInput;
     this.snapInput = snapInput;
 
     this.store = store;
@@ -145,6 +165,8 @@ export class SpriteEditor {
     this.dragSnapshotTaken = false;
 
     this.opened = false;
+    this.previewFrame = 0;
+    this.previewLastTime = 0;
 
     this.buildMaterialButtons();
     this.bindUi();
@@ -202,6 +224,39 @@ export class SpriteEditor {
     this.showPlayerInput?.addEventListener(
       'change',
       () => this.renderPreview(),
+    );
+
+    this.spinInput?.addEventListener(
+      'change',
+      () => this.renderPreview(),
+    );
+
+    this.glowInput?.addEventListener(
+      'change',
+      () => this.renderPreview(),
+    );
+
+    this.glowStrengthInput?.addEventListener(
+      'input',
+      () => this.renderPreview(),
+    );
+
+    this.scaleInput?.addEventListener(
+      'change',
+      () => {
+        const next = clamp(
+          Number(this.scaleInput.value) || 1,
+          0.1,
+          8,
+        );
+
+        this.pushHistory();
+        this.future.length = 0;
+        this.asset.scale = next;
+        this.scaleInput.value =
+          String(next);
+        this.renderAll();
+      },
     );
 
     this.nameInput?.addEventListener(
@@ -274,6 +329,44 @@ export class SpriteEditor {
     )?.addEventListener(
       'click',
       () => this.deleteSelected(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="export"]',
+    )?.addEventListener(
+      'click',
+      () => this.exportJson(),
+    );
+
+    this.root.querySelector(
+      '[data-editor-action="import"]',
+    )?.addEventListener(
+      'click',
+      () => this.importFileInput?.click(),
+    );
+
+    this.importFileInput?.addEventListener(
+      'change',
+      async () => {
+        const file =
+          this.importFileInput.files?.[0];
+
+        if (!file) return;
+
+        try {
+          const text =
+            await file.text();
+
+          this.importJson(text);
+        } catch (error) {
+          this.setStatus(
+            error?.message ?? String(error),
+            true,
+          );
+        } finally {
+          this.importFileInput.value = '';
+        }
+      },
     );
   }
 
@@ -405,6 +498,11 @@ export class SpriteEditor {
     this.typeSelect.value =
       this.asset.type;
 
+    if (this.scaleInput) {
+      this.scaleInput.value =
+        String(this.asset.scale ?? 1);
+    }
+
     this.opened = true;
     this.root.classList.remove('hidden');
     this.root.tabIndex = -1;
@@ -415,6 +513,7 @@ export class SpriteEditor {
     );
 
     this.renderAll();
+    this.startPreviewLoop();
   }
 
   close() {
@@ -422,6 +521,14 @@ export class SpriteEditor {
 
     this.cancelPolygon();
     this.opened = false;
+
+    if (this.previewFrame) {
+      cancelAnimationFrame(
+        this.previewFrame,
+      );
+      this.previewFrame = 0;
+    }
+
     this.root.classList.add('hidden');
     this.onClose?.();
   }
@@ -442,6 +549,11 @@ export class SpriteEditor {
     candidate.name = rawName;
     candidate.displayName = rawName;
     candidate.type = this.typeSelect.value;
+    candidate.scale = clamp(
+      Number(this.scaleInput?.value) || 1,
+      0.1,
+      8,
+    );
 
     try {
       const saved =
@@ -465,6 +577,162 @@ export class SpriteEditor {
       );
       return null;
     }
+  }
+
+  currentCandidate() {
+    const candidate = clone(this.asset);
+    const rawName =
+      this.nameInput.value.trim();
+
+    candidate.name =
+      rawName || candidate.name || 'untitled';
+
+    candidate.displayName =
+      rawName ||
+      candidate.displayName ||
+      'untitled';
+
+    candidate.type =
+      this.typeSelect.value;
+
+    candidate.scale = clamp(
+      Number(this.scaleInput?.value) || 1,
+      0.1,
+      8,
+    );
+
+    return normalizeSpriteAsset(
+      candidate,
+    );
+  }
+
+  exportJson() {
+    try {
+      const asset =
+        this.currentCandidate();
+
+      const json =
+        serializeSpriteAsset(asset);
+
+      const blob =
+        new Blob(
+          [json],
+          {
+            type: 'application/json',
+          },
+        );
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const anchor =
+        document.createElement('a');
+
+      anchor.href = url;
+      anchor.download =
+        `${asset.name}.sprite.json`;
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      setTimeout(
+        () => URL.revokeObjectURL(url),
+        0,
+      );
+
+      this.setStatus(
+        `Exported "${asset.name}".`,
+      );
+    } catch (error) {
+      this.setStatus(
+        error?.message ?? String(error),
+        true,
+      );
+    }
+  }
+
+  importJson(text) {
+    const imported =
+      parseSpriteAsset(text);
+
+    this.pushHistory();
+    this.future.length = 0;
+    this.asset = imported;
+    this.selectedPartId = null;
+    this.draftPoints = [];
+
+    this.nameInput.value =
+      imported.displayName;
+
+    this.typeSelect.value =
+      imported.type;
+
+    if (this.scaleInput) {
+      this.scaleInput.value =
+        String(imported.scale ?? 1);
+    }
+
+    this.setTool('select');
+
+    this.setStatus(
+      `Imported "${imported.name}". Save Draft to keep it locally.`,
+    );
+
+    this.renderAll();
+  }
+
+  startPreviewLoop() {
+    if (this.previewFrame) {
+      cancelAnimationFrame(
+        this.previewFrame,
+      );
+    }
+
+    this.previewLastTime =
+      performance.now();
+
+    const tick = now => {
+      if (!this.opened) {
+        this.previewFrame = 0;
+        return;
+      }
+
+      const dt = Math.min(
+        0.05,
+        Math.max(
+          0,
+          (now - this.previewLastTime) /
+            1000,
+        ),
+      );
+
+      this.previewLastTime = now;
+
+      if (this.spinInput?.checked) {
+        let angle =
+          Number(
+            this.rotationInput?.value ??
+            0,
+          );
+
+        angle =
+          (angle + dt * 55) % 360;
+
+        if (this.rotationInput) {
+          this.rotationInput.value =
+            String(angle);
+        }
+
+        this.renderPreview();
+      }
+
+      this.previewFrame =
+        requestAnimationFrame(tick);
+    };
+
+    this.previewFrame =
+      requestAnimationFrame(tick);
   }
 
   setTool(tool) {
@@ -544,6 +812,11 @@ export class SpriteEditor {
 
     this.typeSelect.value =
       this.asset.type;
+
+    if (this.scaleInput) {
+      this.scaleInput.value =
+        String(this.asset.scale ?? 1);
+    }
 
     this.renderAll();
   }
@@ -1519,12 +1792,29 @@ export class SpriteEditor {
         `${Math.round(angle)}°`;
     }
 
+    const glowStrength = clamp(
+      Number(
+        this.glowStrengthInput?.value ??
+        1,
+      ),
+      0,
+      2,
+    );
+
+    if (this.glowLabel) {
+      this.glowLabel.textContent =
+        `${glowStrength.toFixed(1)}×`;
+    }
+
     let compiled;
 
     try {
+      const candidate =
+        this.currentCandidate();
+
       compiled =
         compileSpriteAsset(
-          this.asset,
+          candidate,
         );
     } catch {
       return;
@@ -1549,26 +1839,100 @@ export class SpriteEditor {
         angle,
       );
 
-    const scale = 4;
+    const gameScale = 4;
     const dw =
-      raster.width * scale;
+      raster.width * gameScale;
 
     const dh =
-      raster.height * scale;
+      raster.height * gameScale;
 
     const centerX =
       this.showPlayerInput?.checked
-        ? w * 0.58
+        ? w * 0.62
         : w * 0.5;
 
     const centerY =
       h * 0.5;
 
+    const baseLeft =
+      Math.round(
+        centerX - dw / 2,
+      );
+
+    const baseTop =
+      Math.round(
+        centerY - dh / 2,
+      );
+
+    const baseBounds =
+      raster.shapeBounds ?? {
+        minX: 0,
+        minY: 0,
+      };
+
+    if (
+      this.glowInput?.checked &&
+      glowStrength > 0
+    ) {
+      for (
+        const glowPart
+        of compiled.glowParts
+      ) {
+        const glowRaster =
+          rasterize(
+            glowPart.shape,
+            angle,
+          );
+
+        const glowBounds =
+          glowRaster.shapeBounds ?? {
+            minX: 0,
+            minY: 0,
+          };
+
+        const gx =
+          baseLeft +
+          (
+            glowBounds.minX -
+            baseBounds.minX
+          ) *
+          gameScale;
+
+        const gy =
+          baseTop +
+          (
+            glowBounds.minY -
+            baseBounds.minY
+          ) *
+          gameScale;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha =
+          0.82 * glowStrength;
+        ctx.shadowColor =
+          glowPart.glow.color;
+        ctx.shadowBlur =
+          glowPart.glow.radius *
+          glowStrength;
+
+        ctx.drawImage(
+          glowRaster,
+          Math.round(gx),
+          Math.round(gy),
+          glowRaster.width * gameScale,
+          glowRaster.height * gameScale,
+        );
+
+        ctx.restore();
+      }
+    }
+
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       raster,
-      Math.round(centerX - dw / 2),
-      Math.round(centerY - dh / 2),
+      baseLeft,
+      baseTop,
       dw,
       dh,
     );
@@ -1576,7 +1940,7 @@ export class SpriteEditor {
     if (this.showPlayerInput?.checked) {
       const playerW = 32;
       const playerH = 56;
-      const x = 44;
+      const x = 34;
       const y =
         centerY - playerH / 2;
 
