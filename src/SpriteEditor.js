@@ -1934,6 +1934,96 @@ export class SpriteEditor {
     this.renderAll();
   }
 
+  mirrorSelected() {
+    const mode =
+      this.getSymmetryMode();
+
+    if (mode === 'off') {
+      this.setStatus(
+        'Choose vertical or horizontal symmetry before mirroring.',
+        true,
+      );
+      return;
+    }
+
+    const parts =
+      this.getSelectedParts();
+
+    if (!parts.length) {
+      this.setStatus(
+        'Select at least one part to mirror.',
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    const created = [];
+
+    for (const part of parts) {
+      const copy = clone(part);
+      copy.id =
+        this.uniquePartId(
+          'mirror',
+        );
+
+      copy.name =
+        `${part.name || part.id} mirror`;
+
+      copy.groupId = null;
+
+      if (mode === 'vertical') {
+        copy.x = -copy.x;
+
+        if (
+          copy.type === 'polygon'
+        ) {
+          copy.points =
+            copy.points
+              .map(
+                ([x, y]) =>
+                  [-x, y],
+              )
+              .reverse();
+        }
+      } else {
+        copy.y = -copy.y;
+
+        if (
+          copy.type === 'polygon'
+        ) {
+          copy.points =
+            copy.points
+              .map(
+                ([x, y]) =>
+                  [x, -y],
+              )
+              .reverse();
+        }
+      }
+
+      copy.rotation =
+        -(copy.rotation ?? 0);
+
+      this.asset.parts.push(copy);
+      created.push(copy.id);
+    }
+
+    this.selectedPartIds =
+      new Set(created);
+
+    this.selectedPartId =
+      created[0] ?? null;
+
+    this.setStatus(
+      `Mirrored ${created.length} part${created.length === 1 ? '' : 's'} across the ${mode} axis.`,
+    );
+
+    this.renderAll();
+  }
+
   currentAnimationClip() {
     this.asset.animations =
       normalizeAnimations(
