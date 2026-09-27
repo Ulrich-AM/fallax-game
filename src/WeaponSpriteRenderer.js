@@ -82,6 +82,24 @@ export function drawRasterAtPivot(
   ctx.restore();
 }
 
+function shiftedShape(shape, offsetX, offsetY) {
+  return {
+    ...shape,
+    parts:
+      shape.parts.map(
+        part => ({
+          ...part,
+          x:
+            (part.x ?? 0) -
+            offsetX,
+          y:
+            (part.y ?? 0) -
+            offsetY,
+        }),
+      ),
+  };
+}
+
 export class WeaponSpriteRenderer {
   constructor(asset) {
     this.compiled =
@@ -89,6 +107,55 @@ export class WeaponSpriteRenderer {
 
     this.rasterCache =
       new Map();
+
+    this.centeredRasterCache =
+      new Map();
+
+    const base =
+      rasterize(
+        this.compiled.shape,
+        0,
+      );
+
+    const bounds =
+      base.shapeBounds ?? {
+        minX:
+          -base.width / 2,
+        minY:
+          -base.height / 2,
+        maxX:
+          base.width / 2,
+        maxY:
+          base.height / 2,
+      };
+
+    this.visualCenter = {
+      x:
+        (bounds.minX +
+        bounds.maxX) / 2,
+      y:
+        (bounds.minY +
+        bounds.maxY) / 2,
+    };
+
+    this.centeredShape =
+      shiftedShape(
+        this.compiled.shape,
+        this.visualCenter.x,
+        this.visualCenter.y,
+      );
+
+    this.centeredGlowShapes =
+      this.compiled.glowParts
+        .map(part => ({
+          ...part,
+          shape:
+            shiftedShape(
+              part.shape,
+              this.visualCenter.x,
+              this.visualCenter.y,
+            ),
+        }));
   }
 
   getEntry(angleRadians = 0) {
@@ -137,6 +204,99 @@ export class WeaponSpriteRenderer {
     );
 
     return entry;
+  }
+
+  getCenteredEntry(angleRadians = 0) {
+    const key =
+      angleKey(angleRadians);
+
+    if (
+      this.centeredRasterCache
+        .has(key)
+    ) {
+      return this.centeredRasterCache
+        .get(key);
+    }
+
+    const base =
+      rasterize(
+        this.centeredShape,
+        key,
+      );
+
+    const glows =
+      this.centeredGlowShapes
+        .map(part => ({
+          color:
+            part.glow.color,
+          radius:
+            part.glow.radius,
+          raster:
+            rasterize(
+              part.shape,
+              key,
+            ),
+        }));
+
+    const entry = {
+      angle: key,
+      base,
+      glows,
+      compiled:
+        this.compiled,
+      centered: true,
+    };
+
+    this.centeredRasterCache.set(
+      key,
+      entry,
+    );
+
+    return entry;
+  }
+
+  getMarkerWorldPosition(
+    name,
+    pivotX,
+    pivotY,
+    angleRadians,
+    artPixelSize = 4,
+  ) {
+    const marker =
+      this.compiled
+        .markers[name];
+
+    if (!marker) {
+      return {
+        x: pivotX,
+        y: pivotY,
+      };
+    }
+
+    const c =
+      Math.cos(angleRadians);
+
+    const s =
+      Math.sin(angleRadians);
+
+    const localX =
+      marker.x *
+      artPixelSize;
+
+    const localY =
+      marker.y *
+      artPixelSize;
+
+    return {
+      x:
+        pivotX +
+        localX * c -
+        localY * s,
+      y:
+        pivotY +
+        localX * s +
+        localY * c,
+    };
   }
 
   draw(
