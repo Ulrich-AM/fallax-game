@@ -236,7 +236,12 @@ export class GameAudio {
   }
 
   playOneShot(key, volumeMultiplier = 1) {
-    if (!this.unlocked) return false;
+    if (
+      this.suspended ||
+      !this.unlocked
+    ) {
+      return false;
+    }
 
     const pool = this.oneShotPools[key];
     if (!pool) return false;
