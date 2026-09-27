@@ -15,7 +15,7 @@ const MONOLITH_SPRITE = {
   name: 'monolith',
   displayName: 'monolith',
   type: 'boss',
-  scale: 1,
+  scale: 2,
   pivot: [0, 0],
   parts: [
     {
@@ -328,6 +328,34 @@ function clamp(value, min, max) {
   );
 }
 
+function wrapDegrees(value) {
+  let result =
+    value % 360;
+
+  if (result > 180) {
+    result -= 360;
+  } else if (result < -180) {
+    result += 360;
+  }
+
+  return result;
+}
+
+function shortestAngleDelta(
+  from,
+  to,
+) {
+  return wrapDegrees(
+    to - from,
+  );
+}
+
+function cloneAsset(asset) {
+  return JSON.parse(
+    JSON.stringify(asset),
+  );
+}
+
 export class MonolithBoss {
   constructor(world) {
     this.name = 'monolith';
@@ -352,7 +380,23 @@ export class MonolithBoss {
       this.patrolDistance;
 
     this.artPixelSize = 4;
-    this.hitRadius = 118;
+    this.hitRadius = 224;
+
+    // The hammer arms keep a heavy roughly 45 degree neutral incline, then
+    // smoothly lag toward the player's direction using a damped angular
+    // spring. This avoids snapping when the player crosses the centerline.
+    this.leftArmNeutral = -45;
+    this.rightArmNeutral = 45;
+    this.leftArmAngle =
+      this.leftArmNeutral;
+    this.rightArmAngle =
+      this.rightArmNeutral;
+    this.leftArmAngularVelocity = 0;
+    this.rightArmAngularVelocity = 0;
+    this.armAimStrength = 0.72;
+    this.armAimClamp = 86;
+    this.armSpring = 18;
+    this.armDamping = 7.5;
 
     this.hurtFlash = 0;
     this.fxEvents = [];
@@ -364,6 +408,9 @@ export class MonolithBoss {
     this.animationFrameRate = 24;
     this.animationRasterCache =
       new Map();
+
+    this.maxAnimationRasterCache =
+      220;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -428,6 +475,15 @@ export class MonolithBoss {
     this.patrolDirection = 1;
 
     this.animationTime = 0;
+
+    this.leftArmAngle =
+      this.leftArmNeutral;
+    this.rightArmAngle =
+      this.rightArmNeutral;
+    this.leftArmAngularVelocity = 0;
+    this.rightArmAngularVelocity = 0;
+
+    this.animationRasterCache.clear();
     this.fxEvents.length = 0;
     this.shotSerial = 0;
 
@@ -450,6 +506,11 @@ export class MonolithBoss {
       context,
     );
 
+    this.updateArmTracking(
+      dt,
+      context.player,
+    );
+
     this.animationTime =
       (
         this.animationTime +
@@ -465,6 +526,185 @@ export class MonolithBoss {
       );
   }
 
+  armPivotWorld(groupId) {
+    const group =
+      MONOLITH_SPRITE.groups
+        .find(
+          entry =>
+            entry.id === groupId,
+        );
+
+    const pivot =
+      group?.pivot ?? [0, 0];
+
+    const scale =
+      MONOLITH_SPRITE.scale *
+      this.artPixelSize;
+
+    return {
+      x:
+        this.x +
+        pivot[0] * scale,
+      y:
+        this.y +
+        pivot[1] * scale,
+    };
+  }
+
+  desiredArmAngle(
+    groupId,
+    player,
+    neutral,
+  ) {
+    if (!player) {
+      return neutral;
+    }
+
+    const pivot =
+      this.armPivotWorld(groupId);
+
+    const angle =
+      Math.atan2(
+        player.y - pivot.y,
+        player.x - pivot.x,
+      ) *
+      180 /
+      Math.PI;
+
+    // Screen-space 90 degrees is straight down. Use that as the neutral
+    // reference so both hammers retain their heavy inward/downward stance.
+    const deviation =
+      clamp(
+        wrapDegrees(
+          angle - 90,
+        ),
+        -this.armAimClamp,
+        this.armAimClamp,
+      );
+
+    return (
+      neutral +
+      deviation *
+      this.armAimStrength
+    );
+  }
+
+  springArmAngle(
+    angle,
+    velocity,
+    target,
+    dt,
+  ) {
+    const delta =
+      shortestAngleDelta(
+        angle,
+        target,
+      );
+
+    const acceleration =
+      delta *
+        this.armSpring -
+      velocity *
+        this.armDamping;
+
+    velocity +=
+      acceleration * dt;
+
+    angle +=
+      velocity * dt;
+
+    return {
+      angle:
+        wrapDegrees(angle),
+      velocity,
+    };
+  }
+
+  updateArmTracking(
+    dt,
+    player,
+  ) {
+    const leftTarget =
+      this.desiredArmAngle(
+        'group-3',
+        player,
+        this.leftArmNeutral,
+      );
+
+    const rightTarget =
+      this.desiredArmAngle(
+        'group-4',
+        player,
+        this.rightArmNeutral,
+      );
+
+    const left =
+      this.springArmAngle(
+        this.leftArmAngle,
+        this.leftArmAngularVelocity,
+        leftTarget,
+        dt,
+      );
+
+    const right =
+      this.springArmAngle(
+        this.rightArmAngle,
+        this.rightArmAngularVelocity,
+        rightTarget,
+        dt,
+      );
+
+    this.leftArmAngle =
+      left.angle;
+
+    this.leftArmAngularVelocity =
+      left.velocity;
+
+    this.rightArmAngle =
+      right.angle;
+
+    this.rightArmAngularVelocity =
+      right.velocity;
+  }
+
+  compilePosedGroup(
+    posed,
+    groupId,
+  ) {
+    const groupAsset =
+      cloneAsset(posed);
+
+    groupAsset.parts =
+      groupAsset.parts.filter(
+        part =>
+          part.groupId ===
+          groupId,
+      );
+
+    groupAsset.groups =
+      groupAsset.groups.filter(
+        group =>
+          group.id ===
+          groupId,
+      );
+
+    // Each major body group is rasterized independently so the two hammer
+    // arms keep their own outside outline instead of merging into the head.
+    groupAsset.render = {
+      ...groupAsset.render,
+      mergeOutlines: true,
+      outline: {
+        enabled: true,
+        color: '#35383e',
+        thickness: 1,
+      },
+    };
+
+    return compileSpriteAsset(
+      groupAsset,
+    );
+  }
+
   animationFrame() {
     const step =
       1 /
@@ -476,8 +716,20 @@ export class MonolithBoss {
         step,
       );
 
+    const leftAimKey =
+      Math.round(
+        this.leftArmAngle /
+        2,
+      ) * 2;
+
+    const rightAimKey =
+      Math.round(
+        this.rightArmAngle /
+        2,
+      ) * 2;
+
     const key =
-      String(frameIndex);
+      `${frameIndex}:${leftAimKey}:${rightAimKey}`;
 
     if (
       this.animationRasterCache
@@ -502,24 +754,90 @@ export class MonolithBoss {
         sampleTime,
       );
 
+    const leftPose =
+      evaluation.groups.get(
+        'group-3',
+      );
+
+    const rightPose =
+      evaluation.groups.get(
+        'group-4',
+      );
+
+    // Keep the small authored idle sway, but center it around the procedural
+    // aim angle instead of the old fixed neutral rotation.
+    if (leftPose) {
+      const idleOffset =
+        (leftPose.rotation ??
+          this.leftArmNeutral) -
+        this.leftArmNeutral;
+
+      leftPose.rotation =
+        this.leftArmAngle +
+        idleOffset;
+    }
+
+    if (rightPose) {
+      const idleOffset =
+        (rightPose.rotation ??
+          this.rightArmNeutral) -
+        this.rightArmNeutral;
+
+      rightPose.rotation =
+        this.rightArmAngle +
+        idleOffset;
+    }
+
     const posed =
       applyAnimationPose(
         MONOLITH_SPRITE,
         evaluation,
       );
 
-    const compiled =
-      compileSpriteAsset(
+    const head =
+      this.compilePosedGroup(
         posed,
+        'group-5',
+      );
+
+    const leftArm =
+      this.compilePosedGroup(
+        posed,
+        'group-3',
+      );
+
+    const rightArm =
+      this.compilePosedGroup(
+        posed,
+        'group-4',
       );
 
     const frame = {
-      base:
-        rasterize(
-          compiled.shape,
-        ),
+      layers: [
+        {
+          id: 'head',
+          raster:
+            rasterize(
+              head.shape,
+            ),
+        },
+        {
+          id: 'left-arm',
+          raster:
+            rasterize(
+              leftArm.shape,
+            ),
+        },
+        {
+          id: 'right-arm',
+          raster:
+            rasterize(
+              rightArm.shape,
+            ),
+        },
+      ],
       glows:
-        compiled.glowParts
+        head.glowParts
           .map(part => ({
             color:
               part.glow.color,
@@ -531,6 +849,13 @@ export class MonolithBoss {
               ),
           })),
     };
+
+    if (
+      this.animationRasterCache.size >=
+      this.maxAnimationRasterCache
+    ) {
+      this.animationRasterCache.clear();
+    }
 
     this.animationRasterCache.set(
       key,
@@ -613,13 +938,18 @@ export class MonolithBoss {
       ctx.restore();
     }
 
-    this.drawRasterAtPivot(
-      ctx,
-      frame.base,
-      cameraX,
-      artPixelSize,
-      1,
-    );
+    for (
+      const layer
+      of frame.layers
+    ) {
+      this.drawRasterAtPivot(
+        ctx,
+        layer.raster,
+        cameraX,
+        artPixelSize,
+        1,
+      );
+    }
 
     if (
       this.hurtFlash > 0
@@ -628,13 +958,18 @@ export class MonolithBoss {
       ctx.globalCompositeOperation =
         'screen';
 
-      this.drawRasterAtPivot(
-        ctx,
-        frame.base,
-        cameraX,
-        artPixelSize,
-        this.hurtFlash * 0.72,
-      );
+      for (
+        const layer
+        of frame.layers
+      ) {
+        this.drawRasterAtPivot(
+          ctx,
+          layer.raster,
+          cameraX,
+          artPixelSize,
+          this.hurtFlash * 0.72,
+        );
+      }
 
       ctx.restore();
     }
