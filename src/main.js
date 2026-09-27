@@ -24,13 +24,14 @@ import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
 import { GameAudio } from './AudioManager.js?v=36';
-import { DeveloperConsole } from './DeveloperConsole.js?v=38';
+import { DeveloperConsole } from './DeveloperConsole.js?v=40';
+import { SpriteEditor } from './SpriteEditor.js?v=40';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=38';
+} from './SpriteAssets.js?v=40';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -55,6 +56,18 @@ const resetKeybindsButton = document.querySelector('#reset-keybinds');
 const devConsoleRoot = document.querySelector('#dev-console');
 const devConsoleOutput = document.querySelector('#dev-console-output');
 const devConsoleInput = document.querySelector('#dev-console-input');
+const spriteEditorRoot = document.querySelector('#sprite-editor');
+const spriteEditorCanvas = document.querySelector('#sprite-editor-canvas');
+const spritePreviewCanvas = document.querySelector('#sprite-preview-canvas');
+const spriteEditorName = document.querySelector('#sprite-editor-name');
+const spriteEditorType = document.querySelector('#sprite-editor-type');
+const spriteEditorMaterials = document.querySelector('#sprite-editor-materials');
+const spriteEditorLayers = document.querySelector('#sprite-editor-layers');
+const spriteEditorStatus = document.querySelector('#sprite-editor-status');
+const spritePreviewRotation = document.querySelector('#sprite-preview-rotation');
+const spritePreviewRotationLabel = document.querySelector('#sprite-preview-rotation-label');
+const spritePreviewPlayer = document.querySelector('#sprite-preview-player');
+const spriteEditorSnap = document.querySelector('#sprite-editor-snap');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
 const shopItems = document.querySelector('#shop-items');
@@ -163,6 +176,32 @@ const spriteAssetStore =
 
 let selectedSpriteDraftName = null;
 
+const spriteEditor =
+  new SpriteEditor({
+    root: spriteEditorRoot,
+    canvas: spriteEditorCanvas,
+    previewCanvas: spritePreviewCanvas,
+    nameInput: spriteEditorName,
+    typeSelect: spriteEditorType,
+    materialContainer: spriteEditorMaterials,
+    layersContainer: spriteEditorLayers,
+    status: spriteEditorStatus,
+    rotationInput: spritePreviewRotation,
+    rotationLabel: spritePreviewRotationLabel,
+    showPlayerInput: spritePreviewPlayer,
+    snapInput: spriteEditorSnap,
+    store: spriteAssetStore,
+    onClose: () => {
+      audio.setSuspended(devConsole.isOpen);
+      keys.clear();
+      pressed.clear();
+      released.clear();
+    },
+    onSaved: asset => {
+      selectedSpriteDraftName = asset.name;
+    },
+  });
+
 const devConsole =
   new DeveloperConsole({
     root: devConsoleRoot,
@@ -170,12 +209,14 @@ const devConsole =
     input: devConsoleInput,
     onOpen: () => {
       pointer.firing = false;
+      audio.setSuspended(true);
       audio.stopWeaponLoops();
       keys.clear();
       pressed.clear();
       released.clear();
     },
     onClose: () => {
+      audio.setSuspended(spriteEditor.isOpen);
       keys.clear();
       pressed.clear();
       released.clear();
@@ -227,9 +268,9 @@ function registerDeveloperCommands() {
 
   devConsole.register('sprite.editor', {
     description:
-      'open the sprite creator (Phase C hook)',
+      'open the visual sprite creator',
     usage:
-      'sprite.editor [boss|weapon|generic]',
+      'sprite.editor [boss|weapon|generic] [draft-name]',
     execute: ({ args }) => {
       const type =
         args[0]?.toLowerCase() ??
@@ -244,10 +285,38 @@ function registerDeveloperCommands() {
         );
       }
 
-      return [
-        `sprite editor hook ready for "${type}".`,
-        'Phase C editor UI is not installed yet; Phase A+B are active.',
-      ];
+      const requestedName =
+        args[1] ??
+        selectedSpriteDraftName;
+
+      const asset =
+        requestedName
+          ? spriteAssetStore.get(
+              requestedName,
+            )
+          : null;
+
+      if (
+        args[1] &&
+        !asset
+      ) {
+        throw new Error(
+          `sprite draft "${args[1]}" not found.`,
+        );
+      }
+
+      devConsole.close();
+
+      spriteEditor.open({
+        asset,
+        type:
+          asset?.type ??
+          type,
+      });
+
+      audio.setSuspended(true);
+
+      return null;
     },
   });
 
@@ -1136,6 +1205,10 @@ document.addEventListener('pointerover', (e) => {
 });
 
 addEventListener('keydown', (e) => {
+  if (spriteEditor.isOpen) {
+    return;
+  }
+
   if (e.code === 'Backquote') {
     if (pendingBindingAction) {
       pendingBindingAction = null;
@@ -1148,9 +1221,16 @@ addEventListener('keydown', (e) => {
     return;
   }
 
-  if (devConsole.isOpen) {
-    devConsole.open();
-    e.preventDefault();
+  if (
+    devConsole.isOpen ||
+    spriteEditor.isOpen
+  ) {
+    if (
+      e.target !== devConsoleInput
+    ) {
+      devConsoleInput?.focus();
+    }
+
     return;
   }
 
@@ -2190,4 +2270,5 @@ window.BOSSFIGHTS = {
   controlBindings,
   devConsole,
   spriteAssetStore,
+  spriteEditor,
 };
