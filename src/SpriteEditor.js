@@ -1623,6 +1623,127 @@ export class SpriteEditor {
     ctx.restore();
   }
 
+  drawBossConstructionGuide(ctx) {
+    if (!this.isBossMode()) {
+      return;
+    }
+
+    ctx.save();
+    ctx.font =
+      "10px 'Pixel Arial 11', Arial, sans-serif";
+
+    for (
+      const group
+      of this.asset.groups ?? []
+    ) {
+      const [gx, gy] =
+        this.worldToScreen(
+          group.pivot ?? [0, 0],
+        );
+
+      ctx.strokeStyle = '#75b7ff';
+      ctx.fillStyle = '#75b7ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(
+        gx,
+        gy,
+        6,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+
+      ctx.fillText(
+        group.id,
+        gx + 9,
+        gy - 7,
+      );
+    }
+
+    for (
+      const [name, marker]
+      of Object.entries(
+        this.asset.markers ?? {},
+      )
+    ) {
+      const [mx, my] =
+        this.worldToScreen([
+          marker.x,
+          marker.y,
+        ]);
+
+      ctx.strokeStyle = '#ffd66b';
+      ctx.fillStyle = '#ffd66b';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(mx - 6, my);
+      ctx.lineTo(mx + 6, my);
+      ctx.moveTo(mx, my - 6);
+      ctx.lineTo(mx, my + 6);
+      ctx.stroke();
+
+      ctx.fillText(
+        name,
+        mx + 8,
+        my - 8,
+      );
+    }
+
+    ctx.setLineDash([7, 5]);
+    ctx.strokeStyle = '#ff78d7';
+    ctx.fillStyle = '#ff78d7';
+
+    for (
+      const hitbox
+      of this.asset.hitboxes ?? []
+    ) {
+      const [hx, hy] =
+        this.worldToScreen([
+          hitbox.x,
+          hitbox.y,
+        ]);
+
+      if (hitbox.type === 'rect') {
+        const w =
+          hitbox.width *
+          this.zoom;
+
+        const h =
+          hitbox.height *
+          this.zoom;
+
+        ctx.strokeRect(
+          hx - w / 2,
+          hy - h / 2,
+          w,
+          h,
+        );
+      } else {
+        ctx.beginPath();
+        ctx.arc(
+          hx,
+          hy,
+          hitbox.radius *
+            this.zoom,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+
+      ctx.fillText(
+        hitbox.name ||
+          hitbox.id,
+        hx + 8,
+        hy + 12,
+      );
+    }
+
+    ctx.restore();
+  }
+
   setTool(tool) {
     const allowed =
       new Set([
@@ -4050,6 +4171,10 @@ export class SpriteEditor {
       ctx,
     );
 
+    this.drawBossConstructionGuide(
+      ctx,
+    );
+
     for (const part of this.asset.parts) {
       this.drawPart(
         ctx,
@@ -4957,6 +5082,7 @@ export class SpriteEditor {
 
   renderAll() {
     this.updateWeaponMarkerInfo();
+    this.syncBossToolUi();
     this.updateSelectionInspector();
     this.syncAnimationUi();
     this.renderMaterialState();
