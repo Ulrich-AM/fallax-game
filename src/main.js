@@ -16,10 +16,10 @@ import {
   SHOP_CATALOG,
   purchaseItem,
 } from './equipment.js?v=52';
-import { VectorWeapon } from './VectorWeapon.js?v=36';
-import { EuclidWeapon } from './EuclidWeapon.js?v=36';
-import { HorizonWeapon } from './HorizonWeapon.js?v=36';
-import { MachWeapon } from './MachWeapon.js?v=36';
+import { VectorWeapon } from './VectorWeapon.js?v=54b';
+import { EuclidWeapon } from './EuclidWeapon.js?v=54b';
+import { HorizonWeapon } from './HorizonWeapon.js?v=54b';
+import { MachWeapon } from './MachWeapon.js?v=54b';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=52';
 import { Economy } from './Economy.js?v=52';
@@ -36,10 +36,13 @@ import {
   listSpriteMaterials,
   serializeSpriteAsset,
 } from './SpriteAssets.js?v=49';
+import {
+  drawRasterAtPivot,
+} from './WeaponSpriteRenderer.js?v=54b';
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v54a';
+const BUILD_VERSION = 'v54b';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -2104,7 +2107,13 @@ function renderGame() {
   }
 
   if (activeWeaponId === 'horizon') {
-    horizonWeapon.draw(ctx, player, getPointerWorld(), camera.x);
+    horizonWeapon.draw(
+      ctx,
+      player,
+      getPointerWorld(),
+      camera.x,
+      ART_PIXEL,
+    );
   } else {
     horizonWeapon.drawSpecialProjectiles(ctx, camera.x);
   }
@@ -2215,40 +2224,79 @@ function getItemCategoryLabel(item) {
   return labels[item.category] ?? item.category;
 }
 
-function getItemPreviewShape(itemId) {
+function getItemPreviewEntry(
+  itemId,
+  angleRadians = 0,
+) {
   if (itemId === 'vector') {
-    return {
-      width: vectorWeapon.bodyArtSize * ART_PIXEL,
-      height: vectorWeapon.bodyArtSize * ART_PIXEL,
-      color: '#6f747c',
-    };
+    return vectorWeapon
+      .getSpriteEntry(
+        angleRadians,
+      );
   }
 
   if (itemId === 'euclid') {
-    return {
-      width: euclidWeapon.bodyLength * ART_PIXEL,
-      height: euclidWeapon.bodyThickness * ART_PIXEL,
-      color: '#6f747c',
-    };
+    return euclidWeapon
+      .getSpriteEntry(
+        angleRadians,
+      );
   }
 
   if (itemId === 'horizon') {
-    return {
-      width: horizonWeapon.bodyLengthPixels,
-      height: horizonWeapon.bodyThicknessPixels,
-      color: '#6f747c',
-    };
+    return horizonWeapon
+      .getSpriteEntry(
+        angleRadians,
+      );
   }
 
   if (itemId === 'mach') {
-    return {
-      width: machWeapon.bodyWidth * ART_PIXEL,
-      height: machWeapon.bodyHeight * ART_PIXEL,
-      color: '#6f747c',
-    };
+    return machWeapon
+      .getSpriteEntry(
+        angleRadians,
+      );
   }
 
   return null;
+}
+
+function getPreviewRadiusUnits(itemId) {
+  const entry =
+    getItemPreviewEntry(
+      itemId,
+      0,
+    );
+
+  if (!entry) return null;
+
+  const raster =
+    entry.base;
+
+  const bounds =
+    raster.shapeBounds ?? {
+      minX:
+        -raster.width / 2,
+      minY:
+        -raster.height / 2,
+      maxX:
+        raster.width / 2,
+      maxY:
+        raster.height / 2,
+    };
+
+  const corners = [
+    [bounds.minX, bounds.minY],
+    [bounds.minX, bounds.maxY],
+    [bounds.maxX, bounds.minY],
+    [bounds.maxX, bounds.maxY],
+  ];
+
+  return Math.max(
+    1,
+    ...corners.map(
+      ([x, y]) =>
+        Math.hypot(x, y),
+    ),
+  );
 }
 
 function positionItemTooltip(clientX, clientY) {
@@ -2289,7 +2337,7 @@ function showItemTooltip(itemId, event) {
   itemTooltipDescription.textContent = item.description;
   itemTooltip.classList.remove('hidden');
 
-  const hasPreview = !!getItemPreviewShape(item.id);
+  const hasPreview = !!getItemPreviewEntry(item.id, 0);
   itemTooltipCanvas.classList.toggle('hidden', !hasPreview);
 
   positionItemTooltip(
@@ -2335,49 +2383,114 @@ function drawItemTooltipPreview(now) {
     return;
   }
 
-  const shape =
-    getItemPreviewShape(hoveredItemId);
-
-  if (!shape) return;
-
-  const previewCtx =
-    itemTooltipCanvas.getContext('2d');
-
-  const width = itemTooltipCanvas.width;
-  const height = itemTooltipCanvas.height;
-
-  previewCtx.clearRect(0, 0, width, height);
-  previewCtx.imageSmoothingEnabled = false;
-
-  const maxWidth = width * 0.52;
-  const maxHeight = height * 0.52;
-  const scale = Math.min(
-    maxWidth / Math.max(1, shape.width),
-    maxHeight / Math.max(1, shape.height),
-    2.8,
-  );
-
   const angle =
     (now * 0.00105) %
     (Math.PI * 2);
 
-  previewCtx.save();
-  previewCtx.translate(
-    Math.round(width / 2),
-    Math.round(height / 2),
+  const entry =
+    getItemPreviewEntry(
+      hoveredItemId,
+      angle,
+    );
+
+  if (!entry) return;
+
+  const radiusUnits =
+    getPreviewRadiusUnits(
+      hoveredItemId,
+    );
+
+  if (!radiusUnits) return;
+
+  const previewCtx =
+    itemTooltipCanvas
+      .getContext('2d');
+
+  const width =
+    itemTooltipCanvas.width;
+
+  const height =
+    itemTooltipCanvas.height;
+
+  previewCtx.clearRect(
+    0,
+    0,
+    width,
+    height,
   );
-  previewCtx.rotate(angle);
-  previewCtx.scale(scale, scale);
-  previewCtx.fillStyle = shape.color;
-  previewCtx.shadowColor = 'rgba(255,255,255,0.18)';
-  previewCtx.shadowBlur = 8;
-  previewCtx.fillRect(
-    -shape.width / 2,
-    -shape.height / 2,
-    shape.width,
-    shape.height,
+
+  previewCtx.imageSmoothingEnabled =
+    false;
+
+  const availableRadius =
+    Math.min(
+      width,
+      height,
+    ) * 0.39;
+
+  const naturalRadius =
+    radiusUnits *
+    ART_PIXEL;
+
+  const fit =
+    availableRadius /
+    Math.max(
+      1,
+      naturalRadius,
+    );
+
+  const fitMultiplier =
+    fit >= 1
+      ? Math.max(
+          1,
+          Math.floor(fit),
+        )
+      : fit;
+
+  const previewPixelSize =
+    ART_PIXEL *
+    fitMultiplier;
+
+  const pivotX =
+    width / 2;
+
+  const pivotY =
+    height / 2;
+
+  for (
+    const glow
+    of entry.glows ?? []
+  ) {
+    drawRasterAtPivot(
+      previewCtx,
+      glow.raster,
+      pivotX,
+      pivotY,
+      previewPixelSize,
+      {
+        alpha: 0.72,
+        shadowColor:
+          glow.color,
+        shadowBlur:
+          Math.max(
+            4,
+            Math.min(
+              32,
+              glow.radius *
+              fitMultiplier,
+            ),
+          ),
+      },
+    );
+  }
+
+  drawRasterAtPivot(
+    previewCtx,
+    entry.base,
+    pivotX,
+    pivotY,
+    previewPixelSize,
   );
-  previewCtx.restore();
 }
 
 function createItemCard(itemId, source = null) {
