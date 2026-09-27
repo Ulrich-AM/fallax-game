@@ -1320,6 +1320,166 @@ export class SpriteEditor {
       );
   }
 
+  syncBossToolUi() {
+    if (
+      this.hitboxSizeYInput
+    ) {
+      this.hitboxSizeYInput.disabled =
+        this.hitboxTypeInput?.value !==
+        'rect';
+    }
+
+    this.updateBossMarkerInfo();
+    this.renderHitboxList();
+  }
+
+  updateBossMarkerInfo() {
+    if (!this.bossMarkerInfo) {
+      return;
+    }
+
+    const entries =
+      Object.entries(
+        this.asset.markers ?? {},
+      );
+
+    if (!entries.length) {
+      this.bossMarkerInfo.innerHTML =
+        '<span>no boss markers</span>';
+      return;
+    }
+
+    const format = value =>
+      Number(value)
+        .toFixed(2)
+        .replace(/\.00$/, '');
+
+    this.bossMarkerInfo.innerHTML =
+      entries
+        .map(
+          ([name, marker]) =>
+            `<span>${name}: ${format(marker.x)}, ${format(marker.y)}</span>`,
+        )
+        .join('');
+  }
+
+  renderHitboxList() {
+    if (!this.hitboxListRoot) {
+      return;
+    }
+
+    const hitboxes =
+      this.asset.hitboxes ?? [];
+
+    if (!hitboxes.length) {
+      this.hitboxListRoot.innerHTML =
+        '<span>no hitboxes</span>';
+      return;
+    }
+
+    this.hitboxListRoot.innerHTML =
+      hitboxes
+        .map(hitbox => {
+          const size =
+            hitbox.type === 'rect'
+              ? `${hitbox.width}×${hitbox.height}`
+              : `r${hitbox.radius}`;
+
+          return (
+            `<span>${hitbox.name || hitbox.id}: ${hitbox.type} ${size} @ ${hitbox.x}, ${hitbox.y}</span>`
+          );
+        })
+        .join('');
+  }
+
+  deleteBossMarker() {
+    if (!this.isBossMode()) return;
+
+    const name =
+      this.sanitizeEditorName(
+        this.bossMarkerNameInput
+          ?.value,
+        'core',
+      );
+
+    if (
+      !this.asset.markers?.[name]
+    ) {
+      this.setStatus(
+        `Marker "${name}" does not exist.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+    delete this.asset.markers[name];
+
+    this.setStatus(
+      `Deleted marker "${name}".`,
+    );
+
+    this.renderAll();
+  }
+
+  deleteBossHitbox() {
+    if (!this.isBossMode()) return;
+
+    const name =
+      this.sanitizeEditorName(
+        this.hitboxNameInput?.value,
+        'body',
+      );
+
+    const before =
+      this.asset.hitboxes?.length ?? 0;
+
+    this.asset.hitboxes =
+      (this.asset.hitboxes ?? [])
+        .filter(
+          hitbox =>
+            hitbox.id !== name &&
+            hitbox.name !== name,
+        );
+
+    if (
+      this.asset.hitboxes.length ===
+      before
+    ) {
+      this.setStatus(
+        `Hitbox "${name}" does not exist.`,
+        true,
+      );
+      return;
+    }
+
+    this.pushHistory();
+    this.future.length = 0;
+
+    this.setStatus(
+      `Deleted hitbox "${name}".`,
+    );
+
+    this.renderAll();
+  }
+
+  currentSelectedGroup() {
+    const target =
+      this.currentAnimationTarget();
+
+    if (
+      target?.targetType !==
+      'group'
+    ) {
+      return null;
+    }
+
+    return this.getGroup(
+      target.targetId,
+    );
+  }
+
   drawWeaponConstructionGuide(ctx) {
     if (!this.isWeaponMode()) {
       return;
