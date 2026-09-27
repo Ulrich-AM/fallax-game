@@ -39,7 +39,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v54';
+const BUILD_VERSION = 'v54a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -107,7 +107,15 @@ const weaponTestAngle = document.querySelector('#weapon-test-angle');
 const weaponTestExit = document.querySelector('#weapon-test-exit');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
+const shopTabs = document.querySelector('#shop-tabs');
+const shopCategoryTitle = document.querySelector('#shop-category-title');
+const shopCategoryNote = document.querySelector('#shop-category-note');
+const shopReroll = document.querySelector('#shop-reroll');
 const shopItems = document.querySelector('#shop-items');
+const itemTooltip = document.querySelector('#item-tooltip');
+const itemTooltipCanvas = document.querySelector('#item-tooltip-canvas');
+const itemTooltipName = document.querySelector('#item-tooltip-name');
+const itemTooltipDescription = document.querySelector('#item-tooltip-description');
 const chapterBack = document.querySelector('#chapter-back');
 const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
@@ -682,6 +690,10 @@ let encounterOver = false;
 let activeWeaponSlot = 0;
 let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
+let activeShopTab = 'random';
+let shopRandomItemIds = [];
+let hoveredItemId = null;
+const itemTooltipPointer = { x: 0, y: 0 };
 let currentDrag = null;
 
 const CONTROL_STORAGE_KEY = 'bossfights.controls.v1';
@@ -1260,6 +1272,7 @@ function endEncounter(result) {
 }
 
 function showScreen(name) {
+  hideItemTooltip();
   currentScreen = name;
 
   if (name === 'game') {
@@ -2189,6 +2202,184 @@ function renderChapterSelect() {
   }
 }
 
+function getItemCategoryLabel(item) {
+  if (!item) return '';
+
+  const labels = {
+    weapons: 'weapon',
+    abilities: 'ability',
+    extra: 'extra',
+    armor: 'armor',
+  };
+
+  return labels[item.category] ?? item.category;
+}
+
+function getItemPreviewShape(itemId) {
+  if (itemId === 'vector') {
+    return {
+      width: vectorWeapon.bodyArtSize * ART_PIXEL,
+      height: vectorWeapon.bodyArtSize * ART_PIXEL,
+      color: '#6f747c',
+    };
+  }
+
+  if (itemId === 'euclid') {
+    return {
+      width: euclidWeapon.bodyLength * ART_PIXEL,
+      height: euclidWeapon.bodyThickness * ART_PIXEL,
+      color: '#6f747c',
+    };
+  }
+
+  if (itemId === 'horizon') {
+    return {
+      width: horizonWeapon.bodyLengthPixels,
+      height: horizonWeapon.bodyThicknessPixels,
+      color: '#6f747c',
+    };
+  }
+
+  if (itemId === 'mach') {
+    return {
+      width: machWeapon.bodyWidth * ART_PIXEL,
+      height: machWeapon.bodyHeight * ART_PIXEL,
+      color: '#6f747c',
+    };
+  }
+
+  return null;
+}
+
+function positionItemTooltip(clientX, clientY) {
+  if (!itemTooltip || itemTooltip.classList.contains('hidden')) return;
+
+  const gap = 18;
+  const edge = 12;
+  const width = itemTooltip.offsetWidth;
+  const height = itemTooltip.offsetHeight;
+
+  let left = clientX + gap;
+  let top = clientY + gap;
+
+  if (left + width + edge > window.innerWidth) {
+    left = clientX - width - gap;
+  }
+
+  if (top + height + edge > window.innerHeight) {
+    top = clientY - height - gap;
+  }
+
+  itemTooltip.style.left =
+    `${Math.max(edge, left)}px`;
+
+  itemTooltip.style.top =
+    `${Math.max(edge, top)}px`;
+}
+
+function showItemTooltip(itemId, event) {
+  const item = getItem(itemId);
+  if (!item || !itemTooltip) return;
+
+  hoveredItemId = item.id;
+  itemTooltipPointer.x = event.clientX;
+  itemTooltipPointer.y = event.clientY;
+
+  itemTooltipName.textContent = item.name;
+  itemTooltipDescription.textContent = item.description;
+  itemTooltip.classList.remove('hidden');
+
+  const hasPreview = !!getItemPreviewShape(item.id);
+  itemTooltipCanvas.classList.toggle('hidden', !hasPreview);
+
+  positionItemTooltip(
+    event.clientX,
+    event.clientY,
+  );
+
+  drawItemTooltipPreview(performance.now());
+}
+
+function moveItemTooltip(event) {
+  if (!hoveredItemId) return;
+
+  itemTooltipPointer.x = event.clientX;
+  itemTooltipPointer.y = event.clientY;
+
+  positionItemTooltip(
+    event.clientX,
+    event.clientY,
+  );
+}
+
+function hideItemTooltip() {
+  hoveredItemId = null;
+  itemTooltip?.classList.add('hidden');
+}
+
+function bindItemTooltip(card, itemId) {
+  card.addEventListener('pointerenter', event => {
+    showItemTooltip(itemId, event);
+  });
+
+  card.addEventListener('pointermove', moveItemTooltip);
+  card.addEventListener('pointerleave', hideItemTooltip);
+}
+
+function drawItemTooltipPreview(now) {
+  if (
+    !hoveredItemId ||
+    !itemTooltipCanvas ||
+    itemTooltipCanvas.classList.contains('hidden')
+  ) {
+    return;
+  }
+
+  const shape =
+    getItemPreviewShape(hoveredItemId);
+
+  if (!shape) return;
+
+  const previewCtx =
+    itemTooltipCanvas.getContext('2d');
+
+  const width = itemTooltipCanvas.width;
+  const height = itemTooltipCanvas.height;
+
+  previewCtx.clearRect(0, 0, width, height);
+  previewCtx.imageSmoothingEnabled = false;
+
+  const maxWidth = width * 0.52;
+  const maxHeight = height * 0.52;
+  const scale = Math.min(
+    maxWidth / Math.max(1, shape.width),
+    maxHeight / Math.max(1, shape.height),
+    2.8,
+  );
+
+  const angle =
+    (now * 0.00105) %
+    (Math.PI * 2);
+
+  previewCtx.save();
+  previewCtx.translate(
+    Math.round(width / 2),
+    Math.round(height / 2),
+  );
+  previewCtx.rotate(angle);
+  previewCtx.scale(scale, scale);
+  previewCtx.fillStyle = shape.color;
+  previewCtx.shadowColor = 'rgba(255,255,255,0.18)';
+  previewCtx.shadowBlur = 8;
+  previewCtx.fillRect(
+    -shape.width / 2,
+    -shape.height / 2,
+    shape.width,
+    shape.height,
+  );
+  previewCtx.restore();
+}
+
 function createItemCard(itemId, source = null) {
   const item = getItem(itemId);
   if (!item) return null;
@@ -2208,10 +2399,14 @@ function createItemCard(itemId, source = null) {
       <span class="item-icon" aria-hidden="true"></span>
       <span>${item.name}</span>
     </div>
-    <div class="item-description">${item.description}</div>
+    <div class="item-category">${getItemCategoryLabel(item)}</div>
   `;
 
+  bindItemTooltip(card, item.id);
+
   card.addEventListener('dragstart', (e) => {
+    hideItemTooltip();
+
     const payload = {
       itemId: item.id,
       sourceCategory: card.dataset.sourceCategory ?? null,
@@ -2331,45 +2526,204 @@ function renderInventory() {
   }
 }
 
+function rollRandomShopItems() {
+  const available =
+    SHOP_CATALOG.filter(
+      itemId => !ownedItems.includes(itemId),
+    );
 
-function renderShop() {
-  shopItems.innerHTML = '';
+  for (let i = available.length - 1; i > 0; i--) {
+    const j =
+      Math.floor(
+        Math.random() * (i + 1),
+      );
 
-  for (const itemId of SHOP_CATALOG) {
-    const item = getItem(itemId);
-    if (!item) continue;
+    [
+      available[i],
+      available[j],
+    ] = [
+      available[j],
+      available[i],
+    ];
+  }
 
-    const card = document.createElement('div');
-    card.className = 'shop-item-card';
+  shopRandomItemIds =
+    available.slice(
+      0,
+      Math.min(4, available.length),
+    );
+}
 
-    const owned = ownedItems.includes(item.id);
+function renderShopTabs() {
+  shopTabs.innerHTML = '';
 
-    card.innerHTML = `
-      <div class="item-title">
-        <span class="item-icon" aria-hidden="true"></span>
-        <span>${item.name}</span>
-      </div>
-      <div class="item-description">${item.description}</div>
-      <div class="shop-item-actions"></div>
-    `;
+  const tabs = [
+    {
+      id: 'random',
+      label: 'random',
+    },
+    ...EQUIPMENT_CATEGORIES.map(
+      category => ({
+        id: category.id,
+        label: category.label.toLowerCase(),
+      }),
+    ),
+  ];
 
-    const actions = card.querySelector('.shop-item-actions');
-    const buy = document.createElement('button');
-    buy.className = 'shop-buy-button';
-    buy.textContent = owned ? 'owned' : 'free';
-    buy.disabled = owned;
+  for (const tab of tabs) {
+    const button = document.createElement('button');
+    button.className = 'tab-button';
+    button.textContent = tab.label;
+    button.classList.toggle(
+      'active',
+      tab.id === activeShopTab,
+    );
 
-    buy.addEventListener('click', () => {
-      if (purchaseItem(item.id)) {
-        renderShop();
-        renderEquipment();
+    button.addEventListener('click', () => {
+      activeShopTab = tab.id;
+
+      if (
+        tab.id === 'random' &&
+        shopRandomItemIds.length === 0
+      ) {
+        rollRandomShopItems();
       }
+
+      renderShop();
     });
 
-    actions.appendChild(buy);
-    shopItems.appendChild(card);
+    shopTabs.appendChild(button);
   }
 }
+
+function createShopItemCard(itemId) {
+  const item = getItem(itemId);
+  if (!item) return null;
+
+  const card = document.createElement('div');
+  card.className = 'shop-item-card';
+  card.dataset.itemId = item.id;
+
+  const owned = ownedItems.includes(item.id);
+
+  card.innerHTML = `
+    <div class="item-title">
+      <span class="item-icon" aria-hidden="true"></span>
+      <span>${item.name}</span>
+    </div>
+    <div class="item-category">${getItemCategoryLabel(item)}</div>
+    <div class="shop-item-actions"></div>
+  `;
+
+  bindItemTooltip(card, item.id);
+
+  const actions =
+    card.querySelector(
+      '.shop-item-actions',
+    );
+
+  const buy =
+    document.createElement('button');
+
+  buy.className = 'shop-buy-button';
+  buy.textContent =
+    owned ? 'owned' : 'free';
+  buy.disabled = owned;
+
+  buy.addEventListener('click', () => {
+    hideItemTooltip();
+
+    if (!purchaseItem(item.id)) {
+      return;
+    }
+
+    if (activeShopTab === 'random') {
+      rollRandomShopItems();
+    }
+
+    renderShop();
+    renderEquipment();
+  });
+
+  actions.appendChild(buy);
+  return card;
+}
+
+function renderShop() {
+  renderShopTabs();
+  shopItems.innerHTML = '';
+
+  const random =
+    activeShopTab === 'random';
+
+  shopCategoryTitle.textContent =
+    random
+      ? 'random'
+      : (
+          getCategory(activeShopTab)
+            ?.label
+            ?.toLowerCase() ??
+          activeShopTab
+        );
+
+  shopCategoryNote.textContent =
+    random
+      ? 'random unowned items from the current catalog'
+      : 'everything is free for now';
+
+  shopReroll.classList.toggle(
+    'hidden',
+    !random,
+  );
+
+  if (
+    random &&
+    shopRandomItemIds.length === 0
+  ) {
+    rollRandomShopItems();
+  }
+
+  const itemIds =
+    random
+      ? shopRandomItemIds
+      : SHOP_CATALOG.filter(
+          itemId =>
+            getItem(itemId)?.category ===
+            activeShopTab,
+        );
+
+  if (!itemIds.length) {
+    const empty =
+      document.createElement('div');
+
+    empty.className = 'empty-note';
+    empty.textContent =
+      random
+        ? 'No unowned items are available to roll.'
+        : 'No items in this category yet.';
+
+    shopItems.appendChild(empty);
+    return;
+  }
+
+  for (const itemId of itemIds) {
+    const card =
+      createShopItemCard(itemId);
+
+    if (card) {
+      shopItems.appendChild(card);
+    }
+  }
+}
+
+shopReroll?.addEventListener(
+  'click',
+  () => {
+    hideItemTooltip();
+    rollRandomShopItems();
+    renderShop();
+  },
+);
 
 function renderEquipment() {
   renderTabs();
@@ -2417,6 +2771,7 @@ function frame(now) {
   }
 
   if (currentScreen === 'game') renderGame();
+  drawItemTooltipPreview(now);
   requestAnimationFrame(frame);
 }
 
