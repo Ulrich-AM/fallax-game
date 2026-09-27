@@ -4506,14 +4506,19 @@ export class SpriteEditor {
         maxY - minY,
       );
 
+    const trueSize =
+      !!this.trueSizeInput?.checked;
+
     const fit =
-      Math.min(
-        1,
-        (w - padding * 2) /
-          naturalW,
-        (h - padding * 2) /
-          naturalH,
-      );
+      trueSize
+        ? 1
+        : Math.min(
+            1,
+            (w - padding * 2) /
+              naturalW,
+            (h - padding * 2) /
+              naturalH,
+          );
 
     const contentW =
       naturalW * fit;
@@ -4740,16 +4745,21 @@ export class SpriteEditor {
 
     ctx.restore();
 
-    if (fit < 0.999) {
+    if (
+      trueSize ||
+      fit < 0.999
+    ) {
       ctx.fillStyle = '#68717e';
       ctx.font =
         "10px 'Pixel Arial 11', Arial, sans-serif";
       ctx.textAlign = 'right';
 
       ctx.fillText(
-        `preview fit ${Math.round(
-          fit * 100,
-        )}%`,
+        trueSize
+          ? 'preview 1:1 game size'
+          : `preview fit ${Math.round(
+              fit * 100,
+            )}%`,
         w - 8,
         h - 8,
       );
@@ -4877,20 +4887,25 @@ export class SpriteEditor {
 
     const padding = 18;
 
+    const trueSize =
+      !!this.trueSizeInput?.checked;
+
     const fit =
-      Math.min(
-        1,
-        (w - padding * 2) /
-          Math.max(
+      trueSize
+        ? 1
+        : Math.min(
             1,
-            totalNaturalW,
-          ),
-        (h - padding * 2) /
-          Math.max(
-            1,
-            totalNaturalH,
-          ),
-      );
+            (w - padding * 2) /
+              Math.max(
+                1,
+                totalNaturalW,
+              ),
+            (h - padding * 2) /
+              Math.max(
+                1,
+                totalNaturalH,
+              ),
+          );
 
     const rasterScale =
       naturalGameScale * fit;
@@ -5016,6 +5031,126 @@ export class SpriteEditor {
       spriteH,
     );
 
+    if (
+      compiled.asset.type ===
+      'boss'
+    ) {
+      const pivotX =
+        spriteLeft -
+        baseBounds.minX *
+        rasterScale;
+
+      const pivotY =
+        spriteTop -
+        baseBounds.minY *
+        rasterScale;
+
+      ctx.save();
+      ctx.font =
+        "9px 'Pixel Arial 11', Arial, sans-serif";
+
+      for (
+        const [name, marker]
+        of Object.entries(
+          compiled.markers ?? {},
+        )
+      ) {
+        const [mx, my] =
+          rotatePoint(
+            marker.x,
+            marker.y,
+            angle,
+          );
+
+        const x =
+          pivotX +
+          mx * rasterScale;
+
+        const y =
+          pivotY +
+          my * rasterScale;
+
+        ctx.strokeStyle = '#ffd66b';
+        ctx.fillStyle = '#ffd66b';
+        ctx.beginPath();
+        ctx.moveTo(x - 5, y);
+        ctx.lineTo(x + 5, y);
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x, y + 5);
+        ctx.stroke();
+
+        ctx.fillText(
+          name,
+          x + 7,
+          y - 7,
+        );
+      }
+
+      ctx.strokeStyle = '#ff78d7';
+      ctx.fillStyle = '#ff78d7';
+      ctx.setLineDash([5, 4]);
+
+      for (
+        const hitbox
+        of compiled.hitboxes ?? []
+      ) {
+        const [hx, hy] =
+          rotatePoint(
+            hitbox.x,
+            hitbox.y,
+            angle,
+          );
+
+        const x =
+          pivotX +
+          hx * rasterScale;
+
+        const y =
+          pivotY +
+          hy * rasterScale;
+
+        if (
+          hitbox.type === 'rect'
+        ) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(
+            angle *
+            Math.PI /
+            180,
+          );
+
+          ctx.strokeRect(
+            -hitbox.width *
+              rasterScale /
+              2,
+            -hitbox.height *
+              rasterScale /
+              2,
+            hitbox.width *
+              rasterScale,
+            hitbox.height *
+              rasterScale,
+          );
+
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(
+            x,
+            y,
+            hitbox.radius *
+              rasterScale,
+            0,
+            Math.PI * 2,
+          );
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
     if (hasPlayer) {
       const playerY =
         centerY -
@@ -5071,9 +5206,11 @@ export class SpriteEditor {
       ctx.textAlign = 'right';
 
       ctx.fillText(
-        `preview fit ${Math.round(
-          fit * 100,
-        )}%`,
+        trueSize
+          ? 'preview 1:1 game size'
+          : `preview fit ${Math.round(
+              fit * 100,
+            )}%`,
         w - 8,
         h - 8,
       );
