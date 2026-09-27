@@ -173,11 +173,12 @@ export class WeaponTestRoom {
             event.code,
           )
         ) {
-          if (
+          const firstPress =
             !this.keys.has(
               event.code,
-            )
-          ) {
+            );
+
+          if (firstPress) {
             this.pressed.add(
               event.code,
             );
@@ -188,8 +189,9 @@ export class WeaponTestRoom {
           );
 
           if (
+            firstPress &&
             event.code ===
-            controls.special
+              controls.special
           ) {
             this.setClip('special');
           }
@@ -447,11 +449,13 @@ export class WeaponTestRoom {
 
     this.animationTime += dt;
 
-    if (clip.loop) {
-      if (clip.duration > 0) {
-        this.animationTime %=
-          clip.duration;
-      }
+    if (
+      this.currentClipName ===
+        'idle' &&
+      clip.duration > 0
+    ) {
+      this.animationTime %=
+        clip.duration;
       return;
     }
 
