@@ -1104,3 +1104,66 @@ canvas {
   border-color: #66707e;
   color: #ffffff;
 }
+
+
+/* Selection inspector + clearer weapon workflow */
+.sprite-selection-summary {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid #2b313a;
+  background: #0a0c10;
+  color: #9aa2ae;
+  font-size: 11px;
+}
+
+.sprite-transform-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.25fr;
+  gap: 6px;
+}
+
+.sprite-transform-grid label {
+  display: grid;
+  gap: 4px;
+  color: #7f8793;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.sprite-transform-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  border: 1px solid #343b46;
+  background: #111419;
+  color: #eef0f4;
+  padding: 0 6px;
+}
+
+.sprite-transform-grid input:disabled {
+  opacity: 0.45;
+}
+
+.sprite-workflow {
+  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid #2a3039;
+  background: #0a0c10;
+  color: #7f8793;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.sprite-workflow strong {
+  margin-bottom: 2px;
+  color: #b9c0ca;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
