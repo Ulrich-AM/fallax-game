@@ -954,3 +954,85 @@ canvas {
   color: #eef0f4;
   padding: 0 7px;
 }
+
+
+/* Weapon sprite editor */
+.sprite-marker-info {
+  margin-top: 9px;
+  display: grid;
+  gap: 4px;
+  color: #7f8793;
+  font-size: 11px;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.sprite-wide-button {
+  width: 100%;
+}
+
+.weapon-test-room {
+  position: absolute;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  background: #07080b;
+}
+
+#weapon-test-canvas {
+  width: min(
+    1280px,
+    calc(100vw - 24px),
+    calc((100vh - 24px) * 16 / 9)
+  );
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #252b34;
+  background: #090b0f;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+.weapon-test-hud {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.weapon-test-hud > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.weapon-test-hud strong {
+  font-size: 15px;
+  text-transform: lowercase;
+}
+
+.weapon-test-hud span,
+#weapon-test-angle {
+  color: #8a929d;
+  font-size: 11px;
+}
+
+#weapon-test-exit {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #353c47;
+  background: rgba(18, 21, 26, 0.94);
+  color: #d7dbe2;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#weapon-test-exit:hover {
+  background: #1c2027;
+  border-color: #66707e;
+  color: #ffffff;
+}
