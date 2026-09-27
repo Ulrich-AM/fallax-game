@@ -1039,6 +1039,7 @@ export class SpriteEditor {
       event.code === 'KeyZ'
     ) {
       event.preventDefault();
+      event.stopPropagation();
 
       if (event.shiftKey) {
         this.redo();
@@ -1054,6 +1055,7 @@ export class SpriteEditor {
       event.code === 'KeyY'
     ) {
       event.preventDefault();
+      event.stopPropagation();
       this.redo();
       return;
     }
@@ -1061,6 +1063,7 @@ export class SpriteEditor {
     if (event.code === 'Enter') {
       if (this.tool === 'polygon') {
         event.preventDefault();
+        event.stopPropagation();
         this.commitPolygon();
       }
       return;
@@ -1068,6 +1071,7 @@ export class SpriteEditor {
 
     if (event.code === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
 
       if (
         this.tool === 'polygon' &&
@@ -1085,6 +1089,7 @@ export class SpriteEditor {
       event.code === 'Backspace'
     ) {
       event.preventDefault();
+      event.stopPropagation();
       this.deleteSelected();
     }
   }
