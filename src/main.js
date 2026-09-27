@@ -40,6 +40,11 @@ const settingScreenShake = document.querySelector('#setting-screen-shake');
 const settingParticles = document.querySelector('#setting-particles');
 const settingHitFlash = document.querySelector('#setting-hit-flash');
 const settingImpactCamera = document.querySelector('#setting-impact-camera');
+const keybindButtons = [
+  ...document.querySelectorAll('.keybind-button'),
+];
+const keybindStatus = document.querySelector('#keybind-status');
+const resetKeybindsButton = document.querySelector('#reset-keybinds');
 const equipmentBack = document.querySelector('#equipment-back');
 const shopBack = document.querySelector('#shop-back');
 const shopItems = document.querySelector('#shop-items');
@@ -165,6 +170,185 @@ let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
 let currentDrag = null;
 
+const CONTROL_STORAGE_KEY = 'bossfights.controls.v1';
+
+const DEFAULT_CONTROLS = Object.freeze({
+  moveLeft: 'KeyA',
+  moveRight: 'KeyD',
+  jump: 'Space',
+  sprint: 'ShiftLeft',
+  dash: 'KeyF',
+  special: 'KeyQ',
+  weapon1: 'Digit1',
+  weapon2: 'Digit2',
+  restart: 'KeyR',
+});
+
+const controlBindings = {
+  ...DEFAULT_CONTROLS,
+};
+
+try {
+  const savedControls = JSON.parse(
+    localStorage.getItem(CONTROL_STORAGE_KEY) ?? 'null',
+  );
+
+  if (
+    savedControls &&
+    typeof savedControls === 'object'
+  ) {
+    for (const action of Object.keys(DEFAULT_CONTROLS)) {
+      const code = savedControls[action];
+
+      if (
+        typeof code === 'string' &&
+        code.length > 0 &&
+        code !== 'Escape'
+      ) {
+        controlBindings[action] = code;
+      }
+    }
+  }
+} catch {
+  // Keep defaults if saved controls are unavailable or malformed.
+}
+
+let pendingBindingAction = null;
+
+function saveControlBindings() {
+  try {
+    localStorage.setItem(
+      CONTROL_STORAGE_KEY,
+      JSON.stringify(controlBindings),
+    );
+  } catch {
+    // Rebinding still works for the current session.
+  }
+}
+
+function keyLabel(code) {
+  if (!code) return '?';
+
+  const named = {
+    Space: 'Space',
+    ShiftLeft: 'Left Shift',
+    ShiftRight: 'Right Shift',
+    ControlLeft: 'Left Ctrl',
+    ControlRight: 'Right Ctrl',
+    AltLeft: 'Left Alt',
+    AltRight: 'Right Alt',
+    ArrowLeft: '←',
+    ArrowRight: '→',
+    ArrowUp: '↑',
+    ArrowDown: '↓',
+    Enter: 'Enter',
+    Tab: 'Tab',
+    Backspace: 'Backspace',
+  };
+
+  if (named[code]) return named[code];
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) {
+    return `Numpad ${code.slice(6)}`;
+  }
+
+  return code;
+}
+
+function renderKeybinds() {
+  for (const button of keybindButtons) {
+    const action = button.dataset.bindAction;
+    const listening =
+      pendingBindingAction === action;
+
+    button.classList.toggle(
+      'listening',
+      listening,
+    );
+
+    button.textContent = listening
+      ? 'press a key...'
+      : keyLabel(controlBindings[action]);
+  }
+
+  if (keybindStatus) {
+    keybindStatus.textContent =
+      pendingBindingAction
+        ? 'Press a key to bind it. Esc cancels.'
+        : 'Esc stays reserved for menus. Fire stays on LMB.';
+  }
+}
+
+function setControlBinding(action, newCode) {
+  if (
+    !Object.hasOwn(controlBindings, action) ||
+    !newCode ||
+    newCode === 'Escape'
+  ) {
+    return false;
+  }
+
+  const oldCode = controlBindings[action];
+
+  if (oldCode === newCode) {
+    pendingBindingAction = null;
+    renderKeybinds();
+    return true;
+  }
+
+  const conflictAction =
+    Object.keys(controlBindings).find(
+      key =>
+        key !== action &&
+        controlBindings[key] === newCode,
+    );
+
+  if (conflictAction) {
+    controlBindings[conflictAction] = oldCode;
+  }
+
+  controlBindings[action] = newCode;
+  pendingBindingAction = null;
+
+  keys.clear();
+  pressed.clear();
+  released.clear();
+
+  saveControlBindings();
+  renderKeybinds();
+  refreshWeaponButtons();
+
+  return true;
+}
+
+for (const button of keybindButtons) {
+  button.addEventListener('click', () => {
+    pendingBindingAction =
+      button.dataset.bindAction;
+    renderKeybinds();
+  });
+}
+
+resetKeybindsButton?.addEventListener(
+  'click',
+  () => {
+    Object.assign(
+      controlBindings,
+      DEFAULT_CONTROLS,
+    );
+
+    pendingBindingAction = null;
+    keys.clear();
+    pressed.clear();
+    released.clear();
+
+    saveControlBindings();
+    renderKeybinds();
+    refreshWeaponButtons();
+  },
+);
+
 const FX_STORAGE_KEY = 'bossfights.fx-settings.v1';
 const fxSettings = {
   screenShake: true,
@@ -210,6 +394,7 @@ function renderSettings() {
   settingParticles.checked = fxSettings.particles;
   settingHitFlash.checked = fxSettings.hitFlash;
   settingImpactCamera.checked = fxSettings.impactCamera;
+  renderKeybinds();
 }
 
 function bindSetting(input, key) {
@@ -496,7 +681,14 @@ function refreshWeaponButtons() {
     const id = getWeaponSlotId(index);
     const item = getItem(id);
 
-    button.textContent = item ? item.name.toLowerCase() : 'empty';
+    const binding =
+      controlBindings[
+        index === 0 ? 'weapon1' : 'weapon2'
+      ];
+
+    button.textContent = item
+      ? `${keyLabel(binding)}: ${item.name.toLowerCase()}`
+      : 'empty';
     button.disabled = !item;
     button.classList.toggle('active', index === activeWeaponSlot && !!item);
   });
@@ -610,28 +802,52 @@ document.addEventListener('pointerover', (e) => {
 });
 
 addEventListener('keydown', (e) => {
+  if (pendingBindingAction) {
+    if (e.code === 'Escape') {
+      pendingBindingAction = null;
+      renderKeybinds();
+    } else {
+      setControlBinding(
+        pendingBindingAction,
+        e.code,
+      );
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
   if (e.code === 'Escape') {
-    if (currentScreen === 'game') showScreen('chapters');
-    else if (currentScreen !== 'menu') showScreen('menu');
+    if (currentScreen === 'game') {
+      showScreen('chapters');
+    } else if (currentScreen !== 'menu') {
+      showScreen('menu');
+    }
     return;
   }
 
   if (currentScreen !== 'game') return;
 
-  if (e.code === 'Digit1') selectWeaponSlot(0);
-  if (e.code === 'Digit2') selectWeaponSlot(1);
+  if (e.code === controlBindings.weapon1) {
+    selectWeaponSlot(0);
+  }
 
-  if (!keys.has(e.code)) pressed.add(e.code);
+  if (e.code === controlBindings.weapon2) {
+    selectWeaponSlot(1);
+  }
+
+  if (!keys.has(e.code)) {
+    pressed.add(e.code);
+  }
+
   keys.add(e.code);
 
-  if ([
-    'Space',
-    'ShiftLeft',
-    'ShiftRight',
-    'KeyF',
-    'ArrowLeft',
-    'ArrowRight',
-  ].includes(e.code)) {
+  if (
+    Object.values(controlBindings).includes(
+      e.code,
+    )
+  ) {
     e.preventDefault();
   }
 });
@@ -671,16 +887,26 @@ addEventListener('pointerup', (e) => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 function readInput() {
-  const right = keys.has('KeyD') || keys.has('ArrowRight');
-  const left = keys.has('KeyA') || keys.has('ArrowLeft');
+  const right =
+    keys.has(controlBindings.moveRight);
+
+  const left =
+    keys.has(controlBindings.moveLeft);
 
   return {
-    move: (right ? 1 : 0) - (left ? 1 : 0),
-    jumpHeld: keys.has('Space'),
-    jumpPressed: pressed.has('Space'),
-    jumpReleased: released.has('Space'),
-    sprintHeld: keys.has('ShiftLeft') || keys.has('ShiftRight'),
-    dashPressed: pressed.has('KeyF'),
+    move:
+      (right ? 1 : 0) -
+      (left ? 1 : 0),
+    jumpHeld:
+      keys.has(controlBindings.jump),
+    jumpPressed:
+      pressed.has(controlBindings.jump),
+    jumpReleased:
+      released.has(controlBindings.jump),
+    sprintHeld:
+      keys.has(controlBindings.sprint),
+    dashPressed:
+      pressed.has(controlBindings.dash),
   };
 }
 
@@ -739,7 +965,7 @@ function update(dt) {
   );
   updateParticles(dt);
 
-  if (pressed.has('KeyR')) {
+  if (pressed.has(controlBindings.restart)) {
     player.reset();
     vectorWeapon.reset();
     euclidWeapon.reset();
@@ -847,7 +1073,7 @@ function update(dt) {
 
   updateCameraShake(dt);
 
-  if (pressed.has('KeyQ')) {
+  if (pressed.has(controlBindings.special)) {
     activeWeapon?.triggerSpecial?.({
       player,
       pointerWorld: getPointerWorld(),
@@ -1111,7 +1337,7 @@ function drawHUD() {
 
     const specialText =
       special.remaining <= 0
-        ? 'READY [Q]'
+        ? `READY [${keyLabel(controlBindings.special)}]`
         : `${special.remaining.toFixed(1)}s`;
 
     drawResourceBar(
@@ -1168,7 +1394,18 @@ function drawHUD() {
   ctx.font = '12px Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.textAlign = 'right';
-  ctx.fillText('A/D move   Space jump   Shift sprint   F dash   Q special   LMB fire', W - 20, H - 24);
+  const controlHint =
+    `${keyLabel(controlBindings.moveLeft)}/${keyLabel(controlBindings.moveRight)} move   ` +
+    `${keyLabel(controlBindings.jump)} jump   ` +
+    `${keyLabel(controlBindings.sprint)} sprint   ` +
+    `${keyLabel(controlBindings.dash)} dash   ` +
+    `${keyLabel(controlBindings.special)} special   LMB fire`;
+
+  ctx.fillText(
+    controlHint,
+    W - 20,
+    H - 24,
+  );
   const activeItem = getItem(getActiveWeaponId());
   ctx.fillText(activeItem ? activeItem.name : 'No weapon equipped', W - 20, H - 44);
   ctx.restore();
@@ -1586,4 +1823,5 @@ window.BOSSFIGHTS = {
   backfireAbility,
   audio,
   fxSettings,
+  controlBindings,
 };
