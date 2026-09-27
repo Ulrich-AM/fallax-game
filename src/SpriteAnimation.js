@@ -180,25 +180,33 @@ function normalizeClip(
 export function normalizeAnimations(
   input,
 ) {
-  const result =
-    createDefaultAnimations();
-
   if (
     !input ||
-    typeof input !== 'object'
+    typeof input !== 'object' ||
+    !input.clips ||
+    typeof input.clips !== 'object'
   ) {
-    return result;
+    return createDefaultAnimations();
   }
 
-  const clips =
-    input.clips &&
-    typeof input.clips === 'object'
-      ? input.clips
-      : {};
+  const entries =
+    Object.entries(
+      input.clips,
+    );
+
+  if (!entries.length) {
+    return {
+      clips: {},
+    };
+  }
+
+  const result = {
+    clips: {},
+  };
 
   for (
     const [name, clip]
-    of Object.entries(clips)
+    of entries
   ) {
     result.clips[name] =
       normalizeClip(
