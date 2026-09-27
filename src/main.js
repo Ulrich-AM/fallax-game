@@ -23,16 +23,16 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=47';
-import { DeveloperConsole } from './DeveloperConsole.js?v=47';
-import { SpriteEditor } from './SpriteEditor.js?v=47';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=47';
+import { GameAudio } from './AudioManager.js?v=48';
+import { DeveloperConsole } from './DeveloperConsole.js?v=48';
+import { SpriteEditor } from './SpriteEditor.js?v=48';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=48';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=47';
+} from './SpriteAssets.js?v=48';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -90,6 +90,10 @@ const spriteAnimationTime = document.querySelector('#sprite-animation-time');
 const spriteAnimationTimeLabel = document.querySelector('#sprite-animation-time-label');
 const spriteAnimationTarget = document.querySelector('#sprite-animation-target');
 const spriteAnimationKeys = document.querySelector('#sprite-animation-keys');
+const spriteSelectionSummary = document.querySelector('#sprite-selection-summary');
+const spriteSelectionX = document.querySelector('#sprite-selection-x');
+const spriteSelectionY = document.querySelector('#sprite-selection-y');
+const spriteSelectionRotation = document.querySelector('#sprite-selection-rotation');
 const weaponTestRoot = document.querySelector('#weapon-test-room');
 const weaponTestCanvas = document.querySelector('#weapon-test-canvas');
 const weaponTestAngle = document.querySelector('#weapon-test-angle');
@@ -250,6 +254,10 @@ const spriteEditor =
     animationTimeLabel: spriteAnimationTimeLabel,
     animationTargetRoot: spriteAnimationTarget,
     animationKeysRoot: spriteAnimationKeys,
+    selectionSummary: spriteSelectionSummary,
+    selectionXInput: spriteSelectionX,
+    selectionYInput: spriteSelectionY,
+    selectionRotationInput: spriteSelectionRotation,
     store: spriteAssetStore,
     onClose: () => {
       audio.setSuspended(devConsole.isOpen);
