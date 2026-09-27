@@ -78,6 +78,7 @@ const spriteEditorStatus = document.querySelector('#sprite-editor-status');
 const spritePreviewRotation = document.querySelector('#sprite-preview-rotation');
 const spritePreviewRotationLabel = document.querySelector('#sprite-preview-rotation-label');
 const spritePreviewPlayer = document.querySelector('#sprite-preview-player');
+const spritePreviewTrueSize = document.querySelector('#sprite-preview-true-size');
 const spriteEditorSnap = document.querySelector('#sprite-editor-snap');
 const spriteEditorSymmetry = document.querySelector('#sprite-editor-symmetry');
 const spriteEditorScale = document.querySelector('#sprite-editor-scale');
