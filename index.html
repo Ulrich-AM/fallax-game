@@ -170,6 +170,110 @@
         </section>
       </main>
     </section>
+    <section id="sprite-editor" class="sprite-editor hidden" aria-label="Sprite editor">
+      <header class="sprite-editor-topbar">
+        <div>
+          <strong>sprite creator</strong>
+          <span id="sprite-editor-status">ready</span>
+        </div>
+
+        <label>
+          <span>name</span>
+          <input id="sprite-editor-name" type="text" value="untitled" />
+        </label>
+
+        <label>
+          <span>type</span>
+          <select id="sprite-editor-type">
+            <option value="boss">boss</option>
+            <option value="weapon">weapon</option>
+            <option value="generic">generic</option>
+          </select>
+        </label>
+
+        <button data-editor-action="save">save draft</button>
+        <button data-editor-action="close">close</button>
+      </header>
+
+      <aside class="sprite-editor-left">
+        <section>
+          <h3>tools</h3>
+          <div class="sprite-tool-grid">
+            <button data-editor-tool="select" class="active">select</button>
+            <button data-editor-tool="polygon">polygon</button>
+          </div>
+        </section>
+
+        <section>
+          <h3>edit</h3>
+          <div class="sprite-tool-grid">
+            <button data-editor-action="undo">undo</button>
+            <button data-editor-action="redo">redo</button>
+            <button data-editor-action="duplicate">duplicate</button>
+            <button data-editor-action="delete">delete</button>
+          </div>
+        </section>
+
+        <section>
+          <h3>grid</h3>
+          <label class="sprite-inline-check">
+            <input id="sprite-editor-snap" type="checkbox" checked />
+            <span>snap to art pixels</span>
+          </label>
+          <small>mouse wheel: zoom<br />middle/right drag: pan</small>
+        </section>
+
+        <section>
+          <h3>materials</h3>
+          <div id="sprite-editor-materials" class="sprite-materials"></div>
+        </section>
+      </aside>
+
+      <main class="sprite-editor-stage">
+        <canvas
+          id="sprite-editor-canvas"
+          width="980"
+          height="680"
+          aria-label="Sprite construction canvas"
+        ></canvas>
+      </main>
+
+      <aside class="sprite-editor-right">
+        <section>
+          <h3>layers</h3>
+          <div id="sprite-editor-layers" class="sprite-layers"></div>
+        </section>
+
+        <section class="sprite-preview-section">
+          <h3>game preview</h3>
+          <canvas
+            id="sprite-preview-canvas"
+            width="300"
+            height="250"
+            aria-label="Sprite raster preview"
+          ></canvas>
+
+          <label class="sprite-rotation-row">
+            <span>rotation</span>
+            <input
+              id="sprite-preview-rotation"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value="0"
+            />
+            <strong id="sprite-preview-rotation-label">0°</strong>
+          </label>
+
+          <label class="sprite-inline-check">
+            <input id="sprite-preview-player" type="checkbox" checked />
+            <span>show player comparison</span>
+          </label>
+        </section>
+      </aside>
+    </section>
+
     <section id="dev-console" class="dev-console hidden" aria-label="Developer console">
       <div id="dev-console-output" class="dev-console-output"></div>
       <div class="dev-console-input-row">
