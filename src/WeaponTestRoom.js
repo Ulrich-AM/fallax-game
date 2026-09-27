@@ -344,9 +344,9 @@ export class WeaponTestRoom {
       width: 32,
       height: 56,
       pivotX:
-        centerX + 14,
+        centerX + 16,
       pivotY:
-        centerY - 10,
+        centerY - 14,
       floorY,
     };
   }
