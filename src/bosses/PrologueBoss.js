@@ -132,6 +132,17 @@ export class PrologueBoss {
     this.spinChaseRotationSpeed = 760;
     this.spinChaseDamage = 16;
     this.spinChaseHitCooldown = 0.34;
+    this.spinChaseAngle = 0;
+    this.spinChaseAngularSpeed = 0;
+    this.spinChaseRecoverStarted = false;
+    this.spinChaseRecoverStartX = this.x;
+    this.spinChaseRecoverStartY = this.y;
+    this.spinChaseRecoverFirstX = this.satelliteX;
+    this.spinChaseRecoverFirstY = this.satelliteY;
+    this.spinChaseRecoverSecondX = this.secondSatelliteX;
+    this.spinChaseRecoverSecondY = this.secondSatelliteY;
+    this.spinChaseRecoverTargetX = this.x;
+    this.spinChaseRecoverTargetY = this.y;
 
     // Radial satellite burst attack.
     this.satelliteBurstRowsFired = 0;
@@ -342,7 +353,12 @@ export class PrologueBoss {
           if (ai.timerDone('attackDelay')) {
             const nextAttack = ai.chooseWeighted([
               { value: 'track', weight: 1.0 },
-              { value: 'satelliteLunge', weight: 0.85 },
+              {
+                value: owner.isPhase2
+                  ? 'phase2SpinChase'
+                  : 'satelliteLunge',
+                weight: 0.85,
+              },
               { value: 'satelliteBurst', weight: 0.90 },
               { value: 'wallRushPrep', weight: 0.80 },
             ]);
@@ -596,181 +612,520 @@ export class PrologueBoss {
           owner.spinChaseVY = 0;
           owner.spinChaseFirstHitCooldown = 0;
           owner.spinChaseSecondHitCooldown = 0;
+          owner.spinChaseRecoverStarted = false;
           owner.smashTrail.length = 0;
           owner.smashTrailTimer = 0;
 
-          const first = owner.getSatelliteOrbitPosition(0);
-          const second = owner.getSatelliteOrbitPosition(180);
+          const first =
+            owner.getSatelliteOrbitPosition(0);
+
+          const second =
+            owner.getSatelliteOrbitPosition(180);
+
           owner.satelliteX = first.x;
           owner.satelliteY = first.y;
           owner.secondSatelliteX = second.x;
           owner.secondSatelliteY = second.y;
+
+          owner.spinChaseAngle =
+            Math.atan2(
+              first.y - owner.y,
+              first.x - owner.x,
+            ) *
+            180 /
+            Math.PI;
+
+          owner.spinChaseAngularSpeed =
+            Math.max(
+              52 * owner.actionSpeed,
+              owner.satelliteOrbitSpeed,
+            );
         },
 
         update: (owner, ai, dt, ctx) => {
-          const player = ai.targetPlayer(ctx);
-          const time = ai.stateTime;
-          const windupEnd = 0.52;
-          const chaseEnd = 2.72;
-          const recoverEnd = 3.18;
+          const player =
+            ai.targetPlayer(ctx);
 
-          owner.spinChaseFirstHitCooldown = Math.max(
-            0,
-            owner.spinChaseFirstHitCooldown - dt,
-          );
-          owner.spinChaseSecondHitCooldown = Math.max(
-            0,
-            owner.spinChaseSecondHitCooldown - dt,
-          );
+          const time = ai.stateTime;
+
+          const windupEnd = 0.68;
+          const chaseEnd = 2.88;
+          const recoverEnd = 3.72;
+
+          const spinRadius =
+            owner.halfSize +
+            owner.satelliteSize * 0.62;
+
+          owner.spinChaseFirstHitCooldown =
+            Math.max(
+              0,
+              owner.spinChaseFirstHitCooldown - dt,
+            );
+
+          owner.spinChaseSecondHitCooldown =
+            Math.max(
+              0,
+              owner.spinChaseSecondHitCooldown - dt,
+            );
+
+          let fistBlend = 0;
+          let recovering = false;
 
           if (time < windupEnd) {
-            const t = smoothstep(time / windupEnd);
-            owner.rotation +=
-              lerp(90, owner.spinChaseRotationSpeed * 0.55, t) * dt;
+            const raw =
+              time / windupEnd;
 
-            owner.scaleX =
-              1 + Math.sin(t * Math.PI) * 0.10;
-            owner.scaleY =
-              1 - Math.sin(t * Math.PI) * 0.08;
-          } else if (time < chaseEnd) {
-            owner.rotation +=
-              owner.spinChaseRotationSpeed * dt;
+            const t =
+              smoothstep(raw);
 
+            owner.spinChaseAngularSpeed =
+              lerp(
+                Math.max(
+                  52 * owner.actionSpeed,
+                  owner.satelliteOrbitSpeed,
+                ),
+                owner.spinChaseRotationSpeed,
+                t,
+              );
+
+            owner.rotation +=
+              owner.spinChaseAngularSpeed *
+              dt;
+
+            owner.spinChaseAngle +=
+              owner.spinChaseAngularSpeed *
+              dt;
+
+            // Begin drifting toward the player before the chase reaches
+            // full speed, so the movement does not pop on at windupEnd.
             if (player) {
-              const dx = player.x - owner.x;
-              const dy = player.y - owner.y;
-              const length = Math.hypot(dx, dy) || 1;
+              const dx =
+                player.x - owner.x;
 
-              const desiredVX =
-                (dx / length) *
-                owner.spinChaseSpeed;
+              const dy =
+                player.y - owner.y;
 
-              const desiredVY =
-                (dy / length) *
-                owner.spinChaseSpeed;
+              const length =
+                Math.hypot(dx, dy) || 1;
+
+              const approachSpeed =
+                owner.spinChaseSpeed *
+                0.30 *
+                t;
 
               const follow =
                 1 -
                 Math.exp(
-                  -owner.spinChaseTurnRate * dt,
+                  -2.8 * dt,
                 );
 
-              owner.spinChaseVX = lerp(
-                owner.spinChaseVX,
-                desiredVX,
-                follow,
+              owner.spinChaseVX =
+                lerp(
+                  owner.spinChaseVX,
+                  dx / length *
+                    approachSpeed,
+                  follow,
+                );
+
+              owner.spinChaseVY =
+                lerp(
+                  owner.spinChaseVY,
+                  dy / length *
+                    approachSpeed,
+                  follow,
+                );
+
+              owner.x +=
+                owner.spinChaseVX * dt;
+
+              owner.y +=
+                owner.spinChaseVY * dt;
+            }
+
+            fistBlend = t;
+
+            const pulse =
+              Math.sin(
+                raw *
+                Math.PI,
               );
 
-              owner.spinChaseVY = lerp(
-                owner.spinChaseVY,
-                desiredVY,
-                follow,
+            owner.scaleX =
+              1 +
+              pulse * 0.075;
+
+            owner.scaleY =
+              1 -
+              pulse * 0.055;
+          } else if (time < chaseEnd) {
+            const chaseRamp =
+              smoothstep(
+                Math.min(
+                  1,
+                  (
+                    time -
+                    windupEnd
+                  ) /
+                  0.30,
+                ),
               );
+
+            owner.spinChaseAngularSpeed =
+              lerp(
+                owner.spinChaseAngularSpeed,
+                owner.spinChaseRotationSpeed,
+                1 -
+                Math.exp(
+                  -10 * dt,
+                ),
+              );
+
+            owner.rotation +=
+              owner.spinChaseAngularSpeed *
+              dt;
+
+            owner.spinChaseAngle +=
+              owner.spinChaseAngularSpeed *
+              dt;
+
+            if (player) {
+              const dx =
+                player.x - owner.x;
+
+              const dy =
+                player.y - owner.y;
+
+              const length =
+                Math.hypot(dx, dy) || 1;
+
+              const speed =
+                owner.spinChaseSpeed *
+                chaseRamp;
+
+              const desiredVX =
+                dx / length *
+                speed;
+
+              const desiredVY =
+                dy / length *
+                speed;
+
+              const follow =
+                1 -
+                Math.exp(
+                  -owner.spinChaseTurnRate *
+                  dt,
+                );
+
+              owner.spinChaseVX =
+                lerp(
+                  owner.spinChaseVX,
+                  desiredVX,
+                  follow,
+                );
+
+              owner.spinChaseVY =
+                lerp(
+                  owner.spinChaseVY,
+                  desiredVY,
+                  follow,
+                );
             }
 
             owner.x +=
-              owner.spinChaseVX * dt;
+              owner.spinChaseVX *
+              dt;
 
             owner.y +=
-              owner.spinChaseVY * dt;
+              owner.spinChaseVY *
+              dt;
 
-            owner.x = clamp(
-              owner.x,
-              owner.halfSize + 8,
-              world.width - owner.halfSize - 8,
-            );
+            owner.scaleX =
+              lerp(
+                owner.scaleX,
+                1.03,
+                1 -
+                Math.exp(-8 * dt),
+              );
 
-            owner.y = clamp(
-              owner.y,
-              owner.halfSize + 8,
-              world.floorY - owner.halfSize - 8,
-            );
+            owner.scaleY =
+              lerp(
+                owner.scaleY,
+                0.97,
+                1 -
+                Math.exp(-8 * dt),
+              );
 
-            owner.scaleX = 1.03;
-            owner.scaleY = 0.97;
+            fistBlend = 1;
 
             owner.smashTrailTimer -= dt;
-            if (owner.smashTrailTimer <= 0) {
+
+            if (
+              owner.smashTrailTimer <= 0
+            ) {
               owner.smashTrail.push({
                 x: owner.x,
                 y: owner.y,
-                rotation: owner.rotation,
-                scaleX: owner.scaleX,
-                scaleY: owner.scaleY,
+                rotation:
+                  owner.rotation,
+                scaleX:
+                  owner.scaleX,
+                scaleY:
+                  owner.scaleY,
                 life: 0.12,
                 maxLife: 0.12,
               });
 
-              if (owner.smashTrail.length > 8) {
+              if (
+                owner.smashTrail.length >
+                8
+              ) {
                 owner.smashTrail.shift();
               }
 
-              owner.smashTrailTimer = 0.035;
+              owner.smashTrailTimer =
+                0.035;
             }
           } else {
-            const t = smoothstep(
-              (time - chaseEnd) /
-              (recoverEnd - chaseEnd),
-            );
+            recovering = true;
 
-            owner.rotation +=
+            if (
+              !owner.spinChaseRecoverStarted
+            ) {
+              owner.spinChaseRecoverStarted =
+                true;
+
+              owner.spinChaseRecoverStartX =
+                owner.x;
+
+              owner.spinChaseRecoverStartY =
+                owner.y;
+
+              owner.spinChaseRecoverFirstX =
+                owner.satelliteX;
+
+              owner.spinChaseRecoverFirstY =
+                owner.satelliteY;
+
+              owner.spinChaseRecoverSecondX =
+                owner.secondSatelliteX;
+
+              owner.spinChaseRecoverSecondY =
+                owner.secondSatelliteY;
+
+              owner.spinChaseRecoverTargetX =
+                player
+                  ? clamp(
+                      player.x,
+                      owner.halfSize +
+                        80,
+                      world.width -
+                        owner.halfSize -
+                        80,
+                    )
+                  : owner.figureCenterX;
+
+              owner.spinChaseRecoverTargetY =
+                player
+                  ? clamp(
+                      player.y - 245,
+                      145,
+                      260,
+                    )
+                  : owner.figureCenterY;
+            }
+
+            const raw =
+              clamp(
+                (
+                  time -
+                  chaseEnd
+                ) /
+                (
+                  recoverEnd -
+                  chaseEnd
+                ),
+                0,
+                1,
+              );
+
+            const t =
+              smoothstep(raw);
+
+            owner.spinChaseAngularSpeed =
               lerp(
                 owner.spinChaseRotationSpeed,
-                70,
+                52 * owner.actionSpeed,
                 t,
-              ) * dt;
+              );
 
-            owner.spinChaseVX *=
-              Math.exp(-6 * dt);
-            owner.spinChaseVY *=
-              Math.exp(-6 * dt);
+            owner.rotation +=
+              owner.spinChaseAngularSpeed *
+              dt;
 
-            owner.x +=
-              owner.spinChaseVX * dt;
-            owner.y +=
-              owner.spinChaseVY * dt;
+            owner.spinChaseAngle +=
+              owner.spinChaseAngularSpeed *
+              dt;
 
-            owner.scaleX = lerp(
-              1.03,
-              1,
-              t,
-            );
-            owner.scaleY = lerp(
-              0.97,
-              1,
-              t,
-            );
+            owner.x =
+              lerp(
+                owner.spinChaseRecoverStartX,
+                owner.spinChaseRecoverTargetX,
+                easeOutCubic(t),
+              );
+
+            owner.y =
+              lerp(
+                owner.spinChaseRecoverStartY,
+                owner.spinChaseRecoverTargetY,
+                easeOutCubic(t),
+              );
+
+            owner.spinChaseVX =
+              lerp(
+                owner.spinChaseVX,
+                0,
+                t,
+              );
+
+            owner.spinChaseVY =
+              lerp(
+                owner.spinChaseVY,
+                0,
+                t,
+              );
+
+            owner.scaleX =
+              lerp(
+                1.03,
+                1,
+                t,
+              );
+
+            owner.scaleY =
+              lerp(
+                0.97,
+                1,
+                t,
+              );
+
+            fistBlend = 1 - t;
           }
 
-          // Both phase-2 fists spin opposite each other around the boss.
+          owner.x =
+            clamp(
+              owner.x,
+              owner.halfSize + 8,
+              world.width -
+                owner.halfSize -
+                8,
+            );
+
+          owner.y =
+            clamp(
+              owner.y,
+              owner.halfSize + 8,
+              world.floorY -
+                owner.halfSize -
+                8,
+            );
+
           const spinRadians =
-            owner.rotation *
+            owner.spinChaseAngle *
             Math.PI /
             180;
 
-          const fistRadius =
-            owner.halfSize +
-            owner.satelliteSize * 0.62;
+          const radius =
+            lerp(
+              owner.satelliteOrbitRadius,
+              spinRadius,
+              fistBlend,
+            );
 
-          owner.satelliteX =
+          const spinFirstX =
             owner.x +
             Math.cos(spinRadians) *
-            fistRadius;
+            radius;
 
-          owner.satelliteY =
+          const spinFirstY =
             owner.y +
             Math.sin(spinRadians) *
-            fistRadius;
+            radius;
 
-          owner.secondSatelliteX =
+          const spinSecondX =
             owner.x -
             Math.cos(spinRadians) *
-            fistRadius;
+            radius;
 
-          owner.secondSatelliteY =
+          const spinSecondY =
             owner.y -
             Math.sin(spinRadians) *
-            fistRadius;
+            radius;
+
+          if (recovering) {
+            const raw =
+              clamp(
+                (
+                  time -
+                  chaseEnd
+                ) /
+                (
+                  recoverEnd -
+                  chaseEnd
+                ),
+                0,
+                1,
+              );
+
+            const t =
+              smoothstep(raw);
+
+            const firstHome =
+              owner.getSatelliteOrbitPosition(0);
+
+            const secondHome =
+              owner.getSatelliteOrbitPosition(180);
+
+            owner.satelliteX =
+              lerp(
+                owner.spinChaseRecoverFirstX,
+                firstHome.x,
+                t,
+              );
+
+            owner.satelliteY =
+              lerp(
+                owner.spinChaseRecoverFirstY,
+                firstHome.y,
+                t,
+              );
+
+            owner.secondSatelliteX =
+              lerp(
+                owner.spinChaseRecoverSecondX,
+                secondHome.x,
+                t,
+              );
+
+            owner.secondSatelliteY =
+              lerp(
+                owner.spinChaseRecoverSecondY,
+                secondHome.y,
+                t,
+              );
+          } else {
+            owner.satelliteX =
+              spinFirstX;
+
+            owner.satelliteY =
+              spinFirstY;
+
+            owner.secondSatelliteX =
+              spinSecondX;
+
+            owner.secondSatelliteY =
+              spinSecondY;
+          }
 
           if (
             player &&
@@ -778,17 +1133,22 @@ export class PrologueBoss {
             time < chaseEnd
           ) {
             const hitRadius =
-              owner.satelliteSize * 0.52 +
+              owner.satelliteSize *
+                0.52 +
               Math.max(
                 player.w,
                 player.h,
-              ) * 0.42;
+              ) *
+                0.42;
 
             if (
-              owner.spinChaseFirstHitCooldown <= 0 &&
+              owner.spinChaseFirstHitCooldown <=
+                0 &&
               Math.hypot(
-                owner.satelliteX - player.x,
-                owner.satelliteY - player.y,
+                owner.satelliteX -
+                  player.x,
+                owner.satelliteY -
+                  player.y,
               ) <= hitRadius
             ) {
               if (
@@ -802,10 +1162,13 @@ export class PrologueBoss {
             }
 
             if (
-              owner.spinChaseSecondHitCooldown <= 0 &&
+              owner.spinChaseSecondHitCooldown <=
+                0 &&
               Math.hypot(
-                owner.secondSatelliteX - player.x,
-                owner.secondSatelliteY - player.y,
+                owner.secondSatelliteX -
+                  player.x,
+                owner.secondSatelliteY -
+                  player.y,
               ) <= hitRadius
             ) {
               if (
@@ -822,11 +1185,25 @@ export class PrologueBoss {
           if (time >= recoverEnd) {
             owner.rotationLocked = false;
             owner.rotationSpeed =
-              52 * owner.actionSpeed;
-            owner.satelliteMode = 'orbit';
+              52 *
+              owner.actionSpeed;
+
+            owner.satelliteMode =
+              'orbit';
+
+            owner.figureCenterX =
+              owner.x;
+
+            owner.figureCenterY =
+              owner.y;
+
             owner.scaleX = 1;
             owner.scaleY = 1;
-            ai.changeState('idle', ctx);
+
+            ai.changeState(
+              'idle',
+              ctx,
+            );
           }
         },
       })
@@ -1480,6 +1857,9 @@ export class PrologueBoss {
     this.spinChaseVY = 0;
     this.spinChaseFirstHitCooldown = 0;
     this.spinChaseSecondHitCooldown = 0;
+    this.spinChaseAngle = 0;
+    this.spinChaseAngularSpeed = 0;
+    this.spinChaseRecoverStarted = false;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
