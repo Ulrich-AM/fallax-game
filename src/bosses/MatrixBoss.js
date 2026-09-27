@@ -171,8 +171,6 @@ export class MatrixBoss {
     // Core burst.
     this.coreBurstFired = false;
     this.coreFlash = 0;
-    this.phaseTransitionReleased = false;
-    this.phase2OrbitCollapseReleased = false;
     this.burstBulletCount = 8;
     this.burstBulletSize = 30;
     this.burstBulletDamage = 22;
@@ -1865,6 +1863,8 @@ export class MatrixBoss {
     this.floodDirection = this.patrolDirection;
     this.coreBurstFired = false;
     this.coreFlash = 0;
+    this.phaseTransitionReleased = false;
+    this.phase2OrbitCollapseReleased = false;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -2594,6 +2594,27 @@ export class MatrixBoss {
       let renderAlpha =
         Math.max(0, alpha);
 
+      if (bullet.phaseFrozen) {
+        const pulse =
+          0.5 +
+          0.5 *
+          Math.sin(
+            this.ai.stateTime *
+            24,
+          );
+
+        renderSize *=
+          1.10 +
+          pulse * 0.08;
+
+        renderAlpha =
+          Math.max(
+            renderAlpha,
+            0.82 +
+            pulse * 0.18,
+          );
+      }
+
       if (bullet.splitting) {
         const t =
           bullet.splitDuration > 0
@@ -2626,6 +2647,7 @@ export class MatrixBoss {
         renderAlpha;
 
       const strongGlow =
+        bullet.phaseFrozen ||
         bullet.kind === 'burst' ||
         bullet.kind === 'orbit' ||
         bullet.kind === 'compression' ||
