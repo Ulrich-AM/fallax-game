@@ -23,16 +23,16 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=46';
-import { DeveloperConsole } from './DeveloperConsole.js?v=46';
-import { SpriteEditor } from './SpriteEditor.js?v=46';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=46';
+import { GameAudio } from './AudioManager.js?v=47';
+import { DeveloperConsole } from './DeveloperConsole.js?v=47';
+import { SpriteEditor } from './SpriteEditor.js?v=47';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=47';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=46';
+} from './SpriteAssets.js?v=47';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -208,6 +208,8 @@ const weaponTestRoom =
     canvas: weaponTestCanvas,
     angleLabel: weaponTestAngle,
     exitButton: weaponTestExit,
+    getControls: () =>
+      controlBindings,
     onClose: () => {
       spriteEditorRoot?.focus();
     },
