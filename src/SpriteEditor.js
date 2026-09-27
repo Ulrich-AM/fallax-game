@@ -1407,6 +1407,13 @@ export class SpriteEditor {
     this.pushHistory();
     this.future.length = 0;
 
+    const previousGroupIds =
+      new Set(
+        parts
+          .map(part => part.groupId)
+          .filter(Boolean),
+      );
+
     const existingIds =
       new Set(
         (this.asset.groups ?? [])
@@ -1447,6 +1454,24 @@ export class SpriteEditor {
     for (const part of parts) {
       part.groupId = id;
     }
+
+    this.asset.groups =
+      (this.asset.groups ?? [])
+        .filter(group => {
+          if (
+            !previousGroupIds.has(
+              group.id,
+            )
+          ) {
+            return true;
+          }
+
+          return this.asset.parts.some(
+            part =>
+              part.groupId ===
+              group.id,
+          );
+        });
 
     this.setStatus(
       `Grouped ${parts.length} parts as ${id}.`,
@@ -1753,31 +1778,6 @@ export class SpriteEditor {
 
     if (!Number.isFinite(value)) {
       value = 0;
-    }
-
-    if (
-      target.targetType === 'part'
-    ) {
-      const part =
-        this.asset.parts.find(
-          item =>
-            item.id ===
-            target.targetId,
-        );
-
-      if (part) {
-        value =
-          Number(
-            part[property] ?? value,
-          );
-
-        if (
-          this.animationValueInput
-        ) {
-          this.animationValueInput.value =
-            String(value);
-        }
-      }
     }
 
     this.pushHistory();
@@ -2613,6 +2613,7 @@ export class SpriteEditor {
     this.dragPartId = null;
     this.dragVertexIndex = -1;
     this.lastPointerWorld = null;
+    this.syncAnimationValueFromSelection();
     this.renderAll();
   }
 
