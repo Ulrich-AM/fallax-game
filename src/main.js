@@ -23,15 +23,15 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=42';
-import { DeveloperConsole } from './DeveloperConsole.js?v=42';
-import { SpriteEditor } from './SpriteEditor.js?v=42';
+import { GameAudio } from './AudioManager.js?v=43';
+import { DeveloperConsole } from './DeveloperConsole.js?v=43';
+import { SpriteEditor } from './SpriteEditor.js?v=43';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=42';
+} from './SpriteAssets.js?v=43';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -68,6 +68,7 @@ const spritePreviewRotation = document.querySelector('#sprite-preview-rotation')
 const spritePreviewRotationLabel = document.querySelector('#sprite-preview-rotation-label');
 const spritePreviewPlayer = document.querySelector('#sprite-preview-player');
 const spriteEditorSnap = document.querySelector('#sprite-editor-snap');
+const spriteEditorSymmetry = document.querySelector('#sprite-editor-symmetry');
 const spriteEditorScale = document.querySelector('#sprite-editor-scale');
 const spritePreviewSpin = document.querySelector('#sprite-preview-spin');
 const spritePreviewGlow = document.querySelector('#sprite-preview-glow');
@@ -202,6 +203,7 @@ const spriteEditor =
     scaleInput: spriteEditorScale,
     importFileInput: spriteEditorImportFile,
     snapInput: spriteEditorSnap,
+    symmetryInput: spriteEditorSymmetry,
     store: spriteAssetStore,
     onClose: () => {
       audio.setSuspended(devConsole.isOpen);
