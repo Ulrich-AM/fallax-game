@@ -23,7 +23,7 @@ import { BackfireAbility } from './BackfireAbility.js?v=36';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=36';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=36';
-import { GameAudio } from './AudioManager.js?v=36';
+import { GameAudio } from './AudioManager.js?v=40';
 import { DeveloperConsole } from './DeveloperConsole.js?v=40';
 import { SpriteEditor } from './SpriteEditor.js?v=40';
 import {
@@ -305,8 +305,6 @@ function registerDeveloperCommands() {
         );
       }
 
-      devConsole.close();
-
       spriteEditor.open({
         asset,
         type:
@@ -314,6 +312,7 @@ function registerDeveloperCommands() {
           type,
       });
 
+      devConsole.close();
       audio.setSuspended(true);
 
       return null;
@@ -1285,7 +1284,10 @@ addEventListener('keydown', (e) => {
 });
 
 addEventListener('keyup', (e) => {
-  if (devConsole.isOpen) {
+  if (
+    devConsole.isOpen ||
+    spriteEditor.isOpen
+  ) {
     e.preventDefault();
     return;
   }
@@ -1379,7 +1381,10 @@ function getPointerWorld() {
 }
 
 function update(dt) {
-  if (devConsole.isOpen) {
+  if (
+    devConsole.isOpen ||
+    spriteEditor.isOpen
+  ) {
     pressed.clear();
     released.clear();
     pointer.firing = false;
