@@ -25,7 +25,7 @@ import { StrikeAbility } from './StrikeAbility.js?v=52';
 import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=52';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
 import { GameAudio } from './AudioManager.js?v=54';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=53';
@@ -42,7 +42,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v54c';
+const BUILD_VERSION = 'v54d';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
