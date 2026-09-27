@@ -312,6 +312,20 @@ export class SpriteEditor {
     );
 
     this.root.querySelector(
+      '[data-editor-tool="pivot"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('pivot'),
+    );
+
+    this.root.querySelector(
+      '[data-editor-tool="muzzle"]',
+    )?.addEventListener(
+      'click',
+      () => this.setTool('muzzle'),
+    );
+
+    this.root.querySelector(
       '[data-editor-action="save"]',
     )?.addEventListener(
       'click',
@@ -2263,6 +2277,358 @@ export class SpriteEditor {
     ctx.restore();
   }
 
+  renderWeaponPreview(
+    ctx,
+    w,
+    h,
+    compiled,
+    angle,
+    glowStrength,
+  ) {
+    const raster =
+      rasterize(
+        compiled.shape,
+        angle,
+      );
+
+    const artPixel = 4;
+    const bounds =
+      raster.shapeBounds ?? {
+        minX:
+          -raster.width / 2,
+        minY:
+          -raster.height / 2,
+        maxX:
+          raster.width / 2,
+        maxY:
+          raster.height / 2,
+      };
+
+    const hasPlayer =
+      !!this.showPlayerInput?.checked;
+
+    const playerBounds = {
+      minX: -30,
+      minY: -18,
+      maxX: 2,
+      maxY: 38,
+    };
+
+    let minX =
+      bounds.minX * artPixel;
+    let minY =
+      bounds.minY * artPixel;
+    let maxX =
+      bounds.maxX * artPixel;
+    let maxY =
+      bounds.maxY * artPixel;
+
+    if (hasPlayer) {
+      minX = Math.min(
+        minX,
+        playerBounds.minX,
+      );
+
+      minY = Math.min(
+        minY,
+        playerBounds.minY,
+      );
+
+      maxX = Math.max(
+        maxX,
+        playerBounds.maxX,
+      );
+
+      maxY = Math.max(
+        maxY,
+        playerBounds.maxY,
+      );
+    }
+
+    const marker =
+      compiled.markers?.muzzle;
+
+    if (marker) {
+      const [mx, my] =
+        rotatePoint(
+          marker.x,
+          marker.y,
+          angle,
+        );
+
+      minX = Math.min(
+        minX,
+        mx * artPixel - 7,
+      );
+
+      maxX = Math.max(
+        maxX,
+        mx * artPixel + 7,
+      );
+
+      minY = Math.min(
+        minY,
+        my * artPixel - 7,
+      );
+
+      maxY = Math.max(
+        maxY,
+        my * artPixel + 7,
+      );
+    }
+
+    const padding = 18;
+
+    const naturalW =
+      Math.max(
+        1,
+        maxX - minX,
+      );
+
+    const naturalH =
+      Math.max(
+        1,
+        maxY - minY,
+      );
+
+    const fit =
+      Math.min(
+        1,
+        (w - padding * 2) /
+          naturalW,
+        (h - padding * 2) /
+          naturalH,
+      );
+
+    const contentW =
+      naturalW * fit;
+
+    const contentH =
+      naturalH * fit;
+
+    const originX =
+      (w - contentW) / 2 -
+      minX * fit;
+
+    const originY =
+      (h - contentH) / 2 -
+      minY * fit;
+
+    if (hasPlayer) {
+      ctx.save();
+      ctx.globalAlpha = 0.36;
+      ctx.fillStyle = '#8a8e95';
+
+      ctx.fillRect(
+        originX +
+          playerBounds.minX *
+          fit,
+        originY +
+          playerBounds.minY *
+          fit,
+        32 * fit,
+        56 * fit,
+      );
+
+      ctx.strokeStyle =
+        '#6a7079';
+
+      ctx.strokeRect(
+        originX +
+          playerBounds.minX *
+          fit +
+          0.5,
+        originY +
+          playerBounds.minY *
+          fit +
+          0.5,
+        32 * fit,
+        56 * fit,
+      );
+
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = '#b6c0cc';
+    ctx.setLineDash([6, 7]);
+    ctx.lineWidth = 1;
+
+    const aim =
+      angle *
+      Math.PI /
+      180;
+
+    ctx.beginPath();
+    ctx.moveTo(
+      originX,
+      originY,
+    );
+
+    ctx.lineTo(
+      originX +
+        Math.cos(aim) *
+        90 *
+        fit,
+      originY +
+        Math.sin(aim) *
+        90 *
+        fit,
+    );
+
+    ctx.stroke();
+    ctx.restore();
+
+    if (
+      this.glowInput?.checked &&
+      glowStrength > 0
+    ) {
+      for (
+        const glowPart
+        of compiled.glowParts
+      ) {
+        const glowRaster =
+          rasterize(
+            glowPart.shape,
+            angle,
+          );
+
+        const glowBounds =
+          glowRaster.shapeBounds ?? {
+            minX: 0,
+            minY: 0,
+          };
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha =
+          0.78 *
+          glowStrength;
+
+        ctx.shadowColor =
+          glowPart.glow.color;
+
+        ctx.shadowBlur =
+          glowPart.glow.radius *
+          glowStrength *
+          fit;
+
+        ctx.drawImage(
+          glowRaster,
+          Math.round(
+            originX +
+            glowBounds.minX *
+              artPixel *
+              fit,
+          ),
+          Math.round(
+            originY +
+            glowBounds.minY *
+              artPixel *
+              fit,
+          ),
+          glowRaster.width *
+            artPixel *
+            fit,
+          glowRaster.height *
+            artPixel *
+            fit,
+        );
+
+        ctx.restore();
+      }
+    }
+
+    ctx.imageSmoothingEnabled = false;
+
+    ctx.drawImage(
+      raster,
+      Math.round(
+        originX +
+        bounds.minX *
+          artPixel *
+          fit,
+      ),
+      Math.round(
+        originY +
+        bounds.minY *
+          artPixel *
+          fit,
+      ),
+      raster.width *
+        artPixel *
+        fit,
+      raster.height *
+        artPixel *
+        fit,
+    );
+
+    ctx.save();
+
+    ctx.strokeStyle = '#d4dae3';
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.arc(
+      originX,
+      originY,
+      4,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+
+    if (marker) {
+      const [mx, my] =
+        rotatePoint(
+          marker.x,
+          marker.y,
+          angle,
+        );
+
+      const sx =
+        originX +
+        mx *
+        artPixel *
+        fit;
+
+      const sy =
+        originY +
+        my *
+        artPixel *
+        fit;
+
+      ctx.strokeStyle = '#ff7777';
+      ctx.beginPath();
+      ctx.arc(
+        sx,
+        sy,
+        5,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    if (fit < 0.999) {
+      ctx.fillStyle = '#68717e';
+      ctx.font =
+        '10px Arial, sans-serif';
+      ctx.textAlign = 'right';
+
+      ctx.fillText(
+        `preview fit ${Math.round(
+          fit * 100,
+        )}%`,
+        w - 8,
+        h - 8,
+      );
+    }
+  }
+
   renderPreview() {
     const ctx =
       this.previewCtx;
@@ -2325,6 +2691,21 @@ export class SpriteEditor {
         'add a polygon to preview it',
         w / 2,
         h / 2,
+      );
+      return;
+    }
+
+    if (
+      compiled.asset.type ===
+      'weapon'
+    ) {
+      this.renderWeaponPreview(
+        ctx,
+        w,
+        h,
+        compiled,
+        angle,
+        glowStrength,
       );
       return;
     }
