@@ -1,16 +1,16 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=47';
+} from './SpriteAssets.js?v=48';
 import {
   rasterize,
-} from './pixelShapes.js?v=47';
+} from './pixelShapes.js?v=48';
 import {
   evaluateAnimation,
   applyAnimationPose,
-} from './SpriteAnimation.js?v=47';
+} from './SpriteAnimation.js?v=48';
 import {
   PlayerController,
-} from './PlayerController.js?v=47';
+} from './PlayerController.js?v=48';
 
 function clamp(value, min, max) {
   return Math.max(
@@ -104,8 +104,13 @@ export class WeaponTestRoom {
     this.canvas.addEventListener(
       'pointerdown',
       event => {
-        if (event.button === 0) {
+        if (
+          this.opened &&
+          event.button === 0
+        ) {
+          this.setClip('fire');
           event.preventDefault();
+          event.stopPropagation();
         }
       },
     );
@@ -152,6 +157,8 @@ export class WeaponTestRoom {
             controls.moveRight,
             controls.jump,
             controls.sprint,
+            controls.dash,
+            controls.special,
           ]);
 
         if (
@@ -173,6 +180,13 @@ export class WeaponTestRoom {
             event.code,
           );
 
+          if (
+            event.code ===
+            controls.special
+          ) {
+            this.setClip('special');
+          }
+
           event.preventDefault();
           event.stopPropagation();
         }
@@ -193,6 +207,8 @@ export class WeaponTestRoom {
             controls.moveRight,
             controls.jump,
             controls.sprint,
+            controls.dash,
+            controls.special,
           ].includes(event.code)
         ) {
           this.keys.delete(
@@ -320,6 +336,8 @@ export class WeaponTestRoom {
         moveRight: 'KeyD',
         jump: 'Space',
         sprint: 'ShiftLeft',
+        dash: 'KeyF',
+        special: 'KeyQ',
       }
     );
   }
@@ -360,8 +378,15 @@ export class WeaponTestRoom {
           this.keys.has(
             controls.sprint,
           ),
-        dashPressed: false,
-        dashTarget: null,
+        dashPressed:
+          this.pressed.has(
+            controls.dash,
+          ),
+        dashTarget: {
+          x: this.pointerX,
+          y: this.pointerY,
+        },
+        dashCooldownMultiplier: 1,
       },
       this.roomWorld,
     );
@@ -492,6 +517,12 @@ export class WeaponTestRoom {
     const centerY =
       this.player.y;
 
+    const scale =
+      this.asset?.scale ?? 1;
+
+    const pivot =
+      this.asset?.pivot ?? [0, 0];
+
     return {
       centerX,
       centerY,
@@ -499,8 +530,16 @@ export class WeaponTestRoom {
         this.player.w,
       height:
         this.player.h,
-      pivotX: centerX,
-      pivotY: centerY,
+      pivotX:
+        centerX +
+        pivot[0] *
+        scale *
+        4,
+      pivotY:
+        centerY +
+        pivot[1] *
+        scale *
+        4,
       floorY:
         this.roomWorld.floorY,
     };
@@ -873,6 +912,31 @@ export class WeaponTestRoom {
       3,
     );
 
+    for (
+      const ghost
+      of this.player.afterimages
+    ) {
+      const alpha =
+        Math.max(
+          0,
+          ghost.life /
+          ghost.maxLife,
+        ) * 0.23;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#8a8e95';
+      ctx.fillRect(
+        ghost.x -
+          this.player.w / 2,
+        ghost.y -
+          this.player.h / 2,
+        this.player.w,
+        this.player.h,
+      );
+      ctx.restore();
+    }
+
     this.drawPlayer(pose);
 
     ctx.save();
@@ -951,11 +1015,24 @@ export class WeaponTestRoom {
     ctx.font =
       '12px Arial, sans-serif';
     ctx.textAlign = 'left';
+    const dashReady =
+      this.player.dashReady;
+
     ctx.fillText(
-      'move / jump / sprint use your configured game hotkeys',
+      'move · jump · sprint · dash · special use your configured game hotkeys · LMB fire',
       18,
       this.canvas.height - 18,
     );
+
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      `stamina ${Math.ceil(
+        this.player.stamina,
+      )}   dash ${dashReady ? 'READY' : this.player.dashCooldownTimer.toFixed(2) + 's'}   clip ${this.currentClipName}`,
+      this.canvas.width - 18,
+      this.canvas.height - 18,
+    );
+
     ctx.restore();
 
     ctx.save();
