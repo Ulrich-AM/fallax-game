@@ -1,3 +1,4 @@
+import { loadPixelArial } from './FontLoader.js?v=53';
 import { rectangle, group, rasterize } from './pixelShapes.js?v=36';
 import { PlayerController } from './PlayerController.js?v=36';
 import { MOVEMENT } from './movementConfig.js?v=36';
@@ -27,8 +28,8 @@ import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=52';
 import { GameAudio } from './AudioManager.js?v=49';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
-import { SpriteEditor } from './SpriteEditor.js?v=49';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=49';
+import { SpriteEditor } from './SpriteEditor.js?v=53';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=53';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
@@ -36,7 +37,9 @@ import {
   serializeSpriteAsset,
 } from './SpriteAssets.js?v=49';
 
-const BUILD_VERSION = 'v52';
+await loadPixelArial();
+
+const BUILD_VERSION = 'v53';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -1901,7 +1904,7 @@ function drawResourceBar(label, value, max, x, y, width, color, rightText = '') 
   ctx.textBaseline = 'top';
   const barHeight = 8;
 
-  ctx.font = 'bold 11px Arial, sans-serif';
+  ctx.font = 'bold 11px 'Pixel Arial 11', Arial, sans-serif';
   ctx.fillStyle = COLORS.text;
   ctx.fillText(label, x, y - 15);
 
@@ -1923,7 +1926,7 @@ function drawResourceBar(label, value, max, x, y, width, color, rightText = '') 
   );
 
   if (rightText) {
-    ctx.font = '11px Arial, sans-serif';
+    ctx.font = '11px 'Pixel Arial 11', Arial, sans-serif';
     ctx.fillStyle = COLORS.dim;
     ctx.fillText(rightText, x + width + 10, y - 2);
   }
@@ -2005,7 +2008,7 @@ function drawHUD() {
   );
 
   ctx.save();
-  ctx.font = '12px Arial, sans-serif';
+  ctx.font = '12px 'Pixel Arial 11', Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.textAlign = 'right';
   const controlHint =
@@ -2036,7 +2039,7 @@ function drawBossBar() {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.font = 'bold 16px Arial, sans-serif';
+  ctx.font = 'bold 16px 'Pixel Arial 11', Arial, sans-serif';
   ctx.fillStyle = COLORS.text;
   ctx.fillText(activeBoss.name, W / 2, y - 8);
 
@@ -2049,7 +2052,7 @@ function drawBossBar() {
   ctx.strokeStyle = '#3b404a';
   ctx.strokeRect(x + 0.5, y + 0.5, width, height);
 
-  ctx.font = '11px Arial, sans-serif';
+  ctx.font = '11px 'Pixel Arial 11', Arial, sans-serif';
   ctx.fillStyle = COLORS.dim;
   ctx.textBaseline = 'top';
   ctx.fillText(
