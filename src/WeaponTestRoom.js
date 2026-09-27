@@ -86,20 +86,7 @@ export class WeaponTestRoom {
     this.frame = 0;
     this.rasterCache =
       new Map();
-    const clipNames =
-      Object.keys(
-        this.asset.animations?.clips ??
-        {},
-      );
-
-    this.currentClipName =
-      clipNames.includes('idle')
-        ? 'idle'
-        : (
-            clipNames[0] ??
-            'idle'
-          );
-
+    this.currentClipName = 'idle';
     this.animationTime = 0;
     this.animationLastTime = 0;
     this.movementAccumulator = 0;
@@ -264,7 +251,21 @@ export class WeaponTestRoom {
     this.pressed.clear();
     this.released.clear();
     this.player.reset();
-    this.currentClipName = 'idle';
+
+    const clipNames =
+      Object.keys(
+        this.asset.animations?.clips ??
+        {},
+      );
+
+    this.currentClipName =
+      clipNames.includes('idle')
+        ? 'idle'
+        : (
+            clipNames[0] ??
+            'idle'
+          );
+
     this.animationTime = 0;
     this.animationLastTime =
       performance.now();
