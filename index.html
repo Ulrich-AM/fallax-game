@@ -227,6 +227,15 @@
         </section>
 
         <section>
+          <h3>grouping</h3>
+          <div class="sprite-tool-grid">
+            <button data-editor-action="group">group selected</button>
+            <button data-editor-action="ungroup">ungroup</button>
+          </div>
+          <small>Shift-click shapes or layer rows to multi-select. Dragging one grouped part moves the whole group.</small>
+        </section>
+
+        <section>
           <h3>grid / symmetry</h3>
           <label class="sprite-inline-check">
             <input id="sprite-editor-snap" type="checkbox" checked />
@@ -330,6 +339,81 @@
           </label>
         </section>
 
+        <section id="sprite-animation-panel" class="hidden">
+          <h3>animation</h3>
+
+          <label class="sprite-select-row">
+            <span>clip</span>
+            <select id="sprite-animation-clip">
+              <option value="idle">idle</option>
+              <option value="fire">fire</option>
+              <option value="special">special</option>
+            </select>
+          </label>
+
+          <label class="sprite-select-row">
+            <span>property</span>
+            <select id="sprite-animation-property">
+              <option value="x">x</option>
+              <option value="y">y</option>
+              <option value="rotation">rotation</option>
+            </select>
+          </label>
+
+          <label class="sprite-select-row">
+            <span>easing</span>
+            <select id="sprite-animation-easing">
+              <option value="linear">linear</option>
+              <option value="easeIn">ease in</option>
+              <option value="easeOut">ease out</option>
+              <option value="easeInOut">ease in/out</option>
+              <option value="easeInOutSine" selected>sine in/out</option>
+              <option value="bounceOut">bounce out</option>
+            </select>
+          </label>
+
+          <label class="sprite-select-row">
+            <span>key value</span>
+            <input id="sprite-animation-value" type="number" step="0.1" value="0" />
+          </label>
+
+          <label class="sprite-select-row">
+            <span>duration</span>
+            <input id="sprite-animation-duration" type="number" min="0.05" max="60" step="0.05" value="1" />
+          </label>
+
+          <label class="sprite-inline-check">
+            <input id="sprite-animation-loop" type="checkbox" checked />
+            <span>loop clip</span>
+          </label>
+
+          <label class="sprite-rotation-row">
+            <span>time</span>
+            <input
+              id="sprite-animation-time"
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value="0"
+            />
+            <strong id="sprite-animation-time-label">0.00s</strong>
+          </label>
+
+          <div class="sprite-tool-grid">
+            <button data-editor-action="anim-play">play / pause</button>
+            <button data-editor-action="anim-key">key current</button>
+          </div>
+
+          <div id="sprite-animation-target" class="sprite-marker-info">
+            <span>target: none</span>
+          </div>
+
+          <div id="sprite-animation-keys" class="sprite-animation-keys">
+            <span>no keyframes</span>
+          </div>
+        </section>
+
         <section id="sprite-weapon-test-controls" class="hidden">
           <h3>weapon test</h3>
           <button data-editor-action="test-weapon" class="sprite-wide-button">open blank room</button>
@@ -365,6 +449,11 @@
         <div>
           <strong>weapon test room</strong>
           <span>move mouse to aim · no shooting</span>
+        </div>
+        <div class="weapon-test-animation-buttons">
+          <button data-test-clip="idle">idle</button>
+          <button data-test-clip="fire">fire</button>
+          <button data-test-clip="special">special</button>
         </div>
         <div id="weapon-test-angle">0°</div>
         <button id="weapon-test-exit">return to editor</button>
