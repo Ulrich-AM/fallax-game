@@ -2,9 +2,13 @@ import {
   rectangle,
   polygon,
   group,
-} from './pixelShapes.js?v=44';
+} from './pixelShapes.js?v=45';
+import {
+  createDefaultAnimations,
+  normalizeAnimations,
+} from './SpriteAnimation.js?v=45';
 
-export const SPRITE_ASSET_VERSION = 1;
+export const SPRITE_ASSET_VERSION = 2;
 export const SPRITE_DRAFT_STORAGE_KEY = 'bossfights.sprite-drafts.v1';
 
 export const SPRITE_MATERIALS = Object.freeze({
@@ -143,6 +147,31 @@ function normalizeMarker(marker) {
   };
 }
 
+function normalizeGroup(groupValue, index) {
+  const source =
+    groupValue &&
+    typeof groupValue === 'object'
+      ? groupValue
+      : {};
+
+  return {
+    id: sanitizeName(
+      source.id,
+      `group-${index + 1}`,
+    ),
+    name:
+      String(
+        source.name ??
+        source.id ??
+        `group ${index + 1}`,
+      ).trim() ||
+      `group ${index + 1}`,
+    pivot: normalizePoint(
+      source.pivot,
+    ),
+  };
+}
+
 function normalizePart(part, index) {
   if (!part || typeof part !== 'object') {
     throw new Error(
@@ -240,6 +269,8 @@ export function createSpriteAsset({
     pivot: [0, 0],
     parts: [],
     groups: [],
+    animations:
+      createDefaultAnimations(),
     markers: {},
     render: {
       mergeOutlines: true,
@@ -292,10 +323,11 @@ export function normalizeSpriteAsset(input) {
     ),
     pivot: normalizePoint(input.pivot),
     parts: [],
-    groups:
-      Array.isArray(input.groups)
-        ? deepClone(input.groups)
-        : [],
+    groups: [],
+    animations:
+      normalizeAnimations(
+        input.animations,
+      ),
     markers: {},
     render: {
       mergeOutlines:
@@ -323,6 +355,39 @@ export function normalizeSpriteAsset(input) {
     },
   };
 
+  const groupIds = new Set();
+
+  const groups =
+    Array.isArray(input.groups)
+      ? input.groups
+      : [];
+
+  for (
+    let i = 0;
+    i < groups.length;
+    i++
+  ) {
+    const groupValue =
+      normalizeGroup(
+        groups[i],
+        i,
+      );
+
+    let id = groupValue.id;
+    let suffix = 2;
+
+    while (groupIds.has(id)) {
+      id =
+        `${groupValue.id}-${suffix++}`;
+    }
+
+    groupValue.id = id;
+    groupIds.add(id);
+    asset.groups.push(
+      groupValue,
+    );
+  }
+
   const ids = new Set();
 
   const parts =
@@ -341,6 +406,16 @@ export function normalizeSpriteAsset(input) {
     }
 
     part.id = id;
+
+    if (
+      part.groupId &&
+      !groupIds.has(
+        part.groupId,
+      )
+    ) {
+      part.groupId = null;
+    }
+
     ids.add(id);
     asset.parts.push(part);
   }
