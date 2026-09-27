@@ -1221,9 +1221,39 @@ export class SpriteEditor {
     );
   }
 
+  isBossMode() {
+    return (
+      this.typeSelect?.value ===
+        'boss' ||
+      this.asset.type === 'boss'
+    );
+  }
+
+  sanitizeEditorName(
+    value,
+    fallback = 'item',
+  ) {
+    const cleaned =
+      String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9-_ ]+/g,
+          '',
+        )
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    return cleaned || fallback;
+  }
+
   updateModeUi() {
     const weapon =
       this.isWeaponMode();
+
+    const boss =
+      this.isBossMode();
 
     this.weaponToolsRoot
       ?.classList.toggle(
@@ -1237,10 +1267,17 @@ export class SpriteEditor {
         !weapon,
       );
 
-    this.animationPanelRoot
+    this.bossToolsRoot
       ?.classList.toggle(
         'hidden',
-        !weapon,
+        !boss,
+      );
+
+    // Animation clips are useful for every sprite type. Bosses especially
+    // need arbitrary named clips that can later be bound to attacks.
+    this.animationPanelRoot
+      ?.classList.remove(
+        'hidden',
       );
 
     this.root?.classList.toggle(
@@ -1248,7 +1285,13 @@ export class SpriteEditor {
       weapon,
     );
 
+    this.root?.classList.toggle(
+      'boss-editor-mode',
+      boss,
+    );
+
     this.updateWeaponMarkerInfo();
+    this.syncBossToolUi();
     this.syncAnimationUi();
   }
 
