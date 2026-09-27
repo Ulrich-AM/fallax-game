@@ -1,3 +1,125 @@
+import {
+  WeaponSpriteRenderer,
+} from './WeaponSpriteRenderer.js?v=54b';
+
+const HORIZON_SPRITE_ASSET = {
+  version: 2,
+  name: 'horizon',
+  displayName: 'Horizon',
+  type: 'weapon',
+  scale: 1,
+  pivot: [0, 0],
+  parts: [
+    {
+      id: 'polygon-3',
+      name: 'polygon-3',
+      type: 'polygon',
+      material: 'dark-gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [6, 1],
+        [4, 2],
+        [4, 0],
+        [6, 0],
+      ],
+    },
+    {
+      id: 'polygon-mirror-4',
+      name: 'polygon-3 mirror',
+      type: 'polygon',
+      material: 'dark-gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [6, 0],
+        [4, 0],
+        [4, -2],
+        [6, -1],
+      ],
+    },
+    {
+      id: 'polygon-4',
+      name: 'polygon-4',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [4, -2],
+        [0, -2],
+        [0, 2],
+        [4, 2],
+      ],
+    },
+    {
+      id: 'polygon-5',
+      name: 'polygon-5',
+      type: 'polygon',
+      material: 'gray',
+      groupId: null,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      outline: null,
+      points: [
+        [6, -1],
+        [6, 1],
+        [20, 1],
+        [20, -1],
+      ],
+    },
+  ],
+  groups: [],
+  animations: {
+    clips: {
+      idle: {
+        name: 'idle',
+        duration: 1,
+        loop: true,
+        tracks: [],
+      },
+      fire: {
+        name: 'fire',
+        duration: 0.25,
+        loop: false,
+        tracks: [],
+      },
+      special: {
+        name: 'special',
+        duration: 0.6,
+        loop: false,
+        tracks: [],
+      },
+    },
+  },
+  markers: {
+    muzzle: {
+      x: 20,
+      y: 0,
+      rotation: 0,
+    },
+  },
+  render: {
+    mergeOutlines: true,
+    outline: {
+      enabled: true,
+      color: '#35383e',
+      thickness: 1,
+    },
+    padding: 2,
+  },
+};
+
 function rayCircleHit(
   originX,
   originY,
@@ -37,6 +159,11 @@ export class HorizonWeapon {
 
     this.bodyLengthPixels = 26;
     this.bodyThicknessPixels = 19;
+
+    this.sprite =
+      new WeaponSpriteRenderer(
+        HORIZON_SPRITE_ASSET,
+      );
 
     this.chargeDuration = 0.34;
     this.flashDuration = 0.06;
@@ -308,7 +435,19 @@ export class HorizonWeapon {
     player.grounded = false;
   }
 
-  draw(ctx, player, pointerWorld, cameraX) {
+  getSpriteEntry(angleRadians = 0) {
+    return this.sprite.getEntry(
+      angleRadians,
+    );
+  }
+
+  draw(
+    ctx,
+    player,
+    pointerWorld,
+    cameraX,
+    artPixelSize = 4,
+  ) {
     const aim = this.getAim(player, pointerWorld);
 
     const kickRatio =
@@ -323,20 +462,13 @@ export class HorizonWeapon {
     const weaponX = aim.x - aim.dirX * kick;
     const weaponY = aim.y - aim.dirY * kick;
 
-    ctx.save();
-    ctx.translate(
-      Math.round(weaponX - cameraX),
-      Math.round(weaponY),
+    this.sprite.draw(
+      ctx,
+      weaponX - cameraX,
+      weaponY,
+      aim.angle,
+      artPixelSize,
     );
-    ctx.rotate(aim.angle);
-    ctx.fillStyle = '#6f747c';
-    ctx.fillRect(
-      -this.bodyLengthPixels / 2,
-      -this.bodyThicknessPixels / 2,
-      this.bodyLengthPixels,
-      this.bodyThicknessPixels,
-    );
-    ctx.restore();
 
     const endX = aim.x + aim.dirX * this.beamRange;
     const endY = aim.y + aim.dirY * this.beamRange;
