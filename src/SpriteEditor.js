@@ -1268,7 +1268,7 @@ export class SpriteEditor {
 
     ctx.fillStyle = '#c9d1dc';
     ctx.font =
-      '10px Arial, sans-serif';
+      "10px 'Pixel Arial 11', Arial, sans-serif";
     ctx.fillText(
       'pivot',
       px + 9,
@@ -3819,7 +3819,7 @@ export class SpriteEditor {
     if (fit < 0.999) {
       ctx.fillStyle = '#68717e';
       ctx.font =
-        '10px Arial, sans-serif';
+        "10px 'Pixel Arial 11', Arial, sans-serif";
       ctx.textAlign = 'right';
 
       ctx.fillText(
@@ -3888,7 +3888,7 @@ export class SpriteEditor {
     if (!compiled.asset.parts.length) {
       ctx.fillStyle = '#737b87';
       ctx.font =
-        '12px Arial, sans-serif';
+        "12px 'Pixel Arial 11', Arial, sans-serif";
       ctx.textAlign = 'center';
       ctx.fillText(
         'add a polygon to preview it',
@@ -4123,7 +4123,7 @@ export class SpriteEditor {
         `${Math.max(
           8,
           11 * fit,
-        )}px Arial, sans-serif`;
+        )}px 'Pixel Arial 11', Arial, sans-serif`;
 
       ctx.textAlign = 'center';
 
@@ -4143,7 +4143,7 @@ export class SpriteEditor {
     if (fit < 0.999) {
       ctx.fillStyle = '#68717e';
       ctx.font =
-        '10px Arial, sans-serif';
+        "10px 'Pixel Arial 11', Arial, sans-serif";
       ctx.textAlign = 'right';
 
       ctx.fillText(
