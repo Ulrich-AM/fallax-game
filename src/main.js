@@ -170,6 +170,7 @@ const devConsole =
     input: devConsoleInput,
     onOpen: () => {
       pointer.firing = false;
+      audio.stopWeaponLoops();
       keys.clear();
       pressed.clear();
       released.clear();
