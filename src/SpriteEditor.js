@@ -1622,12 +1622,18 @@ export class SpriteEditor {
   }
 
   setTool(tool) {
-    if (
-      tool !== 'select' &&
-      tool !== 'polygon' &&
-      tool !== 'pivot' &&
-      tool !== 'muzzle'
-    ) {
+    const allowed =
+      new Set([
+        'select',
+        'polygon',
+        'pivot',
+        'muzzle',
+        'group-pivot',
+        'marker',
+        'hitbox',
+      ]);
+
+    if (!allowed.has(tool)) {
       return;
     }
 
@@ -1638,6 +1644,27 @@ export class SpriteEditor {
       ) &&
       !this.isWeaponMode()
     ) {
+      return;
+    }
+
+    if (
+      (
+        tool === 'marker' ||
+        tool === 'hitbox'
+      ) &&
+      !this.isBossMode()
+    ) {
+      return;
+    }
+
+    if (
+      tool === 'group-pivot' &&
+      !this.currentSelectedGroup()
+    ) {
+      this.setStatus(
+        'Select one complete group before setting its pivot.',
+        true,
+      );
       return;
     }
 
@@ -1662,6 +1689,18 @@ export class SpriteEditor {
       );
     }
 
+    const markerName =
+      this.sanitizeEditorName(
+        this.bossMarkerNameInput?.value,
+        'core',
+      );
+
+    const hitboxName =
+      this.sanitizeEditorName(
+        this.hitboxNameInput?.value,
+        'body',
+      );
+
     const statusByTool = {
       polygon:
         'Polygon: click vertices, click the first point or press Enter to close, Esc to cancel.',
@@ -1669,6 +1708,12 @@ export class SpriteEditor {
         'Set pivot: click the weapon hand / rotation point.',
       muzzle:
         'Set muzzle: click where shots should originate.',
+      'group-pivot':
+        'Set group pivot: click the point this selected group should rotate around.',
+      marker:
+        `Place marker "${markerName}": click its boss-space position.`,
+      hitbox:
+        `Place hitbox "${hitboxName}": click its center. Reusing the name updates it.`,
       select:
         'Select: click a shape; drag vertices or the whole shape.',
     };
