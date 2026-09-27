@@ -1,6 +1,6 @@
 import {
   WeaponSpriteRenderer,
-} from './WeaponSpriteRenderer.js?v=54b';
+} from './WeaponSpriteRenderer.js?v=54c';
 
 const HORIZON_SPRITE_ASSET = {
   version: 2,
@@ -314,12 +314,29 @@ export class HorizonWeapon {
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
 
-    const originX = player.x + dirX * this.orbitRadius;
-    const originY = player.y + dirY * this.orbitRadius;
+    const pivotX =
+      player.x +
+      dirX *
+      this.orbitRadius;
+
+    const pivotY =
+      player.y +
+      dirY *
+      this.orbitRadius;
+
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          pivotX,
+          pivotY,
+          angle,
+          4,
+        );
 
     this.specialProjectiles.push({
-      x: originX,
-      y: originY,
+      x: muzzle.x,
+      y: muzzle.y,
       vx: dirX * this.specialProjectileSpeed,
       vy: dirY * this.specialProjectileSpeed,
       life: this.specialProjectileLife,
@@ -396,12 +413,29 @@ export class HorizonWeapon {
     const dirX = Math.cos(this.lockedAngle);
     const dirY = Math.sin(this.lockedAngle);
 
-    const originX = player.x + dirX * this.orbitRadius;
-    const originY = player.y + dirY * this.orbitRadius;
+    const pivotX =
+      player.x +
+      dirX *
+      this.orbitRadius;
+
+    const pivotY =
+      player.y +
+      dirY *
+      this.orbitRadius;
+
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          pivotX,
+          pivotY,
+          this.lockedAngle,
+          artPixelSize,
+        );
 
     target?.damageProjectilesAlongRay?.(
-      originX,
-      originY,
+      muzzle.x,
+      muzzle.y,
       dirX,
       dirY,
       this.beamRange,
@@ -412,8 +446,8 @@ export class HorizonWeapon {
     if (target && !target.dead) {
       const radius = (target.halfSize ?? 48) * 0.94;
       const hitDistance = rayCircleHit(
-        originX,
-        originY,
+        muzzle.x,
+        muzzle.y,
         dirX,
         dirY,
         this.beamRange,
@@ -435,10 +469,19 @@ export class HorizonWeapon {
     player.grounded = false;
   }
 
-  getSpriteEntry(angleRadians = 0) {
-    return this.sprite.getEntry(
-      angleRadians,
-    );
+  getSpriteEntry(
+    angleRadians = 0,
+    centered = false,
+  ) {
+    return centered
+      ? this.sprite
+          .getCenteredEntry(
+            angleRadians,
+          )
+      : this.sprite
+          .getEntry(
+            angleRadians,
+          );
   }
 
   draw(
@@ -470,8 +513,25 @@ export class HorizonWeapon {
       artPixelSize,
     );
 
-    const endX = aim.x + aim.dirX * this.beamRange;
-    const endY = aim.y + aim.dirY * this.beamRange;
+    const visualMuzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          weaponX,
+          weaponY,
+          aim.angle,
+          artPixelSize,
+        );
+
+    const endX =
+      visualMuzzle.x +
+      aim.dirX *
+      this.beamRange;
+
+    const endY =
+      visualMuzzle.y +
+      aim.dirY *
+      this.beamRange;
 
     ctx.save();
     ctx.lineCap = 'butt';
@@ -490,8 +550,13 @@ export class HorizonWeapon {
 
     ctx.beginPath();
     ctx.moveTo(
-      Math.round(aim.x - cameraX),
-      Math.round(aim.y),
+      Math.round(
+        visualMuzzle.x -
+        cameraX,
+      ),
+      Math.round(
+        visualMuzzle.y,
+      ),
     );
     ctx.lineTo(
       Math.round(endX - cameraX),

@@ -1,6 +1,6 @@
 import {
   WeaponSpriteRenderer,
-} from './WeaponSpriteRenderer.js?v=54b';
+} from './WeaponSpriteRenderer.js?v=54c';
 
 const EUCLID_SPRITE_ASSET = {
   version: 2,
@@ -225,6 +225,17 @@ export class EuclidWeapon {
     }
 
     const aim = this.getAimFromAngle(player, this.currentAimAngle);
+
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          aim.x,
+          aim.y,
+          aim.angle,
+          artPixelSize,
+        );
+
     const effectiveFiring = active && (firing || specialActive);
     const widthMultiplier = specialActive ? 3 : 1;
     const damagePerSecond = specialActive
@@ -240,8 +251,8 @@ export class EuclidWeapon {
         (this.bodyThickness * artPixelSize * widthMultiplier) * 0.5;
 
       target.damageProjectilesAlongRay?.(
-        aim.x,
-        aim.y,
+        muzzle.x,
+        muzzle.y,
         aim.dirX,
         aim.dirY,
         this.beamRange,
@@ -251,8 +262,8 @@ export class EuclidWeapon {
 
       const radius = (target.halfSize ?? 48) * 0.94;
       const hitDistance = rayCircleHit(
-        aim.x,
-        aim.y,
+        muzzle.x,
+        muzzle.y,
         aim.dirX,
         aim.dirY,
         this.beamRange,
@@ -269,15 +280,32 @@ export class EuclidWeapon {
 
     this.aim = {
       ...aim,
-      beamEndX: aim.x + aim.dirX * beamDistance,
-      beamEndY: aim.y + aim.dirY * beamDistance,
+      muzzleX: muzzle.x,
+      muzzleY: muzzle.y,
+      beamEndX:
+        muzzle.x +
+        aim.dirX *
+        beamDistance,
+      beamEndY:
+        muzzle.y +
+        aim.dirY *
+        beamDistance,
     };
   }
 
-  getSpriteEntry(angleRadians = 0) {
-    return this.sprite.getEntry(
-      angleRadians,
-    );
+  getSpriteEntry(
+    angleRadians = 0,
+    centered = false,
+  ) {
+    return centered
+      ? this.sprite
+          .getCenteredEntry(
+            angleRadians,
+          )
+      : this.sprite
+          .getEntry(
+            angleRadians,
+          );
   }
 
   draw(ctx, player, pointerWorld, cameraX, artPixelSize) {
@@ -313,8 +341,13 @@ export class EuclidWeapon {
 
     ctx.beginPath();
     ctx.moveTo(
-      Math.round(this.aim.x - cameraX),
-      Math.round(this.aim.y),
+      Math.round(
+        this.aim.muzzleX -
+        cameraX,
+      ),
+      Math.round(
+        this.aim.muzzleY,
+      ),
     );
     ctx.lineTo(
       Math.round(this.aim.beamEndX - cameraX),

@@ -16,10 +16,10 @@ import {
   SHOP_CATALOG,
   purchaseItem,
 } from './equipment.js?v=52';
-import { VectorWeapon } from './VectorWeapon.js?v=54b';
-import { EuclidWeapon } from './EuclidWeapon.js?v=54b';
-import { HorizonWeapon } from './HorizonWeapon.js?v=54b';
-import { MachWeapon } from './MachWeapon.js?v=54b';
+import { VectorWeapon } from './VectorWeapon.js?v=54c';
+import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
+import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
+import { MachWeapon } from './MachWeapon.js?v=54c';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=52';
 import { Economy } from './Economy.js?v=52';
@@ -38,11 +38,11 @@ import {
 } from './SpriteAssets.js?v=49';
 import {
   drawRasterAtPivot,
-} from './WeaponSpriteRenderer.js?v=54b';
+} from './WeaponSpriteRenderer.js?v=54c';
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v54b';
+const BUILD_VERSION = 'v54c';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -2227,11 +2227,13 @@ function getItemCategoryLabel(item) {
 function getItemPreviewEntry(
   itemId,
   angleRadians = 0,
+  centered = false,
 ) {
   if (itemId === 'vector') {
     return vectorWeapon
       .getSpriteEntry(
         angleRadians,
+        centered,
       );
   }
 
@@ -2239,6 +2241,7 @@ function getItemPreviewEntry(
     return euclidWeapon
       .getSpriteEntry(
         angleRadians,
+        centered,
       );
   }
 
@@ -2246,6 +2249,7 @@ function getItemPreviewEntry(
     return horizonWeapon
       .getSpriteEntry(
         angleRadians,
+        centered,
       );
   }
 
@@ -2253,6 +2257,7 @@ function getItemPreviewEntry(
     return machWeapon
       .getSpriteEntry(
         angleRadians,
+        centered,
       );
   }
 
@@ -2264,6 +2269,7 @@ function getPreviewRadiusUnits(itemId) {
     getItemPreviewEntry(
       itemId,
       0,
+      true,
     );
 
   if (!entry) return null;
@@ -2337,7 +2343,12 @@ function showItemTooltip(itemId, event) {
   itemTooltipDescription.textContent = item.description;
   itemTooltip.classList.remove('hidden');
 
-  const hasPreview = !!getItemPreviewEntry(item.id, 0);
+  const hasPreview =
+    !!getItemPreviewEntry(
+      item.id,
+      0,
+      true,
+    );
   itemTooltipCanvas.classList.toggle('hidden', !hasPreview);
 
   positionItemTooltip(
@@ -2391,6 +2402,7 @@ function drawItemTooltipPreview(now) {
     getItemPreviewEntry(
       hoveredItemId,
       angle,
+      true,
     );
 
   if (!entry) return;
