@@ -225,7 +225,11 @@ export class ParallaxWeapon {
     this.specialActiveTimer = 0;
 
     this.visualTime = 0;
-    this.ghostFloatDistance = 1.15;
+
+    // The source sprite positions remain the minimum spacing. The copies
+    // breathe farther outward from there so the motion is clearly visible
+    // even through the full-arena 0.5x camera.
+    this.ghostFloatDistance = 4.6;
     this.ghostAlpha = 0.36;
     this.specialGhostAlpha = 0.58;
 

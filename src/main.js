@@ -22,8 +22,8 @@ import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
-import { RelayWeapon } from './RelayWeapon.js?v=59';
-import { ParallaxWeapon } from './ParallaxWeapon.js?v=59';
+import { RelayWeapon } from './RelayWeapon.js?v=59a';
+import { ParallaxWeapon } from './ParallaxWeapon.js?v=59a';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
@@ -50,7 +50,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v59';
+const BUILD_VERSION = 'v59a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -216,6 +216,7 @@ const COLORS = {
 
 const world = {
   width: WORLD_VIEW_WIDTH,
+  roofY: 40,
   floorY: 650,
   platforms: [
     { x: 340, y: 550, w: 250, h: 20 },
@@ -2552,6 +2553,24 @@ function drawGrid() {
 }
 
 function drawPlatforms() {
+  // Visual roof used by Relay as an attachable arena surface. It is not a
+  // player-collision ceiling yet, so movement physics stay unchanged.
+  ctx.fillStyle = COLORS.platform;
+  ctx.fillRect(
+    -200,
+    world.roofY - 22,
+    world.width + 400,
+    22,
+  );
+
+  ctx.fillStyle = COLORS.platformTop;
+  ctx.fillRect(
+    -200,
+    world.roofY,
+    world.width + 400,
+    3,
+  );
+
   ctx.fillStyle = COLORS.platform;
   ctx.fillRect(
     -200,
