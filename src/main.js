@@ -26,7 +26,7 @@ import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=55ba';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bb';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
@@ -43,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55ba';
+const BUILD_VERSION = 'v55bb';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -713,6 +713,14 @@ const CHAPTERS = [
 
 let currentScreen = 'menu';
 let encounterOver = false;
+let encounterElapsed = 0;
+
+const DENARIUS_REWARD = Object.freeze({
+  base: 30,
+  maxSpeedBonus: 40,
+  maxHealthBonus: 30,
+  speedWindowSeconds: 120,
+});
 let activeWeaponSlot = 0;
 let activeChapter = 'genesis';
 let activeEquipmentTab = 'weapons';
@@ -1270,6 +1278,60 @@ function setDeathMenuVisible(visible, result = 'defeated') {
   }
 }
 
+function calculateVictoryReward() {
+  const healthRatio =
+    player.maxHealth > 0
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            player.health /
+              player.maxHealth,
+          ),
+        )
+      : 0;
+
+  const speedRatio =
+    Math.max(
+      0,
+      Math.min(
+        1,
+        1 -
+          encounterElapsed /
+          DENARIUS_REWARD
+            .speedWindowSeconds,
+      ),
+    );
+
+  const speedBonus =
+    Math.round(
+      DENARIUS_REWARD
+        .maxSpeedBonus *
+      speedRatio,
+    );
+
+  const healthBonus =
+    Math.round(
+      DENARIUS_REWARD
+        .maxHealthBonus *
+      healthRatio,
+    );
+
+  return {
+    base:
+      DENARIUS_REWARD.base,
+    speedBonus,
+    healthBonus,
+    total:
+      DENARIUS_REWARD.base +
+      speedBonus +
+      healthBonus,
+    elapsed:
+      encounterElapsed,
+    healthRatio,
+  };
+}
+
 function endEncounter(result) {
   if (encounterOver) return;
 
@@ -1282,13 +1344,27 @@ function endEncounter(result) {
 
   if (result === 'victory') {
     const reward =
-      economy.addDenarius(50);
+      calculateVictoryReward();
+
+    const gain =
+      economy.addDenarius(
+        reward.total,
+      );
 
     renderDenariusBalance();
 
     if (encounterReward) {
+      const seconds =
+        reward.elapsed.toFixed(1);
+
+      const healthPercent =
+        Math.round(
+          reward.healthRatio *
+          100,
+        );
+
       encounterReward.textContent =
-        `+${reward} denarius`;
+        `+${gain} denarius · base ${reward.base} + speed ${reward.speedBonus} + health ${reward.healthBonus} · ${seconds}s · ${healthPercent}% hp`;
     }
   } else if (encounterReward) {
     encounterReward.textContent = '';
@@ -1589,6 +1665,8 @@ function update(dt) {
     return;
   }
 
+  encounterElapsed += dt;
+
   bossImpactFxCooldown = Math.max(
     0,
     bossImpactFxCooldown - dt,
@@ -1600,6 +1678,7 @@ function update(dt) {
   updateParticles(dt);
 
   if (pressed.has(controlBindings.restart)) {
+    encounterElapsed = 0;
     player.reset();
     vectorWeapon.reset();
     euclidWeapon.reset();
@@ -2170,6 +2249,7 @@ function renderGame() {
 
 function prepareEncounter(boss) {
   encounterOver = false;
+  encounterElapsed = 0;
   setDeathMenuVisible(false, 'defeated');
 
   player.reset();
