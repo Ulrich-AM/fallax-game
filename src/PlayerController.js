@@ -68,8 +68,22 @@ export class PlayerController {
     // Only hard world boundaries stop the blink.
     if (x - halfW < 0) return false;
     if (x + halfW > world.width) return false;
-    if (y - halfH < 0) return false;
-    if (y + halfH > world.floorY) return false;
+    const ceilingY =
+      Number.isFinite(
+        world.roofY,
+      )
+        ? world.roofY
+        : 0;
+
+    if (
+      y - halfH <
+      ceilingY
+    ) return false;
+
+    if (
+      y + halfH >
+      world.floorY
+    ) return false;
 
     return true;
   }
@@ -502,8 +516,65 @@ export class PlayerController {
         this.grounded = false;
       }
     } else {
-      if (this.wasGrounded) this.coyoteTimer = CFG.coyoteTime;
+      const ceilingY =
+        Number.isFinite(
+          world.roofY,
+        )
+          ? world.roofY
+          : 0;
+
+      const previousTop =
+        this.prevY -
+        this.h / 2;
+
+      const currentTop =
+        this.y -
+        this.h / 2;
+
+      if (
+        previousTop >=
+          ceilingY &&
+        currentTop <=
+          ceilingY
+      ) {
+        this.y =
+          ceilingY +
+          this.h / 2;
+
+        this.vy =
+          Math.max(
+            0,
+            this.vy,
+          );
+      }
+
+      if (this.wasGrounded) {
+        this.coyoteTimer =
+          CFG.coyoteTime;
+      }
+
       this.grounded = false;
+    }
+
+    const ceilingY =
+      Number.isFinite(
+        world.roofY,
+      )
+        ? world.roofY
+        : 0;
+
+    const minY =
+      ceilingY +
+      this.h / 2;
+
+    if (
+      this.y < minY
+    ) {
+      this.y = minY;
+
+      if (this.vy < 0) {
+        this.vy = 0;
+      }
     }
   }
 

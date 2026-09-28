@@ -1,6 +1,6 @@
 import { loadPixelArial } from './FontLoader.js?v=53';
 import { rectangle, group, rasterize } from './pixelShapes.js?v=36';
-import { PlayerController } from './PlayerController.js?v=36';
+import { PlayerController } from './PlayerController.js?v=60c';
 import { MOVEMENT } from './movementConfig.js?v=36';
 import {
   EQUIPMENT_CATEGORIES,
@@ -27,7 +27,7 @@ import { RelayWeapon } from './RelayWeapon.js?v=60';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=60b';
 import { KeplerWeapon } from './KeplerWeapon.js?v=60';
-import { BackfireAbility } from './BackfireAbility.js?v=52';
+import { BackfireAbility } from './BackfireAbility.js?v=60c';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
@@ -53,7 +53,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v60b';
+const BUILD_VERSION = 'v60c';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -2644,14 +2644,14 @@ function drawGrid() {
 }
 
 function drawPlatforms() {
-  // Visual roof used by Relay as an attachable arena surface. It is not a
-  // player-collision ceiling yet, so movement physics stay unchanged.
+  // Solid roof. Extend the fill above the arena so the fixed-camera view
+  // never exposes an empty strip behind it.
   ctx.fillStyle = COLORS.platform;
   ctx.fillRect(
     -200,
-    world.roofY - 22,
+    -220,
     world.width + 400,
-    22,
+    world.roofY + 220,
   );
 
   ctx.fillStyle = COLORS.platformTop;
