@@ -301,3 +301,43 @@ export function grantItem(itemId) {
 export function purchaseItem(itemId) {
   return grantItem(itemId);
 }
+
+export function resetEquipmentState() {
+  ownedItems.splice(
+    0,
+    ownedItems.length,
+    'vector',
+  );
+
+  loadout.weapons.splice(
+    0,
+    loadout.weapons.length,
+    'vector',
+    null,
+  );
+
+  loadout.abilities.splice(
+    0,
+    loadout.abilities.length,
+    null,
+    null,
+    null,
+  );
+
+  loadout.extra.splice(
+    0,
+    loadout.extra.length,
+    null,
+    null,
+  );
+
+  loadout.armor.splice(
+    0,
+    loadout.armor.length,
+    null,
+    null,
+  );
+
+  saveEquipmentState();
+  return true;
+}

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fallax - boss rush</title>
-  <link rel="stylesheet" href="style.css?v=59a" />
+  <link rel="stylesheet" href="style.css?v=59b" />
 </head>
 <body>
   <div id="app">
@@ -157,6 +157,21 @@
           <div class="controls-footer">
             <span id="keybind-status">Esc and ~ stay reserved. Fire stays on LMB.</span>
             <button id="reset-keybinds" class="back-button controls-reset">reset defaults</button>
+          </div>
+        </section>
+
+        <section class="equipment-panel settings-panel danger-panel">
+          <div class="section-heading">
+            <h3>game data</h3>
+            <span>reset progression back to a fresh save</span>
+          </div>
+
+          <div class="setting-row">
+            <span>
+              <strong>reset game data</strong>
+              <small>removes denarii, purchased items, and equipped items</small>
+            </span>
+            <button id="reset-game-data" class="back-button danger-button">reset</button>
           </div>
         </section>
       </main>
@@ -618,6 +633,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=59a"></script>
+  <script type="module" src="src/main.js?v=59b"></script>
 </body>
 </html>
