@@ -1969,6 +1969,25 @@ export class MatrixBoss {
         bullet.life - dt,
       );
 
+      if (
+        bullet.reflected &&
+        this.hitTest?.(
+          bullet.x,
+          bullet.y,
+          bullet.size * 0.5,
+        )
+      ) {
+        this.takeDamage(
+          bullet.reflectedDamage ??
+            bullet.damage ??
+            10,
+        );
+
+        bullet.life = 0;
+        bullet.health = 0;
+        continue;
+      }
+
       if (bullet.kind === 'burst') {
         const radius = bullet.size * 0.5;
         let bounced = false;
@@ -1991,10 +2010,10 @@ export class MatrixBoss {
         }
 
         if (
-          bullet.y - radius <= 0 &&
+          bullet.y - radius <= world.roofY &&
           bullet.vy < 0
         ) {
-          bullet.y = radius;
+          bullet.y = world.roofY + radius;
           bullet.vy = Math.abs(bullet.vy);
           bounced = true;
         } else if (
@@ -2066,10 +2085,10 @@ export class MatrixBoss {
             world.width - radius;
           splitAngle = Math.PI;
         } else if (
-          bullet.y - radius <= 0 &&
+          bullet.y - radius <= world.roofY &&
           bullet.vy < 0
         ) {
-          bullet.y = radius;
+          bullet.y = world.roofY + radius;
           splitAngle = Math.PI / 2;
         } else if (
           bullet.y + radius >= world.floorY &&
@@ -2138,10 +2157,33 @@ export class MatrixBoss {
             const opacity =
               bullet.opacity ?? 1;
 
+            const damage =
+              bullet.damage *
+              opacity;
+
+            const incoming =
+              target.handleIncomingProjectile?.(
+                bullet,
+                {
+                  damage,
+                  owner: this,
+                },
+              );
+
+            if (incoming?.handled) {
+              if (
+                incoming.destroyProjectile
+              ) {
+                bullet.hitPlayer = true;
+                bullet.life = 0;
+              }
+
+              break;
+            }
+
             if (
               target.takeDamage?.(
-                bullet.damage *
-                opacity,
+                damage,
               )
             ) {
               bullet.hitPlayer = true;
