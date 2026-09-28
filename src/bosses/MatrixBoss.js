@@ -2382,9 +2382,16 @@ export class MatrixBoss {
       return false;
     }
 
+    const applied =
+      amount *
+      (
+        this.damageTakenMultiplier ??
+        1
+      );
+
     this.health = Math.max(
       0,
-      this.health - amount,
+      this.health - applied,
     );
 
     this.hurtFlash = 1;
