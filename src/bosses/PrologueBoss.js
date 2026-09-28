@@ -1986,7 +1986,27 @@ export class PrologueBoss {
       bullet.life = Math.max(0, bullet.life - dt);
 
       if (
+        bullet.reflected &&
+        this.hitTest?.(
+          bullet.x,
+          bullet.y,
+          this.satelliteBulletSize *
+            0.5,
+        )
+      ) {
+        this.takeDamage(
+          bullet.reflectedDamage ??
+            12,
+        );
+
+        bullet.life = 0;
+        bullet.health = 0;
+        continue;
+      }
+
+      if (
         !bullet.hitPlayer &&
+        !bullet.reflected &&
         targets?.length
       ) {
         for (
@@ -2009,6 +2029,26 @@ export class PrologueBoss {
               bullet.y - target.y,
             ) <= hitRadius
           ) {
+            const incoming =
+              target.handleIncomingProjectile?.(
+                bullet,
+                {
+                  damage: 12,
+                  owner: this,
+                },
+              );
+
+            if (incoming?.handled) {
+              if (
+                incoming.destroyProjectile
+              ) {
+                bullet.hitPlayer = true;
+                bullet.life = 0;
+              }
+
+              break;
+            }
+
             if (
               target.takeDamage?.(12) !==
               false

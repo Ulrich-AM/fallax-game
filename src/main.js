@@ -28,14 +28,15 @@ import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=60b';
 import { KeplerWeapon } from './KeplerWeapon.js?v=60';
 import { BackfireAbility } from './BackfireAbility.js?v=60c';
+import { GuardSystem } from './GuardSystem.js?v=61';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
 } from './ExtraSystem.js?v=57';
 import { Economy } from './Economy.js?v=58';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=57';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=57';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=61';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=61';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
@@ -53,7 +54,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v60d';
+const BUILD_VERSION = 'v61';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -201,7 +202,7 @@ const WORLD_VIEW_OFFSET_Y =
 // This is derived from the current camera transform instead of guessed
 // world coordinates, so changing the render scale later won't make the
 // roof drift back into the middle of the screen.
-const ARENA_ROOF_SCREEN_Y = 32;
+const ARENA_ROOF_SCREEN_Y = 110;
 const ARENA_ROOF_WORLD_Y =
   (
     ARENA_ROOF_SCREEN_Y -
@@ -268,6 +269,7 @@ const anchorWeapon = new AnchorWeapon();
 const keplerWeapon = new KeplerWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
+const guardSystem = new GuardSystem();
 const extraSystem = new ExtraSystem();
 const economy = new Economy();
 renderDenariusBalance();
@@ -297,6 +299,8 @@ const pointer = {
   screenX: W * 0.72,
   screenY: H * 0.5,
   firing: false,
+  guarding: false,
+  guardPressed: false,
 };
 
 const spriteAssetStore =
@@ -2054,16 +2058,35 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0 || currentScreen !== 'game') return;
+  if (currentScreen !== 'game') return;
+
   const p = canvasPointFromEvent(e);
   pointer.screenX = p.x;
   pointer.screenY = p.y;
-  pointer.firing = true;
+
+  if (e.button === 0) {
+    pointer.firing = true;
+  } else if (e.button === 2) {
+    if (!pointer.guarding) {
+      pointer.guardPressed = true;
+    }
+
+    pointer.guarding = true;
+  } else {
+    return;
+  }
+
   e.preventDefault();
 });
 
 addEventListener('pointerup', (e) => {
-  if (e.button === 0) pointer.firing = false;
+  if (e.button === 0) {
+    pointer.firing = false;
+  }
+
+  if (e.button === 2) {
+    pointer.guarding = false;
+  }
 });
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -2143,12 +2166,17 @@ function update(dt) {
     pressed.clear();
     released.clear();
     pointer.firing = false;
+    pointer.guarding = false;
+    pointer.guardPressed = false;
     return;
   }
 
   if (currentScreen !== 'game') {
     pressed.clear();
     released.clear();
+    pointer.firing = false;
+    pointer.guarding = false;
+    pointer.guardPressed = false;
     return;
   }
 
@@ -2156,6 +2184,8 @@ function update(dt) {
     pressed.clear();
     released.clear();
     pointer.firing = false;
+    pointer.guarding = false;
+    pointer.guardPressed = false;
     return;
   }
 
@@ -2183,6 +2213,7 @@ function update(dt) {
     anchorWeapon.reset();
     keplerWeapon.reset();
     backfireAbility.reset(player);
+    guardSystem.reset(player);
     extraSystem.reset();
     refreshExtraButtons();
     activeBoss?.reset?.(world);
@@ -2206,6 +2237,8 @@ function update(dt) {
   const backfireShotsBefore = backfireAbility.shotSerial;
   const machSpecialWavesBefore = machWeapon.specialWavesFired;
   const bossShotsBefore = activeBoss?.shotSerial ?? 0;
+  const parriesBefore =
+    guardSystem.reflectedProjectiles;
 
   const backfireEquipped = isAbilityEquipped('backfire');
   const strikeEquipped = isAbilityEquipped('strike');
@@ -2237,6 +2270,21 @@ function update(dt) {
   }
 
   player.update(dt, playerInput, world);
+
+  guardSystem.update(
+    dt,
+    {
+      player,
+      pointerWorld:
+        getPointerWorld(),
+      guardHeld:
+        pointer.guarding,
+      guardPressed:
+        pointer.guardPressed,
+    },
+  );
+
+  pointer.guardPressed = false;
 
   if (
     player.dashSerial !== dashSerialBefore &&
@@ -2328,15 +2376,32 @@ function update(dt) {
 
   refreshExtraButtons();
 
-  const bossTarget =
+  const guardedPlayer =
+    guardSystem.getDamageTarget(
+      player,
+    );
+
+  const rawBossTarget =
     extraSystem.getBossTarget(
       player,
     );
 
+  const bossTarget =
+    rawBossTarget === player
+      ? guardedPlayer
+      : rawBossTarget;
+
   const bossDamageTargets =
-    extraSystem.getDamageTargets(
-      player,
-    );
+    extraSystem
+      .getDamageTargets(
+        player,
+      )
+      .map(
+        target =>
+          target === player
+            ? guardedPlayer
+            : target,
+      );
 
   backfireAbility.update(
     dt,
@@ -2383,6 +2448,26 @@ function update(dt) {
     viewportWidth: world.width,
     shakeCamera: triggerCameraShake,
   });
+
+  if (
+    guardSystem.reflectedProjectiles >
+    parriesBefore
+  ) {
+    spawnSparkBurst(
+      player.x,
+      player.y,
+      14,
+      320,
+      '#ffffff',
+    );
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(
+        5.5,
+        0.09,
+      );
+    }
+  }
 
   updateCameraShake(dt);
 
@@ -2597,18 +2682,23 @@ function update(dt) {
 function drawGrid() {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(
-    -200,
-    -120,
-    world.width + 400,
-    H + 240,
+    0,
+    world.roofY,
+    world.width,
+    world.floorY -
+      world.roofY,
   );
 
   const spacing = 40;
   ctx.lineWidth = 2;
 
+  const firstX =
+    Math.ceil(0 / spacing) *
+    spacing;
+
   for (
-    let x = -200;
-    x <= world.width + 200;
+    let x = firstX;
+    x <= world.width;
     x += spacing
   ) {
     const worldIndex =
@@ -2622,17 +2712,26 @@ function drawGrid() {
         : COLORS.gridMinor;
 
     ctx.beginPath();
-    ctx.moveTo(x + 1, -120);
+    ctx.moveTo(
+      x + 1,
+      world.roofY,
+    );
     ctx.lineTo(
       x + 1,
-      H + 120,
+      world.floorY,
     );
     ctx.stroke();
   }
 
+  const firstY =
+    Math.ceil(
+      world.roofY /
+      spacing,
+    ) * spacing;
+
   for (
-    let y = -110;
-    y < H + 120;
+    let y = firstY;
+    y <= world.floorY;
     y += spacing
   ) {
     ctx.strokeStyle =
@@ -2644,11 +2743,11 @@ function drawGrid() {
 
     ctx.beginPath();
     ctx.moveTo(
-      -200,
+      0,
       y + 1,
     );
     ctx.lineTo(
-      world.width + 200,
+      world.width,
       y + 1,
     );
     ctx.stroke();
@@ -2668,10 +2767,45 @@ function drawPlatforms() {
 
   ctx.fillStyle = COLORS.platformTop;
   ctx.fillRect(
-    -200,
+    0,
     world.roofY,
-    world.width + 400,
+    world.width,
     3,
+  );
+
+  // Side walls use the same x=0 and x=world.width boundaries as physics.
+  ctx.fillStyle = COLORS.platform;
+  ctx.fillRect(
+    -24,
+    world.roofY,
+    24,
+    world.floorY -
+      world.roofY,
+  );
+
+  ctx.fillRect(
+    world.width,
+    world.roofY,
+    24,
+    world.floorY -
+      world.roofY,
+  );
+
+  ctx.fillStyle = COLORS.platformTop;
+  ctx.fillRect(
+    0,
+    world.roofY,
+    3,
+    world.floorY -
+      world.roofY,
+  );
+
+  ctx.fillRect(
+    world.width - 3,
+    world.roofY,
+    3,
+    world.floorY -
+      world.roofY,
   );
 
   ctx.fillStyle = COLORS.platform;
@@ -2832,35 +2966,29 @@ function drawHUD() {
 
   rowY += rowStep;
 
-  const dashRatio =
-    player.dashCooldownRatio;
-
-  let dashText = 'READY';
-
-  if (
-    player.dashCooldownTimer > 0
-  ) {
-    dashText =
-      `${player.dashCooldownTimer.toFixed(2)}s`;
-  } else if (
-    player.stamina <
-    MOVEMENT.dashStaminaCost
-  ) {
-    dashText =
-      `NEEDS ${MOVEMENT.dashStaminaCost}`;
-  }
-
   drawResourceBar(
-    'DASH',
-    dashRatio,
-    1,
+    'STABILITY',
+    guardSystem.stability,
+    guardSystem.maxStability,
     bx,
     rowY,
     bw,
-    player.dashReady
-      ? COLORS.dash
-      : '#8e8246',
-    dashText,
+    guardSystem.stabilityRatio < 0.25
+      ? '#a86a6a'
+      : '#d6d9de',
+    guardSystem.breakTimer > 0
+      ? 'BROKEN'
+      : (
+          pointer.guarding
+            ? (
+                guardSystem.isParrying()
+                  ? 'PARRY'
+                  : 'GUARD'
+              )
+            : `${Math.ceil(
+                guardSystem.stability,
+              )}/${guardSystem.maxStability}`
+        ),
   );
 
   rowY += rowStep;
@@ -3018,6 +3146,11 @@ function renderGame() {
   drawParticles();
   drawPlayer();
 
+  guardSystem.draw(
+    ctx,
+    0,
+  );
+
   const activeWeaponId = getActiveWeaponId();
 
   if (activeWeaponId === 'vector') {
@@ -3115,6 +3248,9 @@ function prepareEncounter(boss) {
   keplerWeapon.reset();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
+  guardSystem.reset(player);
+  pointer.guarding = false;
+  pointer.guardPressed = false;
   extraSystem.reset();
   refreshExtraButtons();
   particles.length = 0;
@@ -3988,6 +4124,7 @@ window.BOSSFIGHTS = {
   parallaxWeapon,
   anchorWeapon,
   keplerWeapon,
+  guardSystem,
   backfireAbility,
   strikeAbility,
   extraSystem,
