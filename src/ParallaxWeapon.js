@@ -930,7 +930,7 @@ export class ParallaxWeapon {
           bullet.x > -120 &&
           bullet.x <
             world.width + 120 &&
-          bullet.y > -120 &&
+          bullet.y > world.roofY - 180 &&
           bullet.y <
             world.floorY + 180,
       );
