@@ -48,7 +48,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v58';
+const BUILD_VERSION = 'v58a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
