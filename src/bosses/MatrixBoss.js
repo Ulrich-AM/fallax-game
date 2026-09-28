@@ -1883,6 +1883,8 @@ export class MatrixBoss {
       dt,
       context.player,
       context.world,
+      context.damageTargets ??
+        [context.player],
     );
 
     this.hurtFlash = Math.max(
@@ -1896,7 +1898,12 @@ export class MatrixBoss {
     );
   }
 
-  updateBullets(dt, player, world) {
+  updateBullets(
+    dt,
+    player,
+    world,
+    targets,
+  ) {
     const compressionSplits = [];
 
     for (const bullet of this.bullets) {
@@ -2104,31 +2111,43 @@ export class MatrixBoss {
       if (
         !bullet.hitPlayer &&
         !bullet.orbiting &&
-        player &&
+        targets?.length &&
         bullet.health > 0 &&
         bullet.life > 0
       ) {
-        const radius =
-          bullet.size * 0.5 +
-          Math.max(player.w, player.h) *
-          0.40;
-
-        if (
-          Math.hypot(
-            bullet.x - player.x,
-            bullet.y - player.y,
-          ) <= radius
+        for (
+          const target
+          of targets
         ) {
-          const opacity =
-            bullet.opacity ?? 1;
+          if (!target) continue;
+
+          const radius =
+            bullet.size * 0.5 +
+            Math.max(
+              target.w ?? 0,
+              target.h ?? 0,
+            ) *
+            0.40;
 
           if (
-            player.takeDamage?.(
-              bullet.damage * opacity,
-            )
+            Math.hypot(
+              bullet.x - target.x,
+              bullet.y - target.y,
+            ) <= radius
           ) {
-            bullet.hitPlayer = true;
-            bullet.life = 0;
+            const opacity =
+              bullet.opacity ?? 1;
+
+            if (
+              target.takeDamage?.(
+                bullet.damage *
+                opacity,
+              )
+            ) {
+              bullet.hitPlayer = true;
+              bullet.life = 0;
+              break;
+            }
           }
         }
       }
