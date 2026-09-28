@@ -15,7 +15,8 @@ export class KeplerWeapon {
     this.orbiterRadius=62;
     this.orbiterRadiusStep=5;
     this.orbiterAngularSpeed=2.15;
-    this.orbiterSize=10;
+    this.orbiterSize=15;
+    this.orbiterFadeInDuration=.18;
 
     this.damage=9;
     this.specialDamageMultiplier=1.35;
@@ -93,7 +94,6 @@ export class KeplerWeapon {
       age:0,
     });
 
-    this.shotSerial++;
     return true;
   }
 
@@ -270,7 +270,18 @@ export class KeplerWeapon {
           orbiter.slot,
         );
 
-      ctx.globalAlpha=.8*pulse;
+      const fadeIn=
+        clamp(
+          orbiter.age/
+          this.orbiterFadeInDuration,
+          0,
+          1,
+        );
+
+      ctx.globalAlpha=
+        .8*
+        pulse*
+        fadeIn;
       ctx.fillStyle='#f1f2f4';
       ctx.shadowColor='#ffffff';
       ctx.shadowBlur=8;
