@@ -1579,6 +1579,28 @@ export class PrologueBoss {
               overlapsX &&
               overlapsY
             ) {
+              const defense =
+                player.handleIncomingRush?.(
+                  owner,
+                  {
+                    stabilityCost: 14,
+                  },
+                );
+
+              if (defense?.parried) {
+                owner.wallRushDraggingPlayer = false;
+                owner.wallRushEscaped = true;
+                owner.wallRushHitPlayer = false;
+                owner.smashTrail.length = 0;
+
+                ai.changeState(
+                  'recover',
+                  ctx,
+                );
+
+                return;
+              }
+
               owner.wallRushDraggingPlayer = true;
               owner.wallRushGrabDashSerial = player.dashSerial;
             }
@@ -1886,27 +1908,47 @@ export class PrologueBoss {
   update(dt, context) {
     if (this.dead) return;
 
-    this.ai.update(dt, context);
+    if (!context.broken) {
+      this.ai.update(
+        dt,
+        context,
+      );
+    }
 
-    if (!this.rotationLocked) {
+    if (
+      !context.broken &&
+      !this.rotationLocked
+    ) {
       this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
     }
 
-    const orbitSpeedScale = this.isPhase2 ? 1.35 : 1;
+    const orbitSpeedScale =
+      this.isPhase2
+        ? 1.35
+        : 1;
 
-    this.satelliteOrbitAngle =
-      (
-        this.satelliteOrbitAngle +
-        this.satelliteOrbitSpeed * orbitSpeedScale * dt
-      ) % 360;
+    if (!context.broken) {
+      this.satelliteOrbitAngle =
+        (
+          this.satelliteOrbitAngle +
+          this.satelliteOrbitSpeed *
+            orbitSpeedScale *
+            dt
+        ) % 360;
 
-    this.satelliteLocalRotation =
-      (
-        this.satelliteLocalRotation +
-        this.satelliteSpinSpeed * orbitSpeedScale * dt
-      ) % 360;
+      this.satelliteLocalRotation =
+        (
+          this.satelliteLocalRotation +
+          this.satelliteSpinSpeed *
+            orbitSpeedScale *
+            dt
+        ) % 360;
+    }
 
-    if (this.satelliteMode === 'orbit') {
+    if (
+      !context.broken &&
+      this.satelliteMode === 'orbit'
+    ) {
       const home = this.getSatelliteOrbitPosition();
       const secondHome = this.getSatelliteOrbitPosition(180);
       this.satelliteX = home.x;
@@ -2213,7 +2255,17 @@ export class PrologueBoss {
   takeDamage(amount) {
     if (this.dead || amount <= 0) return;
 
-    this.health = Math.max(0, this.health - amount);
+    const applied =
+      amount *
+      (
+        this.damageTakenMultiplier ??
+        1
+      );
+
+    this.health = Math.max(
+      0,
+      this.health - applied,
+    );
     this.hurtFlash = 1;
 
     if (this.health <= 0) {
