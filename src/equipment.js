@@ -45,17 +45,36 @@ export const ITEM_LIBRARY = {
     id: 'strike',
     name: 'Strike',
     category: 'abilities',
-    description: 'An upward dash within ±15° becomes a powerful melee strike.',
+    description: 'A dash through an enemy becomes a powerful melee strike.',
     appearance: 'ability module',
+  },
+  turret: {
+    id: 'turret',
+    name: 'Turret',
+    category: 'extra',
+    description: 'Deploys a spinning square that fires a two-sided spiral until destroyed or expired.',
+    appearance: 'outlined spinning square',
+  },
+  decoy: {
+    id: 'decoy',
+    name: 'Decoy',
+    category: 'extra',
+    description: 'Deploys a temporary clone that bosses prioritize for 10 seconds.',
+    appearance: 'player clone',
   },
 };
 
-export const ownedItems = ['vector', 'euclid'];
+export const ownedItems = [
+  'vector',
+  'euclid',
+  'turret',
+  'decoy',
+];
 
 export const loadout = {
   weapons: ['vector', 'euclid'],
   abilities: [null, null, null],
-  extra: [null, null],
+  extra: ['turret', 'decoy'],
   armor: [null, null],
 };
 
@@ -103,6 +122,10 @@ export function getPrimaryWeaponId() {
 
 export function getWeaponSlotId(index) {
   return loadout.weapons[index] ?? null;
+}
+
+export function getExtraSlotId(index) {
+  return loadout.extra[index] ?? null;
 }
 
 

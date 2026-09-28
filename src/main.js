@@ -13,19 +13,23 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
+  getExtraSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=52';
+} from './equipment.js?v=57';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
+import {
+  ExtraSystem,
+} from './ExtraSystem.js?v=57';
 import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=57';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=57';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
@@ -43,7 +47,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v56';
+const BUILD_VERSION = 'v57';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -144,6 +148,11 @@ const weaponSlotButtons = [
   document.querySelector('#weapon-slot-2'),
 ];
 
+const extraSlotButtons = [
+  document.querySelector('#extra-slot-1'),
+  document.querySelector('#extra-slot-2'),
+];
+
 const equipmentTabs = document.querySelector('#equipment-tabs');
 const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
 const equipmentSlotSummary = document.querySelector('#equipment-slot-summary');
@@ -235,6 +244,7 @@ const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
+const extraSystem = new ExtraSystem();
 const economy = new Economy();
 renderDenariusBalance();
 const prologueBoss = new PrologueBoss(world);
@@ -757,6 +767,8 @@ const DEFAULT_CONTROLS = Object.freeze({
   special: 'KeyQ',
   weapon1: 'Digit1',
   weapon2: 'Digit2',
+  extra1: 'Digit3',
+  extra2: 'Digit4',
   restart: 'KeyR',
 });
 
@@ -897,6 +909,7 @@ function setControlBinding(action, newCode) {
   saveControlBindings();
   renderKeybinds();
   refreshWeaponButtons();
+  refreshExtraButtons();
 
   return true;
 }
@@ -925,6 +938,7 @@ resetKeybindsButton?.addEventListener(
     saveControlBindings();
     renderKeybinds();
     refreshWeaponButtons();
+    refreshExtraButtons();
   },
 );
 
@@ -1273,14 +1287,108 @@ function refreshWeaponButtons() {
   });
 }
 
+let lastExtraButtonText = ['', ''];
+
+function refreshExtraButtons() {
+  extraSlotButtons.forEach(
+    (button, index) => {
+      const id =
+        getExtraSlotId(index);
+
+      const item =
+        getItem(id);
+
+      const binding =
+        controlBindings[
+          index === 0
+            ? 'extra1'
+            : 'extra2'
+        ];
+
+      const cooldown =
+        id
+          ? extraSystem
+              .getCooldown(id)
+          : 0;
+
+      const active =
+        id
+          ? extraSystem
+              .isActive(id)
+          : false;
+
+      const suffix =
+        cooldown > 0
+          ? ` ${cooldown.toFixed(1)}s`
+          : '';
+
+      const text =
+        item
+          ? `${keyLabel(binding)}: ${item.name.toLowerCase()}${suffix}`
+          : 'empty';
+
+      if (
+        lastExtraButtonText[index] !==
+        text
+      ) {
+        button.textContent = text;
+        lastExtraButtonText[index] =
+          text;
+      }
+
+      button.disabled = !item;
+      button.classList.toggle(
+        'active',
+        active,
+      );
+
+      button.classList.toggle(
+        'cooldown',
+        cooldown > 0,
+      );
+    },
+  );
+}
+
+function activateExtraSlot(index) {
+  const id =
+    getExtraSlotId(index);
+
+  if (!id) return false;
+
+  const activated =
+    extraSystem.activate(
+      id,
+      player,
+      world,
+    );
+
+  if (activated) {
+    refreshExtraButtons();
+  }
+
+  return activated;
+}
+
 function selectWeaponSlot(index) {
   if (!getWeaponSlotId(index)) return;
   activeWeaponSlot = index;
   refreshWeaponButtons();
+  refreshExtraButtons();
 }
 
 weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
 weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
+
+extraSlotButtons[0].addEventListener(
+  'click',
+  () => activateExtraSlot(0),
+);
+
+extraSlotButtons[1].addEventListener(
+  'click',
+  () => activateExtraSlot(1),
+);
 
 function setDeathMenuVisible(visible, result = 'defeated') {
   encounterResultTitle.textContent = result;
@@ -1619,6 +1727,20 @@ addEventListener('keydown', (e) => {
     selectWeaponSlot(1);
   }
 
+  if (
+    e.code === controlBindings.extra1 &&
+    !e.repeat
+  ) {
+    activateExtraSlot(0);
+  }
+
+  if (
+    e.code === controlBindings.extra2 &&
+    !e.repeat
+  ) {
+    activateExtraSlot(1);
+  }
+
   if (!keys.has(e.code)) {
     pressed.add(e.code);
   }
@@ -1788,6 +1910,8 @@ function update(dt) {
     horizonWeapon.reset();
     machWeapon.reset();
     backfireAbility.reset(player);
+    extraSystem.reset();
+    refreshExtraButtons();
     activeBoss?.reset?.(world);
   }
 
@@ -1919,6 +2043,24 @@ function update(dt) {
     ) *
     lookFollow;
 
+  extraSystem.update(
+    dt,
+    world,
+    activeBoss,
+  );
+
+  refreshExtraButtons();
+
+  const bossTarget =
+    extraSystem.getBossTarget(
+      player,
+    );
+
+  const bossDamageTargets =
+    extraSystem.getDamageTargets(
+      player,
+    );
+
   backfireAbility.update(
     dt,
     player,
@@ -1955,7 +2097,10 @@ function update(dt) {
   }
 
   activeBoss?.update?.(dt, {
-    player,
+    player: bossTarget,
+    realPlayer: player,
+    damageTargets:
+      bossDamageTargets,
     world,
     cameraX: 0,
     viewportWidth: world.width,
@@ -2505,6 +2650,13 @@ function renderGame() {
     0,
     ART_PIXEL,
   );
+
+  extraSystem.draw(
+    ctx,
+    0,
+    ART_PIXEL,
+  );
+
   drawParticles();
   drawPlayer();
 
@@ -2565,6 +2717,8 @@ function prepareEncounter(boss) {
   machWeapon.reset();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
+  extraSystem.reset();
+  refreshExtraButtons();
   particles.length = 0;
   bossImpactFxCooldown = 0;
   playerImpactFxCooldown = 0;
@@ -3281,6 +3435,7 @@ function renderEquipment() {
   renderSlots();
   renderInventory();
   refreshWeaponButtons();
+  refreshExtraButtons();
 }
 
 inventoryDropZone.addEventListener('dragover', (e) => {
@@ -3346,6 +3501,7 @@ window.BOSSFIGHTS = {
   machWeapon,
   backfireAbility,
   strikeAbility,
+  extraSystem,
   economy,
   audio,
   fxSettings,

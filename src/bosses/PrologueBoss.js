@@ -1915,7 +1915,12 @@ export class PrologueBoss {
       this.secondSatelliteY = secondHome.y;
     }
 
-    this.updateSatelliteBullets(dt, context.player, context.world);
+    this.updateSatelliteBullets(
+      dt,
+      context.damageTargets ??
+        [context.player],
+      context.world,
+    );
     this.updateShockwaves(dt, context.player);
 
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 7.5);
@@ -1970,25 +1975,48 @@ export class PrologueBoss {
     }
   }
 
-  updateSatelliteBullets(dt, player, world) {
+  updateSatelliteBullets(
+    dt,
+    targets,
+    world,
+  ) {
     for (const bullet of this.satelliteBullets) {
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
       bullet.life = Math.max(0, bullet.life - dt);
 
-      if (!bullet.hitPlayer && player) {
-        const hitRadius =
-          this.satelliteBulletSize * 0.5 +
-          Math.max(player.w, player.h) * 0.40;
-
-        if (
-          Math.hypot(
-            bullet.x - player.x,
-            bullet.y - player.y,
-          ) <= hitRadius
+      if (
+        !bullet.hitPlayer &&
+        targets?.length
+      ) {
+        for (
+          const target
+          of targets
         ) {
-          bullet.hitPlayer = true;
-          player.takeDamage?.(12);
+          if (!target) continue;
+
+          const hitRadius =
+            this.satelliteBulletSize * 0.5 +
+            Math.max(
+              target.w ?? 0,
+              target.h ?? 0,
+            ) *
+            0.40;
+
+          if (
+            Math.hypot(
+              bullet.x - target.x,
+              bullet.y - target.y,
+            ) <= hitRadius
+          ) {
+            if (
+              target.takeDamage?.(12) !==
+              false
+            ) {
+              bullet.hitPlayer = true;
+              break;
+            }
+          }
         }
       }
 
