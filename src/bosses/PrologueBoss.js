@@ -2006,6 +2006,7 @@ export class PrologueBoss {
 
       if (
         !bullet.hitPlayer &&
+        !bullet.reflected &&
         targets?.length
       ) {
         for (
