@@ -61,7 +61,7 @@ export const ITEM_LIBRARY = {
     price: 300,
     name: 'Anchor',
     category: 'weapons',
-    description: 'Fires its neon anchor tip. Click again to recall it; Q enlarges the next anchor into a barbed shot that makes bosses bleed.'
+    description: 'Fires its neon anchor tip. Click again to recall it; Q enlarges the next anchor into a barbed shot that makes bosses bleed.',
     appearance: 'red-glowing tether weapon',
   },
   kepler: {
