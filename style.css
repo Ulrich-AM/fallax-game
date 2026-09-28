@@ -1208,6 +1208,33 @@ canvas {
   color: #c8cdd5;
   font-family: 'Pixel Arial 11', Arial, Helvetica, sans-serif;
   font-size: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.encounter-reward-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.encounter-reward-label {
+  min-width: 0;
+}
+
+.encounter-reward-value {
+  text-align: right;
+  color: #eef0f4;
+}
+
+.encounter-reward-total {
+  margin-top: 5px;
+  padding-top: 8px;
+  border-top: 1px solid #353b46;
+  color: #ffffff;
+  font-size: 14px;
+  text-align: right;
 }
 
 
