@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fixed-camera-experiment
   workflow_dispatch:
 
 permissions:
@@ -24,16 +25,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout production site
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: _site
+
+      - name: Checkout fixed-camera experiment
+        uses: actions/checkout@v4
+        with:
+          ref: fixed-camera-experiment
+          path: _fixed-camera
+
+      - name: Add experiment under fixed-camera path
+        shell: bash
+        run: |
+          rm -rf _site/fixed-camera
+          mkdir -p _site/fixed-camera
+          cp -a _fixed-camera/. _site/fixed-camera/
+          rm -rf _site/fixed-camera/.git
+          rm -rf _site/fixed-camera/.github
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload site
+      - name: Upload combined site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy
         id: deployment
