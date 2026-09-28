@@ -455,6 +455,29 @@ export class RelayWeapon {
     }
 
     if (
+      Number.isFinite(
+        world.roofY,
+      ) &&
+      y1 <= world.roofY &&
+      y0 > world.roofY
+    ) {
+      const t =
+        (
+          world.roofY - y0
+        ) /
+        (y1 - y0);
+
+      consider({
+        t,
+        x:
+          x0 +
+          (x1 - x0) * t,
+        y:
+          world.roofY + 1,
+      });
+    }
+
+    if (
       y1 >= world.floorY &&
       y0 < world.floorY
     ) {
