@@ -13,19 +13,23 @@ import {
   unequipSlot,
   getPrimaryWeaponId,
   getWeaponSlotId,
+  getExtraSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=52';
+} from './equipment.js?v=57';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
+import {
+  ExtraSystem,
+} from './ExtraSystem.js?v=57';
 import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=57';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=57';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
@@ -43,7 +47,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v56';
+const BUILD_VERSION = 'v57';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -144,6 +148,11 @@ const weaponSlotButtons = [
   document.querySelector('#weapon-slot-2'),
 ];
 
+const extraSlotButtons = [
+  document.querySelector('#extra-slot-1'),
+  document.querySelector('#extra-slot-2'),
+];
+
 const equipmentTabs = document.querySelector('#equipment-tabs');
 const equipmentCategoryTitle = document.querySelector('#equipment-category-title');
 const equipmentSlotSummary = document.querySelector('#equipment-slot-summary');
@@ -235,6 +244,7 @@ const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
+const extraSystem = new ExtraSystem();
 const economy = new Economy();
 renderDenariusBalance();
 const prologueBoss = new PrologueBoss(world);
@@ -757,6 +767,8 @@ const DEFAULT_CONTROLS = Object.freeze({
   special: 'KeyQ',
   weapon1: 'Digit1',
   weapon2: 'Digit2',
+  extra1: 'Digit3',
+  extra2: 'Digit4',
   restart: 'KeyR',
 });
 
