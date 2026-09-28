@@ -43,38 +43,109 @@ export class GuardSystem {
     this.parrySerial = 0;
     this.lastParry = null;
 
+    const system = this;
+
     this.proxy = {
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      w: 0,
-      h: 0,
+      get x() {
+        return system.player?.x ?? 0;
+      },
+      set x(value) {
+        if (system.player) system.player.x = value;
+      },
+
+      get y() {
+        return system.player?.y ?? 0;
+      },
+      set y(value) {
+        if (system.player) system.player.y = value;
+      },
+
+      get prevY() {
+        return system.player?.prevY ?? 0;
+      },
+      set prevY(value) {
+        if (system.player) system.player.prevY = value;
+      },
+
+      get vx() {
+        return system.player?.vx ?? 0;
+      },
+      set vx(value) {
+        if (system.player) system.player.vx = value;
+      },
+
+      get vy() {
+        return system.player?.vy ?? 0;
+      },
+      set vy(value) {
+        if (system.player) system.player.vy = value;
+      },
+
+      get w() {
+        return system.player?.w ?? 0;
+      },
+
+      get h() {
+        return system.player?.h ?? 0;
+      },
+
+      get grounded() {
+        return !!system.player?.grounded;
+      },
+      set grounded(value) {
+        if (system.player) system.player.grounded = value;
+      },
+
+      get dashSerial() {
+        return system.player?.dashSerial ?? 0;
+      },
+
       get health() {
-        return this._system?.player?.health ?? 0;
+        return system.player?.health ?? 0;
       },
+
       get dead() {
-        return (this._system?.player?.health ?? 0) <= 0;
+        return (system.player?.health ?? 0) <= 0;
       },
-      _system: this,
-      takeDamage: amount =>
-        this.handleDirectDamage(amount),
-      takeContinuousDamage: amount =>
-        this.handleDirectDamage(amount, true),
+
+      takeDamage:
+        amount =>
+          system.handleDirectDamage(
+            amount,
+          ),
+
+      takeContinuousDamage:
+        amount =>
+          system.handleDirectDamage(
+            amount,
+            true,
+          ),
+
       handleIncomingProjectile:
         (bullet, meta) =>
-          this.handleIncomingProjectile(
+          system.handleIncomingProjectile(
             bullet,
             meta,
           ),
+
       handleIncomingRush:
         (attacker, meta) =>
-          this.handleIncomingRush(
+          system.handleIncomingRush(
             attacker,
             meta,
           ),
-      grantAbilityInvulnerability: duration =>
-        this.player?.grantAbilityInvulnerability?.(duration),
+
+      grantAbilityInvulnerability:
+        duration =>
+          system.player
+            ?.grantAbilityInvulnerability
+            ?.(duration),
+
+      spawnGrabEscapeTrail:
+        (...args) =>
+          system.player
+            ?.spawnGrabEscapeTrail
+            ?.(...args),
     };
   }
 
@@ -96,15 +167,8 @@ export class GuardSystem {
   }
 
   syncProxy() {
-    const player = this.player;
-    if (!player) return;
-
-    this.proxy.x = player.x;
-    this.proxy.y = player.y;
-    this.proxy.vx = player.vx ?? 0;
-    this.proxy.vy = player.vy ?? 0;
-    this.proxy.w = player.w ?? 0;
-    this.proxy.h = player.h ?? 0;
+    // The proxy forwards live properties directly to PlayerController.
+    // Kept as a compatibility no-op for callers that already invoke it.
   }
 
   update(
