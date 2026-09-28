@@ -714,7 +714,7 @@ export class RelayWeapon {
           projectile.x > -120 &&
           projectile.x <
             world.width + 120 &&
-          projectile.y > -120 &&
+          projectile.y > world.roofY - 180 &&
           projectile.y <
             world.floorY + 180,
       );

@@ -632,12 +632,23 @@ export class MonolithBoss {
     this.animationName = 'idle';
     this.animationTime = 0;
     this.animationDuration = 2.4;
-    this.animationFrameRate = 24;
+
+    // The sprite is large enough that rasterizing a new animated frame is
+    // expensive. 12 fps still reads smoothly at the current 0.5x camera,
+    // while cutting authored idle raster churn in half.
+    this.animationFrameRate = 12;
+
+    // Procedural arm tracking used to key the cache every 2 degrees, which
+    // created a flood of unique raster combinations while simply aiming at
+    // the player. Coarser buckets keep the pose responsive without constantly
+    // rebuilding large canvases.
+    this.armRasterAngleStep = 8;
+
     this.animationRasterCache =
       new Map();
 
     this.maxAnimationRasterCache =
-      220;
+      180;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -990,17 +1001,20 @@ export class MonolithBoss {
         step,
       );
 
+    const armStep =
+      this.armRasterAngleStep;
+
     const leftAimKey =
       Math.round(
         this.leftArmAngle /
-        2,
-      ) * 2;
+        armStep,
+      ) * armStep;
 
     const rightAimKey =
       Math.round(
         this.rightArmAngle /
-        2,
-      ) * 2;
+        armStep,
+      ) * armStep;
 
     const key =
       `${frameIndex}:${leftAimKey}:${rightAimKey}`;
@@ -1128,7 +1142,20 @@ export class MonolithBoss {
       this.animationRasterCache.size >=
       this.maxAnimationRasterCache
     ) {
-      this.animationRasterCache.clear();
+      const oldestKey =
+        this.animationRasterCache
+          .keys()
+          .next()
+          .value;
+
+      if (
+        oldestKey !==
+        undefined
+      ) {
+        this.animationRasterCache.delete(
+          oldestKey,
+        );
+      }
     }
 
     this.animationRasterCache.set(

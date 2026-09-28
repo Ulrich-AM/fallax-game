@@ -241,7 +241,7 @@ export class KeplerWeapon {
 
     this.bullets=this.bullets.filter(
       b=>b.life>0&&b.x>-120&&b.x<world.width+120&&
-      b.y>-120&&b.y<world.floorY+180
+      b.y>world.roofY-180&&b.y<world.floorY+180
     );
   }
 

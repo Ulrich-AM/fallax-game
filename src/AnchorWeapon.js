@@ -1004,7 +1004,8 @@ export class AnchorWeapon {
             world.width +
               120 ||
           projectile.y <
-            -120 ||
+            world.roofY -
+              180 ||
           projectile.y >
             world.floorY +
               180
