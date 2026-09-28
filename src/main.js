@@ -938,7 +938,7 @@ resetKeybindsButton?.addEventListener(
     saveControlBindings();
     renderKeybinds();
     refreshWeaponButtons();
-  refreshExtraButtons();
+    refreshExtraButtons();
   },
 );
 
@@ -1727,6 +1727,20 @@ addEventListener('keydown', (e) => {
     selectWeaponSlot(1);
   }
 
+  if (
+    e.code === controlBindings.extra1 &&
+    !e.repeat
+  ) {
+    activateExtraSlot(0);
+  }
+
+  if (
+    e.code === controlBindings.extra2 &&
+    !e.repeat
+  ) {
+    activateExtraSlot(1);
+  }
+
   if (!keys.has(e.code)) {
     pressed.add(e.code);
   }
@@ -1896,6 +1910,8 @@ function update(dt) {
     horizonWeapon.reset();
     machWeapon.reset();
     backfireAbility.reset(player);
+    extraSystem.reset();
+    refreshExtraButtons();
     activeBoss?.reset?.(world);
   }
 
@@ -2027,6 +2043,24 @@ function update(dt) {
     ) *
     lookFollow;
 
+  extraSystem.update(
+    dt,
+    world,
+    activeBoss,
+  );
+
+  refreshExtraButtons();
+
+  const bossTarget =
+    extraSystem.getBossTarget(
+      player,
+    );
+
+  const bossDamageTargets =
+    extraSystem.getDamageTargets(
+      player,
+    );
+
   backfireAbility.update(
     dt,
     player,
@@ -2063,7 +2097,10 @@ function update(dt) {
   }
 
   activeBoss?.update?.(dt, {
-    player,
+    player: bossTarget,
+    realPlayer: player,
+    damageTargets:
+      bossDamageTargets,
     world,
     cameraX: 0,
     viewportWidth: world.width,
@@ -2613,6 +2650,13 @@ function renderGame() {
     0,
     ART_PIXEL,
   );
+
+  extraSystem.draw(
+    ctx,
+    0,
+    ART_PIXEL,
+  );
+
   drawParticles();
   drawPlayer();
 
@@ -2673,6 +2717,8 @@ function prepareEncounter(boss) {
   machWeapon.reset();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
+  extraSystem.reset();
+  refreshExtraButtons();
   particles.length = 0;
   bossImpactFxCooldown = 0;
   playerImpactFxCooldown = 0;
@@ -3455,6 +3501,7 @@ window.BOSSFIGHTS = {
   machWeapon,
   backfireAbility,
   strikeAbility,
+  extraSystem,
   economy,
   audio,
   fxSettings,
