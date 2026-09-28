@@ -2454,20 +2454,24 @@ function update(dt) {
     }
   }
 
-  if (
-    !bossStaggerSystem.isBroken
-  ) {
-    activeBoss?.update?.(dt, {
-    player: bossTarget,
-    realPlayer: player,
-    damageTargets:
-      bossDamageTargets,
-    world,
-    cameraX: 0,
-    viewportWidth: world.width,
-    shakeCamera: triggerCameraShake,
-    });
-  }
+  activeBoss?.update?.(
+    dt,
+    {
+      player: bossTarget,
+      realPlayer: player,
+      damageTargets:
+        bossDamageTargets,
+      world,
+      cameraX: 0,
+      viewportWidth:
+        world.width,
+      shakeCamera:
+        triggerCameraShake,
+      broken:
+        bossStaggerSystem
+          .isBroken,
+    },
+  );
 
   if (
     guardSystem.parrySerial >
