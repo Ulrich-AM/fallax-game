@@ -387,10 +387,16 @@ export class MonolithBoss {
     // spring. This avoids snapping when the player crosses the centerline.
     this.leftArmNeutral = -45;
     this.rightArmNeutral = 45;
+
+    // Raised/resting poses are explicit so the inactive hammer visibly lifts
+    // away while the opposite hammer is doing the aiming.
+    this.leftArmRaised = -45;
+    this.rightArmRaised = 45;
+
     this.leftArmAngle =
-      this.leftArmNeutral;
+      this.leftArmRaised;
     this.rightArmAngle =
-      this.rightArmNeutral;
+      this.rightArmRaised;
     this.leftArmAngularVelocity = 0;
     this.rightArmAngularVelocity = 0;
     this.armAimStrength = 0.72;
@@ -398,11 +404,13 @@ export class MonolithBoss {
     this.armSpring = 18;
     this.armDamping = 7.5;
 
-    // Only the hammer on the player's side actively tracks. A center deadzone
-    // keeps the selected arm stable while the player passes underneath, and
-    // the angular spring handles the visual handoff without snapping.
+    // Only the hammer closest to the player's horizontal position actively
+    // tracks. The comparison uses the real saved arm pivots rather than the
+    // boss center, which matters now that Monolith is 2x scale and asymmetrical.
+    // Hysteresis keeps the currently selected arm from flickering near the
+    // midpoint between both pivots.
     this.activeArmSide = 'right';
-    this.armSwitchDeadzone = 52;
+    this.armSwitchHysteresis = 26;
 
     this.hurtFlash = 0;
     this.fxEvents = [];
@@ -483,9 +491,9 @@ export class MonolithBoss {
     this.animationTime = 0;
 
     this.leftArmAngle =
-      this.leftArmNeutral;
+      this.leftArmRaised;
     this.rightArmAngle =
-      this.rightArmNeutral;
+      this.rightArmRaised;
     this.leftArmAngularVelocity = 0;
     this.rightArmAngularVelocity = 0;
     this.activeArmSide = 'right';
@@ -632,18 +640,39 @@ export class MonolithBoss {
     player,
   ) {
     if (player) {
-      const relativeX =
-        player.x - this.x;
+      const leftPivot =
+        this.armPivotWorld(
+          'group-3',
+        );
+
+      const rightPivot =
+        this.armPivotWorld(
+          'group-4',
+        );
+
+      const leftDistance =
+        Math.abs(
+          player.x -
+          leftPivot.x,
+        );
+
+      const rightDistance =
+        Math.abs(
+          player.x -
+          rightPivot.x,
+        );
 
       if (
-        relativeX <
-        -this.armSwitchDeadzone
+        leftDistance +
+          this.armSwitchHysteresis <
+        rightDistance
       ) {
         this.activeArmSide =
           'left';
       } else if (
-        relativeX >
-        this.armSwitchDeadzone
+        rightDistance +
+          this.armSwitchHysteresis <
+        leftDistance
       ) {
         this.activeArmSide =
           'right';
@@ -657,7 +686,7 @@ export class MonolithBoss {
             player,
             this.leftArmNeutral,
           )
-        : this.leftArmNeutral;
+        : this.leftArmRaised;
 
     const rightTarget =
       this.activeArmSide === 'right'
@@ -666,7 +695,7 @@ export class MonolithBoss {
             player,
             this.rightArmNeutral,
           )
-        : this.rightArmNeutral;
+        : this.rightArmRaised;
 
     const left =
       this.springArmAngle(
