@@ -321,6 +321,219 @@ const MONOLITH_SPRITE = {
   },
 };
 
+function rotateLocalPoint(
+  x,
+  y,
+  degrees,
+) {
+  const radians =
+    degrees *
+    Math.PI /
+    180;
+
+  const cos =
+    Math.cos(radians);
+
+  const sin =
+    Math.sin(radians);
+
+  return [
+    x * cos - y * sin,
+    x * sin + y * cos,
+  ];
+}
+
+function polygonMassCentroid(
+  points,
+) {
+  let twiceArea = 0;
+  let weightedX = 0;
+  let weightedY = 0;
+
+  for (
+    let i = 0;
+    i < points.length;
+    i++
+  ) {
+    const a =
+      points[i];
+
+    const b =
+      points[
+        (i + 1) %
+        points.length
+      ];
+
+    const cross =
+      a[0] * b[1] -
+      b[0] * a[1];
+
+    twiceArea += cross;
+
+    weightedX +=
+      (a[0] + b[0]) *
+      cross;
+
+    weightedY +=
+      (a[1] + b[1]) *
+      cross;
+  }
+
+  const signedArea =
+    twiceArea * 0.5;
+
+  if (
+    Math.abs(signedArea) <
+    0.00001
+  ) {
+    return null;
+  }
+
+  return {
+    mass:
+      Math.abs(signedArea),
+    x:
+      weightedX /
+      (6 * signedArea),
+    y:
+      weightedY /
+      (6 * signedArea),
+  };
+}
+
+function partMassCentroid(part) {
+  if (
+    part.type === 'rectangle'
+  ) {
+    return {
+      mass:
+        Math.abs(
+          part.width *
+          part.height,
+        ),
+      x: part.x,
+      y: part.y,
+    };
+  }
+
+  if (
+    part.type !== 'polygon' ||
+    !Array.isArray(part.points) ||
+    part.points.length < 3
+  ) {
+    return null;
+  }
+
+  const transformed =
+    part.points.map(
+      ([x, y]) => {
+        const [rx, ry] =
+          rotateLocalPoint(
+            x,
+            y,
+            part.rotation ?? 0,
+          );
+
+        return [
+          rx + (part.x ?? 0),
+          ry + (part.y ?? 0),
+        ];
+      },
+    );
+
+  return polygonMassCentroid(
+    transformed,
+  );
+}
+
+function groupCenterOfMass(
+  asset,
+  groupId,
+) {
+  let totalMass = 0;
+  let weightedX = 0;
+  let weightedY = 0;
+
+  for (
+    const part
+    of asset.parts ?? []
+  ) {
+    if (
+      part.groupId !==
+      groupId
+    ) {
+      continue;
+    }
+
+    const centroid =
+      partMassCentroid(part);
+
+    if (
+      !centroid ||
+      centroid.mass <= 0
+    ) {
+      continue;
+    }
+
+    totalMass +=
+      centroid.mass;
+
+    weightedX +=
+      centroid.x *
+      centroid.mass;
+
+    weightedY +=
+      centroid.y *
+      centroid.mass;
+  }
+
+  if (totalMass <= 0) {
+    return null;
+  }
+
+  return [
+    weightedX /
+      totalMass,
+    weightedY /
+      totalMass,
+  ];
+}
+
+function centerArmPivotsAtMass(
+  asset,
+) {
+  for (
+    const groupId
+    of ['group-3', 'group-4']
+  ) {
+    const group =
+      asset.groups?.find(
+        entry =>
+          entry.id === groupId,
+      );
+
+    const center =
+      groupCenterOfMass(
+        asset,
+        groupId,
+      );
+
+    if (
+      group &&
+      center
+    ) {
+      group.pivot = center;
+    }
+  }
+}
+
+// Recalculate from the actual arm polygons instead of trusting the old editor
+// pivots. For the current sprite this resolves to about (-17.5, 10.5) and
+// (17.5, 10.5), which are the true area-weighted centers of the hammer arms.
+centerArmPivotsAtMass(
+  MONOLITH_SPRITE,
+);
+
 function clamp(value, min, max) {
   return Math.max(
     min,
