@@ -40,6 +40,9 @@ export class GuardSystem {
     this.reflectedProjectiles = 0;
     this.blockedHits = 0;
 
+    this.parrySerial = 0;
+    this.lastParry = null;
+
     this.proxy = {
       x: 0,
       y: 0,
@@ -64,6 +67,12 @@ export class GuardSystem {
             bullet,
             meta,
           ),
+      handleIncomingRush:
+        (attacker, meta) =>
+          this.handleIncomingRush(
+            attacker,
+            meta,
+          ),
       grantAbilityInvulnerability: duration =>
         this.player?.grantAbilityInvulnerability?.(duration),
     };
@@ -81,6 +90,8 @@ export class GuardSystem {
     this.blockFlashTimer = 0;
     this.reflectedProjectiles = 0;
     this.blockedHits = 0;
+    this.parrySerial = 0;
+    this.lastParry = null;
     this.syncProxy();
   }
 
@@ -360,6 +371,15 @@ export class GuardSystem {
       this.parryTimer = 0;
       this.parryFlashTimer = 0.18;
       this.reflectedProjectiles++;
+      this.parrySerial++;
+
+      this.lastParry = {
+        serial:
+          this.parrySerial,
+        type: 'projectile',
+        x: bullet.x,
+        y: bullet.y,
+      };
 
       this.spendStability(
         Math.max(
@@ -401,6 +421,62 @@ export class GuardSystem {
       blocked: true,
       reflected: false,
       destroyProjectile: true,
+    };
+  }
+
+  handleIncomingRush(
+    attacker,
+    {
+      stabilityCost = 14,
+    } = {},
+  ) {
+    if (
+      !attacker ||
+      !this.player ||
+      !this.isGuarding()
+    ) {
+      return {
+        handled: false,
+      };
+    }
+
+    if (
+      !this.isInGuardArc(
+        attacker.x,
+        attacker.y,
+      )
+    ) {
+      return {
+        handled: false,
+      };
+    }
+
+    if (!this.isParrying()) {
+      return {
+        handled: false,
+      };
+    }
+
+    this.parryTimer = 0;
+    this.parryFlashTimer = 0.22;
+    this.parrySerial++;
+
+    this.lastParry = {
+      serial:
+        this.parrySerial,
+      type: 'rush',
+      x: attacker.x,
+      y: attacker.y,
+    };
+
+    this.spendStability(
+      stabilityCost,
+    );
+
+    return {
+      handled: true,
+      parried: true,
+      cancelAttack: true,
     };
   }
 
