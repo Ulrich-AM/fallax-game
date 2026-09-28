@@ -17,7 +17,7 @@ import {
   SHOP_CATALOG,
   purchaseItem,
   grantItem,
-} from './equipment.js?v=58';
+} from './equipment.js?v=59';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
