@@ -403,17 +403,36 @@ canvas {
 }
 
 
-/* Active weapon selector */
-.weapon-switcher {
+/* Combat loadout */
+.combat-loadout {
   position: absolute;
-  left: 22px;
-  bottom: 160px;
-  display: flex;
-  gap: 6px;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
   z-index: 4;
 }
 
-.weapon-slot-button {
+.extra-region {
+  display: grid;
+  gap: 4px;
+}
+
+.extra-region-label {
+  color: #707886;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.extra-switcher,
+.weapon-switcher {
+  display: flex;
+  gap: 6px;
+}
+
+.weapon-slot-button,
+.extra-slot-button {
   min-width: 88px;
   height: 28px;
   padding: 0 9px;
@@ -425,14 +444,26 @@ canvas {
   cursor: pointer;
 }
 
+.extra-slot-button {
+  min-width: 104px;
+}
+
 .weapon-slot-button:hover:not(:disabled),
-.weapon-slot-button.active {
+.weapon-slot-button.active,
+.extra-slot-button:hover:not(:disabled),
+.extra-slot-button.active {
   color: #ffffff;
   border-color: #69717f;
   background: rgba(25, 29, 35, 0.96);
 }
 
-.weapon-slot-button:disabled {
+.extra-slot-button.cooldown {
+  color: #777f8c;
+  border-color: #303640;
+}
+
+.weapon-slot-button:disabled,
+.extra-slot-button:disabled {
   cursor: default;
   opacity: 0.45;
 }
