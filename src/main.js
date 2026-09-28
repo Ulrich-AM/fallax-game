@@ -26,7 +26,7 @@ import { Economy } from './Economy.js?v=52';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=52';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=54d';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bb';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=49';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
@@ -43,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55bb';
+const BUILD_VERSION = 'v55bc';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -1363,8 +1363,83 @@ function endEncounter(result) {
           100,
         );
 
-      encounterReward.textContent =
-        `+${gain} denarius · base ${reward.base} + speed ${reward.speedBonus} + health ${reward.healthBonus} · ${seconds}s · ${healthPercent}% hp`;
+      encounterReward.replaceChildren();
+
+      const rows = [
+        {
+          label: 'base',
+          detail: '',
+          value: reward.base,
+        },
+        {
+          label: 'speed',
+          detail: `${seconds}s`,
+          value: reward.speedBonus,
+        },
+        {
+          label: 'health',
+          detail: `${healthPercent}% hp`,
+          value: reward.healthBonus,
+        },
+      ];
+
+      for (const row of rows) {
+        const line =
+          document.createElement(
+            'div',
+          );
+
+        line.className =
+          'encounter-reward-line';
+
+        const label =
+          document.createElement(
+            'span',
+          );
+
+        label.className =
+          'encounter-reward-label';
+
+        label.textContent =
+          row.detail
+            ? `${row.label} (${row.detail})`
+            : row.label;
+
+        const value =
+          document.createElement(
+            'span',
+          );
+
+        value.className =
+          'encounter-reward-value';
+
+        value.textContent =
+          `+${row.value}`;
+
+        line.append(
+          label,
+          value,
+        );
+
+        encounterReward.appendChild(
+          line,
+        );
+      }
+
+      const total =
+        document.createElement(
+          'div',
+        );
+
+      total.className =
+        'encounter-reward-total';
+
+      total.textContent =
+        `+${gain} denarius`;
+
+      encounterReward.appendChild(
+        total,
+      );
     }
   } else if (encounterReward) {
     encounterReward.textContent = '';
