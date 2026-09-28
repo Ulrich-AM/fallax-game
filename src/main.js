@@ -43,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55bc';
+const BUILD_VERSION = 'v55bc fixed-camera';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -173,6 +173,16 @@ const W = canvas.width;
 const H = canvas.height;
 const ART_PIXEL = 4;
 
+// Fixed-camera experiment. Physics still use world coordinates; only the
+// viewport is scaled. Keeping the scale at exactly 0.5 means every 4px art
+// pixel becomes exactly 2 screen pixels with nearest-neighbor rendering.
+const FIXED_CAMERA_EXPERIMENT = true;
+const FIXED_WORLD_SCALE = 0.5;
+const FIXED_WORLD_OFFSET_X = 0;
+const FIXED_WORLD_OFFSET_Y =
+  H - H * FIXED_WORLD_SCALE;
+const FIXED_WORLD_WIDTH = 2560;
+
 const COLORS = {
   bg: '#0b0c10',
   gridMinor: '#12151b',
@@ -191,7 +201,10 @@ const COLORS = {
 };
 
 const world = {
-  width: 2700,
+  width:
+    FIXED_CAMERA_EXPERIMENT
+      ? FIXED_WORLD_WIDTH
+      : 2700,
   floorY: 650,
   platforms: [
     { x: 340, y: 550, w: 250, h: 20 },
@@ -1710,6 +1723,23 @@ function getCameraShakeOffset() {
 }
 
 function getPointerWorld() {
+  if (FIXED_CAMERA_EXPERIMENT) {
+    return {
+      x:
+        (
+          pointer.screenX -
+          FIXED_WORLD_OFFSET_X
+        ) /
+        FIXED_WORLD_SCALE,
+      y:
+        (
+          pointer.screenY -
+          FIXED_WORLD_OFFSET_Y
+        ) /
+        FIXED_WORLD_SCALE,
+    };
+  }
+
   return {
     x: pointer.screenX + camera.x,
     y: pointer.screenY,
@@ -1839,11 +1869,36 @@ function update(dt) {
     player.vy = 0;
   }
 
-  camera.targetX = player.x - W * 0.38;
-  camera.targetX = Math.max(0, Math.min(world.width - W, camera.targetX));
+  if (FIXED_CAMERA_EXPERIMENT) {
+    camera.targetX = 0;
+    camera.x = 0;
+  } else {
+    camera.targetX =
+      player.x -
+      W * 0.38;
 
-  const follow = 1 - Math.exp(-9 * dt);
-  camera.x += (camera.targetX - camera.x) * follow;
+    camera.targetX =
+      Math.max(
+        0,
+        Math.min(
+          world.width - W,
+          camera.targetX,
+        ),
+      );
+
+    const follow =
+      1 -
+      Math.exp(
+        -9 * dt,
+      );
+
+    camera.x +=
+      (
+        camera.targetX -
+        camera.x
+      ) *
+      follow;
+  }
 
   backfireAbility.update(
     dt,
@@ -1884,7 +1939,10 @@ function update(dt) {
     player,
     world,
     cameraX: camera.x,
-    viewportWidth: W,
+    viewportWidth:
+      FIXED_CAMERA_EXPERIMENT
+        ? world.width
+        : W,
     shakeCamera: triggerCameraShake,
   });
 
@@ -2036,28 +2094,104 @@ function update(dt) {
 }
 
 function drawGrid() {
+  const viewWidth =
+    FIXED_CAMERA_EXPERIMENT
+      ? world.width
+      : W;
+
+  const viewHeight = H;
+
   ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(
+    0,
+    0,
+    viewWidth,
+    viewHeight,
+  );
 
   const spacing = 40;
-  const offset = -(camera.x % spacing);
-  ctx.lineWidth = 1;
+  const offset =
+    -(camera.x % spacing);
 
-  for (let i = -1; i < Math.ceil(W / spacing) + 2; i++) {
-    const worldIndex = Math.floor((camera.x + i * spacing) / spacing);
-    const x = Math.round(offset + i * spacing) + 0.5;
-    ctx.strokeStyle = worldIndex % 4 === 0 ? COLORS.gridMajor : COLORS.gridMinor;
+  ctx.lineWidth =
+    FIXED_CAMERA_EXPERIMENT
+      ? 2
+      : 1;
+
+  for (
+    let i = -1;
+    i <
+    Math.ceil(
+      viewWidth /
+      spacing,
+    ) + 2;
+    i++
+  ) {
+    const worldIndex =
+      Math.floor(
+        (
+          camera.x +
+          i * spacing
+        ) /
+        spacing,
+      );
+
+    const x =
+      Math.round(
+        offset +
+        i * spacing,
+      ) +
+      (
+        FIXED_CAMERA_EXPERIMENT
+          ? 1
+          : 0.5
+      );
+
+    ctx.strokeStyle =
+      worldIndex % 4 === 0
+        ? COLORS.gridMajor
+        : COLORS.gridMinor;
+
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, H);
+    ctx.lineTo(
+      x,
+      viewHeight,
+    );
     ctx.stroke();
   }
 
-  for (let y = 10; y < H; y += spacing) {
-    ctx.strokeStyle = Math.floor(y / spacing) % 4 === 0 ? COLORS.gridMajor : COLORS.gridMinor;
+  for (
+    let y = 10;
+    y < viewHeight;
+    y += spacing
+  ) {
+    ctx.strokeStyle =
+      Math.floor(
+        y / spacing,
+      ) % 4 === 0
+        ? COLORS.gridMajor
+        : COLORS.gridMinor;
+
     ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(W, y + 0.5);
+    ctx.moveTo(
+      0,
+      y +
+      (
+        FIXED_CAMERA_EXPERIMENT
+          ? 1
+          : 0.5
+      ),
+    );
+    ctx.lineTo(
+      viewWidth,
+      y +
+      (
+        FIXED_CAMERA_EXPERIMENT
+          ? 1
+          : 0.5
+      ),
+    );
     ctx.stroke();
   }
 }
@@ -2265,15 +2399,51 @@ function drawBossBar() {
 }
 
 function renderGame() {
-  const shake = getCameraShakeOffset();
+  const shake =
+    getCameraShakeOffset();
+
+  if (FIXED_CAMERA_EXPERIMENT) {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(
+      0,
+      0,
+      W,
+      H,
+    );
+  }
 
   ctx.save();
-  ctx.translate(Math.round(shake.x), Math.round(shake.y));
+
+  if (FIXED_CAMERA_EXPERIMENT) {
+    ctx.translate(
+      FIXED_WORLD_OFFSET_X +
+        Math.round(shake.x),
+      FIXED_WORLD_OFFSET_Y +
+        Math.round(shake.y),
+    );
+
+    ctx.scale(
+      FIXED_WORLD_SCALE,
+      FIXED_WORLD_SCALE,
+    );
+
+    ctx.imageSmoothingEnabled =
+      false;
+  } else {
+    ctx.translate(
+      Math.round(shake.x),
+      Math.round(shake.y),
+    );
+  }
 
   drawGrid();
   drawPlatforms();
 
-  activeBoss?.draw?.(ctx, camera.x, ART_PIXEL);
+  activeBoss?.draw?.(
+    ctx,
+    camera.x,
+    ART_PIXEL,
+  );
   drawParticles();
   drawPlayer();
 
