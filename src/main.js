@@ -16,7 +16,8 @@ import {
   getExtraSlotId,
   SHOP_CATALOG,
   purchaseItem,
-} from './equipment.js?v=57';
+  grantItem,
+} from './equipment.js?v=58';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
@@ -26,13 +27,13 @@ import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
 } from './ExtraSystem.js?v=57';
-import { Economy } from './Economy.js?v=52';
+import { Economy } from './Economy.js?v=58';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=57';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=57';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
-import { DeveloperConsole } from './DeveloperConsole.js?v=49';
+import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
 import { WeaponTestRoom } from './WeaponTestRoom.js?v=55';
 import {
@@ -47,7 +48,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v57';
+const BUILD_VERSION = 'v58';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -363,6 +364,7 @@ const devConsole =
     root: devConsoleRoot,
     output: devConsoleOutput,
     input: devConsoleInput,
+    accessPassword: 'DEVTOOLS',
     onOpen: () => {
       pointer.firing = false;
       audio.setSuspended(true);
@@ -378,6 +380,68 @@ const devConsole =
       released.clear();
     },
   });
+
+function resolveDeveloperItemReference(
+  reference,
+) {
+  const raw =
+    String(reference ?? '')
+      .trim()
+      .toLowerCase();
+
+  if (!raw) return null;
+
+  const aliases = {
+    weapon: 'weapons',
+    weapons: 'weapons',
+    ability: 'abilities',
+    abilities: 'abilities',
+    extra: 'extra',
+    extras: 'extra',
+    armor: 'armor',
+  };
+
+  const parts =
+    raw.split('.');
+
+  let itemId = raw;
+  let expectedCategory = null;
+
+  if (parts.length === 2) {
+    expectedCategory =
+      aliases[parts[0]] ?? null;
+
+    itemId = parts[1];
+  }
+
+  const item =
+    getItem(itemId);
+
+  if (!item) {
+    return null;
+  }
+
+  if (
+    expectedCategory &&
+    item.category !==
+      expectedCategory
+  ) {
+    return null;
+  }
+
+  return item;
+}
+
+function developerItemReference(item) {
+  const singular = {
+    weapons: 'weapon',
+    abilities: 'ability',
+    extra: 'extra',
+    armor: 'armor',
+  };
+
+  return `${singular[item.category] ?? item.category}.${item.id}`;
+}
 
 function registerDeveloperCommands() {
   devConsole.register('help', {
@@ -422,12 +486,159 @@ function registerDeveloperCommands() {
     },
   });
 
+  devConsole.register('give', {
+    description:
+      'grant an item without paying its shop price',
+    usage:
+      'give <weapon.vector|ability.strike|extra.turret|item-id>',
+    execute: ({ args }) => {
+      const reference =
+        args[0];
+
+      const item =
+        resolveDeveloperItemReference(
+          reference,
+        );
+
+      if (!item) {
+        throw new Error(
+          'unknown item reference. try "items" for valid names.',
+        );
+      }
+
+      const alreadyOwned =
+        ownedItems.includes(
+          item.id,
+        );
+
+      grantItem(item.id);
+
+      renderEquipment();
+      renderShop();
+      refreshWeaponButtons();
+      refreshExtraButtons();
+
+      return alreadyOwned
+        ? `${developerItemReference(item)} is already owned.`
+        : `granted ${developerItemReference(item)}.`;
+    },
+  });
+
+  devConsole.register('items', {
+    description:
+      'list item references, prices, and ownership',
+    usage: 'items',
+    execute: () =>
+      SHOP_CATALOG.map(id => {
+        const item =
+          getItem(id);
+
+        const owned =
+          ownedItems.includes(id)
+            ? 'owned'
+            : `${item.price ?? 0} denarii`;
+
+        return `${developerItemReference(item)} - ${owned}`;
+      }),
+  });
+
+  const giveDenarii = ({ args }) => {
+    const amount =
+      Number(args[0]);
+
+    if (
+      !Number.isFinite(amount) ||
+      amount < 0
+    ) {
+      throw new Error(
+        'usage: give.denarii <non-negative amount>',
+      );
+    }
+
+    const gain =
+      economy.addDenarius(
+        amount,
+      );
+
+    renderDenariusBalance();
+    renderShop();
+
+    return `added ${gain} denarii. balance: ${economy.denarius}.`;
+  };
+
+  devConsole.register('give.denarii', {
+    description:
+      'add denarii to the current balance',
+    usage:
+      'give.denarii <amount>',
+    execute: giveDenarii,
+  });
+
+  devConsole.register('give.denraii', {
+    description:
+      'alias for give.denarii',
+    usage:
+      'give.denraii <amount>',
+    execute: giveDenarii,
+  });
+
+  devConsole.register('give.denarius', {
+    description:
+      'alias for give.denarii',
+    usage:
+      'give.denarius <amount>',
+    execute: giveDenarii,
+  });
+
+  devConsole.register('set.denarii', {
+    description:
+      'set the current denarius balance exactly',
+    usage:
+      'set.denarii <amount>',
+    execute: ({ args }) => {
+      const amount =
+        Number(args[0]);
+
+      if (
+        !Number.isFinite(amount) ||
+        amount < 0
+      ) {
+        throw new Error(
+          'usage: set.denarii <non-negative amount>',
+        );
+      }
+
+      economy.setDenarius(
+        amount,
+      );
+
+      renderDenariusBalance();
+      renderShop();
+
+      return `denarius balance set to ${economy.denarius}.`;
+    },
+  });
+
+  devConsole.register('reset.denarii', {
+    description:
+      'reset the denarius balance to zero',
+    usage:
+      'reset.denarii',
+    execute: () => {
+      economy.resetDenarius();
+      renderDenariusBalance();
+      renderShop();
+
+      return 'denarius balance reset to 0.';
+    },
+  });
+
   devConsole.register('sprite.editor', {
     description:
-      'open the password-protected visual sprite creator',
+      'open the visual sprite creator',
     usage:
       'sprite.editor [boss|weapon|generic] [draft-name]',
-    execute: async ({ args, console }) => {
+    execute: ({ args }) => {
       const type =
         args[0]?.toLowerCase() ??
         'generic';
@@ -459,23 +670,6 @@ function registerDeveloperCommands() {
         throw new Error(
           `sprite draft "${args[1]}" not found.`,
         );
-      }
-
-      const password =
-        await console.requestSecret(
-          'sprite editor password:',
-        );
-
-      if (password == null) {
-        return null;
-      }
-
-      if (password !== 'SPREDIT') {
-        console.print(
-          'access denied.',
-          'error',
-        );
-        return null;
       }
 
       spriteEditor.open({
