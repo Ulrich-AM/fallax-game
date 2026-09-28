@@ -2129,6 +2129,7 @@ export class MatrixBoss {
 
       if (
         !bullet.hitPlayer &&
+        !bullet.reflected &&
         !bullet.orbiting &&
         targets?.length &&
         bullet.health > 0 &&
