@@ -53,7 +53,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v60c';
+const BUILD_VERSION = 'v60d';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -197,6 +197,18 @@ const WORLD_VIEW_OFFSET_X = 0;
 const WORLD_VIEW_OFFSET_Y =
   H - H * WORLD_VIEW_SCALE;
 
+// Keep the physical roof near the top edge of the fixed-camera view.
+// This is derived from the current camera transform instead of guessed
+// world coordinates, so changing the render scale later won't make the
+// roof drift back into the middle of the screen.
+const ARENA_ROOF_SCREEN_Y = 32;
+const ARENA_ROOF_WORLD_Y =
+  (
+    ARENA_ROOF_SCREEN_Y -
+    WORLD_VIEW_OFFSET_Y
+  ) /
+  WORLD_VIEW_SCALE;
+
 const CAMERA_LOOK_X = 70;
 const CAMERA_LOOK_Y = 34;
 const CAMERA_LOOK_RESPONSE = 3.4;
@@ -220,7 +232,7 @@ const COLORS = {
 
 const world = {
   width: WORLD_VIEW_WIDTH,
-  roofY: 40,
+  roofY: ARENA_ROOF_WORLD_Y,
   floorY: 650,
   platforms: [
     { x: 340, y: 550, w: 250, h: 20 },
@@ -2644,14 +2656,14 @@ function drawGrid() {
 }
 
 function drawPlatforms() {
-  // Solid roof. Extend the fill above the arena so the fixed-camera view
-  // never exposes an empty strip behind it.
+  // Solid roof. Extend it well above its collision edge so vertical camera
+  // look-ahead can never expose empty background above the roof.
   ctx.fillStyle = COLORS.platform;
   ctx.fillRect(
     -200,
-    -220,
+    world.roofY - 260,
     world.width + 400,
-    world.roofY + 220,
+    260,
   );
 
   ctx.fillStyle = COLORS.platformTop;
