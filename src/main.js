@@ -35,8 +35,8 @@ import {
 } from './ExtraSystem.js?v=57';
 import { Economy } from './Economy.js?v=58';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=57';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=57';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=61';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=61';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
@@ -2174,6 +2174,9 @@ function update(dt) {
   if (currentScreen !== 'game') {
     pressed.clear();
     released.clear();
+    pointer.firing = false;
+    pointer.guarding = false;
+    pointer.guardPressed = false;
     return;
   }
 
@@ -2234,6 +2237,8 @@ function update(dt) {
   const backfireShotsBefore = backfireAbility.shotSerial;
   const machSpecialWavesBefore = machWeapon.specialWavesFired;
   const bossShotsBefore = activeBoss?.shotSerial ?? 0;
+  const parriesBefore =
+    guardSystem.reflectedProjectiles;
 
   const backfireEquipped = isAbilityEquipped('backfire');
   const strikeEquipped = isAbilityEquipped('strike');
@@ -2443,6 +2448,26 @@ function update(dt) {
     viewportWidth: world.width,
     shakeCamera: triggerCameraShake,
   });
+
+  if (
+    guardSystem.reflectedProjectiles >
+    parriesBefore
+  ) {
+    spawnSparkBurst(
+      player.x,
+      player.y,
+      14,
+      320,
+      '#ffffff',
+    );
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(
+        5.5,
+        0.09,
+      );
+    }
+  }
 
   updateCameraShake(dt);
 
@@ -3223,6 +3248,9 @@ function prepareEncounter(boss) {
   keplerWeapon.reset();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
+  guardSystem.reset(player);
+  pointer.guarding = false;
+  pointer.guardPressed = false;
   extraSystem.reset();
   refreshExtraButtons();
   particles.length = 0;
