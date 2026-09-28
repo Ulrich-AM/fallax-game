@@ -29,6 +29,17 @@ export class BossStaggerSystem {
   reset(
     boss = this.boss,
   ) {
+    const previous =
+      this.boss;
+
+    if (
+      previous &&
+      previous !== boss
+    ) {
+      previous.damageTakenMultiplier = 1;
+      previous.combatBroken = false;
+    }
+
     this.boss = boss ?? null;
 
     this.stagger = 0;
