@@ -18,12 +18,12 @@ import {
   purchaseItem,
   grantItem,
   resetEquipmentState,
-} from './equipment.js?v=59b';
+} from './equipment.js?v=60';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
-import { RelayWeapon } from './RelayWeapon.js?v=59a';
+import { RelayWeapon } from './RelayWeapon.js?v=60';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=60';
 import { AnchorWeapon } from './AnchorWeapon.js?v=60';
 import { KeplerWeapon } from './KeplerWeapon.js?v=60';
