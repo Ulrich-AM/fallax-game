@@ -22,8 +22,8 @@ import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
-import { RelayWeapon } from './RelayWeapon.js?v=59';
-import { ParallaxWeapon } from './ParallaxWeapon.js?v=59';
+import { RelayWeapon } from './RelayWeapon.js?v=59a';
+import { ParallaxWeapon } from './ParallaxWeapon.js?v=59a';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
