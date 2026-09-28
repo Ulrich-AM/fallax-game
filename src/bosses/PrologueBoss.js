@@ -1579,6 +1579,28 @@ export class PrologueBoss {
               overlapsX &&
               overlapsY
             ) {
+              const defense =
+                player.handleIncomingRush?.(
+                  owner,
+                  {
+                    stabilityCost: 14,
+                  },
+                );
+
+              if (defense?.parried) {
+                owner.wallRushDraggingPlayer = false;
+                owner.wallRushEscaped = true;
+                owner.wallRushHitPlayer = false;
+                owner.smashTrail.length = 0;
+
+                ai.changeState(
+                  'recover',
+                  ctx,
+                );
+
+                return;
+              }
+
               owner.wallRushDraggingPlayer = true;
               owner.wallRushGrabDashSerial = player.dashSerial;
             }
@@ -2213,7 +2235,17 @@ export class PrologueBoss {
   takeDamage(amount) {
     if (this.dead || amount <= 0) return;
 
-    this.health = Math.max(0, this.health - amount);
+    const applied =
+      amount *
+      (
+        this.damageTakenMultiplier ??
+        1
+      );
+
+    this.health = Math.max(
+      0,
+      this.health - applied,
+    );
     this.hurtFlash = 1;
 
     if (this.health <= 0) {
