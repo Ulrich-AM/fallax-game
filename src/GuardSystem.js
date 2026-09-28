@@ -58,6 +58,12 @@ export class GuardSystem {
         this.handleDirectDamage(amount),
       takeContinuousDamage: amount =>
         this.handleDirectDamage(amount, true),
+      handleIncomingProjectile:
+        (bullet, meta) =>
+          this.handleIncomingProjectile(
+            bullet,
+            meta,
+          ),
       grantAbilityInvulnerability: duration =>
         this.player?.grantAbilityInvulnerability?.(duration),
     };
