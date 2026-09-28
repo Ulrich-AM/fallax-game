@@ -776,16 +776,20 @@ export class RelayWeapon {
           b.y,
         );
 
-      const hitRadius =
-        (
-          target.halfSize ??
+      const bodyRadius =
+        target.halfSize ??
+        target.hitRadius ??
+        Math.max(
+          20,
           Math.max(
             target.w ?? 0,
             target.h ?? 0,
           ) *
-          0.5 ??
-          40
-        ) +
+          0.5,
+        );
+
+      const hitRadius =
+        bodyRadius +
         this.linkRadius;
 
       if (
