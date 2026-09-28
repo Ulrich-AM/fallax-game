@@ -907,10 +907,7 @@ export class AnchorWeapon {
       artPixelSize,
     );
 
-    if (
-      firePressed &&
-      this.fireTimer <= 0
-    ) {
+    if (firePressed) {
       if (
         this.projectile ||
         this.anchor
@@ -919,6 +916,7 @@ export class AnchorWeapon {
         this.fireTimer =
           this.fireCooldown;
       } else if (
+        this.fireTimer <= 0 &&
         !this.returningTip &&
         this.fire(
           player,
