@@ -1908,27 +1908,47 @@ export class PrologueBoss {
   update(dt, context) {
     if (this.dead) return;
 
-    this.ai.update(dt, context);
+    if (!context.broken) {
+      this.ai.update(
+        dt,
+        context,
+      );
+    }
 
-    if (!this.rotationLocked) {
+    if (
+      !context.broken &&
+      !this.rotationLocked
+    ) {
       this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
     }
 
-    const orbitSpeedScale = this.isPhase2 ? 1.35 : 1;
+    const orbitSpeedScale =
+      this.isPhase2
+        ? 1.35
+        : 1;
 
-    this.satelliteOrbitAngle =
-      (
-        this.satelliteOrbitAngle +
-        this.satelliteOrbitSpeed * orbitSpeedScale * dt
-      ) % 360;
+    if (!context.broken) {
+      this.satelliteOrbitAngle =
+        (
+          this.satelliteOrbitAngle +
+          this.satelliteOrbitSpeed *
+            orbitSpeedScale *
+            dt
+        ) % 360;
 
-    this.satelliteLocalRotation =
-      (
-        this.satelliteLocalRotation +
-        this.satelliteSpinSpeed * orbitSpeedScale * dt
-      ) % 360;
+      this.satelliteLocalRotation =
+        (
+          this.satelliteLocalRotation +
+          this.satelliteSpinSpeed *
+            orbitSpeedScale *
+            dt
+        ) % 360;
+    }
 
-    if (this.satelliteMode === 'orbit') {
+    if (
+      !context.broken &&
+      this.satelliteMode === 'orbit'
+    ) {
       const home = this.getSatelliteOrbitPosition();
       const secondHome = this.getSatelliteOrbitPosition(180);
       this.satelliteX = home.x;
