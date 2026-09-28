@@ -5,6 +5,8 @@ export const EQUIPMENT_CATEGORIES = [
   { id: 'armor', label: 'Armor', slotCount: 2, slotLabel: 'Armor' },
 ];
 
+const EQUIPMENT_STORAGE_KEY = 'fallax.equipment.v1';
+
 export const ITEM_LIBRARY = {
   vector: {
     id: 'vector',
@@ -83,6 +85,135 @@ export const loadout = {
   armor: [null, null],
 };
 
+function saveEquipmentState() {
+  try {
+    localStorage.setItem(
+      EQUIPMENT_STORAGE_KEY,
+      JSON.stringify({
+        ownedItems,
+        loadout,
+      }),
+    );
+  } catch {
+    // Equipment still works for the current session.
+  }
+}
+
+function restoreEquipmentState() {
+  try {
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          EQUIPMENT_STORAGE_KEY,
+        ) ?? 'null',
+      );
+
+    if (
+      !saved ||
+      typeof saved !== 'object'
+    ) {
+      return;
+    }
+
+    const restoredOwned =
+      Array.isArray(
+        saved.ownedItems,
+      )
+        ? saved.ownedItems
+            .filter(
+              id =>
+                typeof id === 'string' &&
+                ITEM_LIBRARY[id],
+            )
+        : [];
+
+    if (
+      !restoredOwned.includes(
+        'vector',
+      )
+    ) {
+      restoredOwned.unshift(
+        'vector',
+      );
+    }
+
+    ownedItems.splice(
+      0,
+      ownedItems.length,
+      ...new Set(restoredOwned),
+    );
+
+    for (
+      const category
+      of EQUIPMENT_CATEGORIES
+    ) {
+      const savedSlots =
+        Array.isArray(
+          saved.loadout?.[
+            category.id
+          ],
+        )
+          ? saved.loadout[
+              category.id
+            ]
+          : [];
+
+      const restoredSlots =
+        Array.from(
+          {
+            length:
+              category.slotCount,
+          },
+          (_, index) => {
+            const itemId =
+              savedSlots[index];
+
+            const item =
+              ITEM_LIBRARY[
+                itemId
+              ];
+
+            if (
+              !item ||
+              item.category !==
+                category.id ||
+              !ownedItems.includes(
+                itemId,
+              )
+            ) {
+              return null;
+            }
+
+            return itemId;
+          },
+        );
+
+      loadout[
+        category.id
+      ].splice(
+        0,
+        loadout[
+          category.id
+        ].length,
+        ...restoredSlots,
+      );
+    }
+
+    if (
+      !loadout.weapons.some(
+        Boolean,
+      )
+    ) {
+      loadout.weapons[0] =
+        'vector';
+    }
+  } catch {
+    // Keep the fresh Vector-only defaults if saved equipment is malformed.
+  }
+}
+
+restoreEquipmentState();
+
 export function getCategory(id) {
   return EQUIPMENT_CATEGORIES.find(category => category.id === id) ?? null;
 }
@@ -110,6 +241,7 @@ export function equipItem(itemId, categoryId, slotIndex) {
   if (existing) loadout[existing.category][existing.index] = null;
 
   loadout[categoryId][slotIndex] = itemId;
+  saveEquipmentState();
   return true;
 }
 
@@ -118,6 +250,7 @@ export function unequipSlot(categoryId, slotIndex) {
   if (!category) return false;
   if (slotIndex < 0 || slotIndex >= category.slotCount) return false;
   loadout[categoryId][slotIndex] = null;
+  saveEquipmentState();
   return true;
 }
 
@@ -143,6 +276,7 @@ export function grantItem(itemId) {
 
   if (!ownedItems.includes(itemId)) {
     ownedItems.push(itemId);
+    saveEquipmentState();
   }
 
   return true;
