@@ -1082,6 +1082,7 @@ export class AnchorWeapon {
           anchor.x,
           anchor.y,
           anchor.angle,
+          !!anchor.barbed,
         );
       } else {
         const tension =
@@ -1128,6 +1129,7 @@ export class AnchorWeapon {
             anchor.x,
             anchor.y,
             anchor.angle,
+            !!anchor.barbed,
           );
         }
       }
