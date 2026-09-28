@@ -173,7 +173,7 @@ if (buildVersionLabel) {
 function renderDenariusBalance() {
   if (denariusBalance) {
     denariusBalance.textContent =
-      `${economy.denarius} denarius`;
+      `${economy.denarius} denarii`;
   }
 }
 
@@ -1753,7 +1753,7 @@ function endEncounter(result) {
         'encounter-reward-total';
 
       total.textContent =
-        `+${gain} denarius`;
+        `+${gain} denarii`;
 
       encounterReward.appendChild(
         total,
@@ -3505,12 +3505,21 @@ function createShopItemCard(itemId) {
 
   const owned = ownedItems.includes(item.id);
 
+  const price =
+    Math.max(
+      0,
+      Math.floor(
+        item.price ?? 0,
+      ),
+    );
+
   card.innerHTML = `
     <div class="item-title">
       <span class="item-icon" aria-hidden="true"></span>
       <span>${item.name}</span>
     </div>
     <div class="item-category">${getItemCategoryLabel(item)}</div>
+    <div class="shop-item-price">${price === 0 ? 'free' : `${price} denarii`}</div>
     <div class="shop-item-actions"></div>
   `;
 
@@ -3524,17 +3533,63 @@ function createShopItemCard(itemId) {
   const buy =
     document.createElement('button');
 
+  const canAfford =
+    economy.denarius >= price;
+
   buy.className = 'shop-buy-button';
   buy.textContent =
-    owned ? 'owned' : 'free';
-  buy.disabled = owned;
+    owned
+      ? 'owned'
+      : (
+          price === 0
+            ? 'free'
+            : `buy ${price}`
+        );
+
+  buy.disabled =
+    owned ||
+    !canAfford;
+
+  if (
+    !owned &&
+    !canAfford
+  ) {
+    buy.title =
+      `need ${price - economy.denarius} more denarii`;
+  }
 
   buy.addEventListener('click', () => {
     hideItemTooltip();
 
-    if (!purchaseItem(item.id)) {
+    if (
+      ownedItems.includes(
+        item.id,
+      )
+    ) {
       return;
     }
+
+    if (
+      price > 0 &&
+      !economy.spendDenarius(
+        price,
+      )
+    ) {
+      renderShop();
+      return;
+    }
+
+    if (!purchaseItem(item.id)) {
+      if (price > 0) {
+        economy.addDenarius(
+          price,
+        );
+      }
+
+      return;
+    }
+
+    renderDenariusBalance();
 
     if (activeShopTab === 'random') {
       rollRandomShopItems();
@@ -3568,7 +3623,7 @@ function renderShop() {
   shopCategoryNote.textContent =
     random
       ? 'random unowned items from the current catalog'
-      : 'everything is free for now';
+      : 'purchase equipment with denarii';
 
   shopReroll.classList.toggle(
     'hidden',
