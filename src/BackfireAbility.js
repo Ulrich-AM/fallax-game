@@ -64,11 +64,14 @@ export class BackfireAbility {
     const backAngle =
       Math.atan2(-dash.ny, -dash.nx);
 
+    // Backfire originates from the point where the dash began, not where
+    // the player lands. This keeps it a true rear-propulsion ability instead
+    // of behaving like Strike when dashing through a boss.
     const originX =
-      dash.endX - dash.nx * 24;
+      dash.startX;
 
     const originY =
-      dash.endY - dash.ny * 24;
+      dash.startY;
 
     for (let i = 0; i < this.bulletCount; i++) {
       const t =
