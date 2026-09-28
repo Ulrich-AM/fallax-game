@@ -19,14 +19,14 @@ import {
   grantItem,
   resetEquipmentState,
 } from './equipment.js?v=60b';
-import { VectorWeapon } from './VectorWeapon.js?v=54c';
+import { VectorWeapon } from './VectorWeapon.js?v=62ba';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
-import { RelayWeapon } from './RelayWeapon.js?v=60';
-import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
-import { AnchorWeapon } from './AnchorWeapon.js?v=60b';
-import { KeplerWeapon } from './KeplerWeapon.js?v=62b';
+import { RelayWeapon } from './RelayWeapon.js?v=62ba';
+import { ParallaxWeapon } from './ParallaxWeapon.js?v=62ba';
+import { AnchorWeapon } from './AnchorWeapon.js?v=62ba';
+import { KeplerWeapon } from './KeplerWeapon.js?v=62ba';
 import { BackfireAbility } from './BackfireAbility.js?v=60c';
 import { GuardSystem } from './GuardSystem.js?v=62';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
@@ -39,7 +39,7 @@ import { Economy } from './Economy.js?v=58';
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=62';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=62';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=62';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=62ba';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
@@ -56,7 +56,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v62b';
+const BUILD_VERSION = 'v62ba';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
