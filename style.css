@@ -483,6 +483,11 @@ canvas {
   margin-bottom: 0;
 }
 
+.shop-item-price {
+  color: #c8cdd5;
+  font-size: 12px;
+}
+
 .shop-item-actions {
   display: flex;
   justify-content: flex-end;
