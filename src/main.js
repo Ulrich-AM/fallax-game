@@ -22,6 +22,8 @@ import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
+import { RelayWeapon } from './RelayWeapon.js?v=59';
+import { ParallaxWeapon } from './ParallaxWeapon.js?v=59';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
@@ -48,7 +50,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v58a';
+const BUILD_VERSION = 'v59';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -243,6 +245,8 @@ const vectorWeapon = new VectorWeapon();
 const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
 const machWeapon = new MachWeapon();
+const relayWeapon = new RelayWeapon();
+const parallaxWeapon = new ParallaxWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
 const extraSystem = new ExtraSystem();
@@ -1418,6 +1422,8 @@ function getWeaponInstance(id) {
   if (id === 'euclid') return euclidWeapon;
   if (id === 'horizon') return horizonWeapon;
   if (id === 'mach') return machWeapon;
+  if (id === 'relay') return relayWeapon;
+  if (id === 'parallax') return parallaxWeapon;
   return null;
 }
 
@@ -2103,6 +2109,8 @@ function update(dt) {
     euclidWeapon.reset();
     horizonWeapon.reset();
     machWeapon.reset();
+    relayWeapon.reset();
+    parallaxWeapon.reset();
     backfireAbility.reset(player);
     extraSystem.reset();
     refreshExtraButtons();
@@ -2120,6 +2128,8 @@ function update(dt) {
 
   const vectorShotsBefore = vectorWeapon.shotSerial;
   const horizonShotsBefore = horizonWeapon.shotSerial;
+  const relayShotsBefore = relayWeapon.shotSerial;
+  const parallaxShotsBefore = parallaxWeapon.shotSerial;
   const backfireShotsBefore = backfireAbility.shotSerial;
   const machSpecialWavesBefore = machWeapon.specialWavesFired;
   const bossShotsBefore = activeBoss?.shotSerial ?? 0;
@@ -2353,6 +2363,28 @@ function update(dt) {
     activeWeaponId === 'mach',
   );
 
+  relayWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'relay' && pointer.firing,
+    world,
+    activeBoss,
+    ART_PIXEL,
+    activeWeaponId === 'relay',
+  );
+
+  parallaxWeapon.update(
+    dt,
+    player,
+    getPointerWorld(),
+    activeWeaponId === 'parallax' && pointer.firing,
+    world,
+    activeBoss,
+    ART_PIXEL,
+    activeWeaponId === 'parallax',
+  );
+
   playRepeated(
     Math.max(0, vectorWeapon.shotSerial - vectorShotsBefore),
     () => audio.playShot('vector'),
@@ -2361,6 +2393,16 @@ function update(dt) {
   playRepeated(
     Math.max(0, horizonWeapon.shotSerial - horizonShotsBefore),
     () => audio.playShot('horizon'),
+  );
+
+  playRepeated(
+    Math.max(0, relayWeapon.shotSerial - relayShotsBefore),
+    () => audio.playShot('default'),
+  );
+
+  playRepeated(
+    Math.max(0, parallaxWeapon.shotSerial - parallaxShotsBefore),
+    () => audio.playShot('default'),
   );
 
   playRepeated(
@@ -2891,6 +2933,24 @@ function renderGame() {
     machWeapon.drawWaves(ctx, 0);
   }
 
+  relayWeapon.draw(
+    ctx,
+    player,
+    getPointerWorld(),
+    0,
+    ART_PIXEL,
+    activeWeaponId === 'relay',
+  );
+
+  parallaxWeapon.draw(
+    ctx,
+    player,
+    getPointerWorld(),
+    0,
+    ART_PIXEL,
+    activeWeaponId === 'parallax',
+  );
+
   backfireAbility.draw(ctx, 0);
 
   ctx.restore();
@@ -2909,6 +2969,8 @@ function prepareEncounter(boss) {
   euclidWeapon.reset();
   horizonWeapon.reset();
   machWeapon.reset();
+  relayWeapon.reset();
+  parallaxWeapon.reset();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
   extraSystem.reset();
@@ -3029,6 +3091,22 @@ function getItemPreviewEntry(
 
   if (itemId === 'mach') {
     return machWeapon
+      .getSpriteEntry(
+        angleRadians,
+        centered,
+      );
+  }
+
+  if (itemId === 'relay') {
+    return relayWeapon
+      .getSpriteEntry(
+        angleRadians,
+        centered,
+      );
+  }
+
+  if (itemId === 'parallax') {
+    return parallaxWeapon
       .getSpriteEntry(
         angleRadians,
         centered,
@@ -3748,6 +3826,8 @@ window.BOSSFIGHTS = {
   euclidWeapon,
   horizonWeapon,
   machWeapon,
+  relayWeapon,
+  parallaxWeapon,
   backfireAbility,
   strikeAbility,
   extraSystem,
