@@ -1503,3 +1503,19 @@ textarea,
   user-select: text;
   -webkit-user-select: text;
 }
+
+
+/* v59b progression reset */
+.danger-panel {
+  border-color: #4b3232;
+}
+
+.danger-button {
+  border-color: #744343;
+  color: #d7b0b0;
+}
+
+.danger-button:hover {
+  border-color: #9a5a5a;
+  color: #ffffff;
+}
