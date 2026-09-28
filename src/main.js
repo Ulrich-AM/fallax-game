@@ -2209,9 +2209,13 @@ function update(dt) {
     activeBoss?.reset?.(world);
   }
 
-  const activeWeaponId = getActiveWeaponId();
-  const activeWeapon = getActiveWeaponInstance();
-  const pointerWorld =
+  const activeWeaponId =
+    getActiveWeaponId();
+
+  const activeWeapon =
+    getActiveWeaponInstance();
+
+  const inputPointerWorld =
     getPointerWorld();
 
   const dashSerialBefore = player.dashSerial;
@@ -2244,7 +2248,7 @@ function update(dt) {
 
   const playerInput = {
     ...readInput(),
-    dashTarget: pointerWorld,
+    dashTarget: inputPointerWorld,
     dashCooldownMultiplier: backfireEquipped
       ? backfireAbility.dashCooldownMultiplier
       : 1,
@@ -2274,7 +2278,8 @@ function update(dt) {
     dt,
     {
       player,
-      pointerWorld,
+      pointerWorld:
+        inputPointerWorld,
       guardHeld:
         pointer.guarding,
       guardPressed:
@@ -2365,6 +2370,9 @@ function update(dt) {
       camera.lookY
     ) *
     lookFollow;
+
+  const combatPointerWorld =
+    getPointerWorld();
 
   bossStaggerSystem.update(
     dt,
@@ -2529,14 +2537,16 @@ function update(dt) {
   if (pressed.has(controlBindings.special)) {
     activeWeapon?.triggerSpecial?.({
       player,
-      pointerWorld,
+      pointerWorld:
+        combatPointerWorld,
     });
   }
 
   weaponRuntime.updateAll({
     dt,
     player,
-    pointerWorld,
+    pointerWorld:
+      combatPointerWorld,
     firing:
       pointer.firing,
     world,
@@ -3037,18 +3047,85 @@ function drawBossBar() {
   ctx.fillRect(x, y, width, height);
 
   ctx.fillStyle = '#8a8e95';
-  ctx.fillRect(x, y, width * activeBoss.healthRatio, height);
+  ctx.fillRect(
+    x,
+    y,
+    width *
+      activeBoss.healthRatio,
+    height,
+  );
 
   ctx.strokeStyle = '#3b404a';
-  ctx.strokeRect(x + 0.5, y + 0.5, width, height);
+  ctx.strokeRect(
+    x + 0.5,
+    y + 0.5,
+    width,
+    height,
+  );
 
-  ctx.font = "11px 'Pixel Arial 11', Arial, sans-serif";
-  ctx.fillStyle = COLORS.dim;
+  const staggerY =
+    y + height + 5;
+
+  const staggerHeight = 4;
+
+  ctx.fillStyle = '#17191f';
+  ctx.fillRect(
+    x,
+    staggerY,
+    width,
+    staggerHeight,
+  );
+
+  ctx.fillStyle =
+    bossStaggerSystem.isBroken
+      ? '#ffffff'
+      : '#737985';
+
+  ctx.fillRect(
+    x,
+    staggerY,
+    width *
+      bossStaggerSystem.ratio,
+    staggerHeight,
+  );
+
+  ctx.strokeStyle = '#343a46';
+  ctx.strokeRect(
+    x + 0.5,
+    staggerY + 0.5,
+    width,
+    staggerHeight,
+  );
+
+  ctx.font =
+    "9px 'Pixel Arial 11', Arial, sans-serif";
+
+  ctx.fillStyle =
+    bossStaggerSystem.isBroken
+      ? COLORS.text
+      : COLORS.dim;
+
+  ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
+
+  ctx.fillText(
+    bossStaggerSystem.isBroken
+      ? `BREAK ${bossStaggerSystem.breakTimer.toFixed(1)}s`
+      : 'STAGGER',
+    x + width,
+    staggerY + 7,
+  );
+
+  ctx.font =
+    "11px 'Pixel Arial 11', Arial, sans-serif";
+
+  ctx.fillStyle = COLORS.dim;
+  ctx.textAlign = 'center';
+
   ctx.fillText(
     activeBoss.phaseLabel ?? '',
     W / 2,
-    y + height + 6,
+    staggerY + 7,
   );
 
   ctx.restore();
