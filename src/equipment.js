@@ -40,6 +40,22 @@ export const ITEM_LIBRARY = {
     description: 'A pressure-wave weapon with strong sustained recoil.',
     appearance: 'wide gray rectangle',
   },
+  relay: {
+    id: 'relay',
+    price: 260,
+    name: 'Relay',
+    category: 'weapons',
+    description: 'Plants relay nodes on surfaces. Adjacent nodes form damaging links that can be overloaded.',
+    appearance: 'outlined relay emitter',
+  },
+  parallax: {
+    id: 'parallax',
+    price: 240,
+    name: 'Parallax',
+    category: 'weapons',
+    description: 'A triple-copy weapon that fires parallel shots and can converge its ghost trajectories.',
+    appearance: 'solid center gun with translucent copies',
+  },
   backfire: {
     id: 'backfire',
     price: 120,
