@@ -53,7 +53,7 @@ export const ITEM_LIBRARY = {
     price: 240,
     name: 'Parallax',
     category: 'weapons',
-    description: 'A focal-geometry weapon. Three copies converge on the cursor and reward precise focus hits.',
+    description: 'Three copies converge on a focal point. Its special forms low-damage lasers around a high-damage focal orb.',
     appearance: 'solid center gun with translucent copies',
   },
   anchor: {
@@ -61,7 +61,7 @@ export const ITEM_LIBRARY = {
     price: 300,
     name: 'Anchor',
     category: 'weapons',
-    description: 'Fires a tether spike. Stretching a boss tether increases damage; terrain anchors can reel you in.',
+    description: 'Fires its neon anchor tip. Boss hits build tension damage; terrain hits automatically reel you in before the tip returns.',
     appearance: 'red-glowing tether weapon',
   },
   kepler: {

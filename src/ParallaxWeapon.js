@@ -1,7 +1,7 @@
 import {
   WeaponSpriteRenderer,
   drawRasterAtPivot,
-} from './WeaponSpriteRenderer.js?v=59';
+} from './WeaponSpriteRenderer.js?v=60a';
 
 const PARALLAX_PARTS = {
   bottom: {
@@ -228,6 +228,11 @@ export class ParallaxWeapon {
     this.specialActiveTimer = 0;
     this.specialVisual = 0;
 
+    this.specialBeamDps = 4;
+    this.specialBeamRadius = 8;
+    this.specialFocusDps = 60;
+    this.specialFocusRadius = 48;
+
     this.visualTime = 0;
     this.baseGhostFloatDistance = 7;
     this.specialGhostSpread = 28;
@@ -387,6 +392,229 @@ export class ParallaxWeapon {
     };
   }
 
+  getMuzzles(
+    player,
+    pointerWorld,
+    artPixelSize,
+  ) {
+    const aim =
+      this.getAim(
+        player,
+        pointerWorld,
+      );
+
+    const pivots =
+      this.getGunPivots(
+        aim,
+        artPixelSize,
+        player,
+        pointerWorld,
+      );
+
+    return {
+      aim,
+      pivots,
+      muzzles: [
+        {
+          id: 'top',
+          alpha: 0.68,
+          point:
+            localToWorld(
+              pivots.top.x,
+              pivots.top.y,
+              15,
+              -4,
+              aim.angle,
+              artPixelSize,
+            ),
+        },
+        {
+          id: 'base',
+          alpha: 1,
+          point:
+            localToWorld(
+              pivots.base.x,
+              pivots.base.y,
+              12,
+              0,
+              aim.angle,
+              artPixelSize,
+            ),
+        },
+        {
+          id: 'bottom',
+          alpha: 0.68,
+          point:
+            localToWorld(
+              pivots.bottom.x,
+              pivots.bottom.y,
+              15,
+              4,
+              aim.angle,
+              artPixelSize,
+            ),
+        },
+      ],
+    };
+  }
+
+  pointSegmentDistance(
+    px,
+    py,
+    ax,
+    ay,
+    bx,
+    by,
+  ) {
+    const dx = bx - ax;
+    const dy = by - ay;
+
+    const lengthSq =
+      dx * dx +
+      dy * dy;
+
+    if (
+      lengthSq <=
+      0.000001
+    ) {
+      return {
+        x: ax,
+        y: ay,
+        distance:
+          Math.hypot(
+            px - ax,
+            py - ay,
+          ),
+      };
+    }
+
+    const t =
+      clamp(
+        (
+          (px - ax) *
+            dx +
+          (py - ay) *
+            dy
+        ) /
+        lengthSq,
+        0,
+        1,
+      );
+
+    const x =
+      ax + dx * t;
+
+    const y =
+      ay + dy * t;
+
+    return {
+      x,
+      y,
+      distance:
+        Math.hypot(
+          px - x,
+          py - y,
+        ),
+    };
+  }
+
+  applySpecialLaserDamage(
+    dt,
+    player,
+    pointerWorld,
+    target,
+    artPixelSize,
+  ) {
+    if (
+      this.specialActiveTimer <=
+        0 ||
+      !target ||
+      target.dead
+    ) {
+      return;
+    }
+
+    const {
+      muzzles,
+    } =
+      this.getMuzzles(
+        player,
+        pointerWorld,
+        artPixelSize,
+      );
+
+    for (
+      const muzzle
+      of muzzles
+    ) {
+      const nearest =
+        this.pointSegmentDistance(
+          target.x,
+          target.y,
+          muzzle.point.x,
+          muzzle.point.y,
+          pointerWorld.x,
+          pointerWorld.y,
+        );
+
+      if (
+        target.hitTest?.(
+          nearest.x,
+          nearest.y,
+          this.specialBeamRadius,
+        )
+      ) {
+        target.takeDamage?.(
+          this.specialBeamDps *
+          dt,
+        );
+      }
+
+      const length =
+        Math.max(
+          1,
+          Math.hypot(
+            pointerWorld.x -
+              muzzle.point.x,
+            pointerWorld.y -
+              muzzle.point.y,
+          ),
+        );
+
+      target.damageProjectilesAlongRay?.(
+        muzzle.point.x,
+        muzzle.point.y,
+        (
+          pointerWorld.x -
+          muzzle.point.x
+        ) /
+        length,
+        (
+          pointerWorld.y -
+          muzzle.point.y
+        ) /
+        length,
+        length,
+        this.specialBeamRadius,
+        this.specialBeamDps *
+          dt,
+      );
+    }
+
+    if (
+      target.hitTest?.(
+        pointerWorld.x,
+        pointerWorld.y,
+        this.specialFocusRadius,
+      )
+    ) {
+      target.takeDamage?.(
+        this.specialFocusDps *
+        dt,
+      );
+    }
+  }
+
   triggerSpecial() {
     if (
       this.specialCooldownTimer > 0
@@ -406,7 +634,7 @@ export class ParallaxWeapon {
   get specialAbilities() {
     return [{
       id: 'parallax-perspective-collapse',
-      name: 'perspective collapse',
+      name: 'focal collapse',
       cooldown:
         this.specialCooldown,
       remaining:
@@ -421,63 +649,15 @@ export class ParallaxWeapon {
     pointerWorld,
     artPixelSize,
   ) {
-    const aim =
-      this.getAim(
+    const {
+      aim,
+      muzzles,
+    } =
+      this.getMuzzles(
         player,
         pointerWorld,
-      );
-
-    const pivots =
-      this.getGunPivots(
-        aim,
         artPixelSize,
-        player,
-        pointerWorld,
       );
-
-    // The source file has no markers. These are estimated from the visible
-    // front edges of each polygon: base x=12, side copies x=15.
-    const muzzles = [
-      {
-        id: 'top',
-        alpha: 0.68,
-        point:
-          localToWorld(
-            pivots.top.x,
-            pivots.top.y,
-            15,
-            -4,
-            aim.angle,
-            artPixelSize,
-          ),
-      },
-      {
-        id: 'base',
-        alpha: 1,
-        point:
-          localToWorld(
-            pivots.base.x,
-            pivots.base.y,
-            12,
-            0,
-            aim.angle,
-            artPixelSize,
-          ),
-      },
-      {
-        id: 'bottom',
-        alpha: 0.68,
-        point:
-          localToWorld(
-            pivots.bottom.x,
-            pivots.bottom.y,
-            15,
-            4,
-            aim.angle,
-            artPixelSize,
-          ),
-      },
-    ];
 
     const volleyId =
       this.nextVolleyId++;
@@ -487,8 +667,7 @@ export class ParallaxWeapon {
       {
         hits: 0,
         focusHits: 0,
-        special:
-          this.specialActiveTimer > 0,
+        special: false,
         life: 2.8,
       },
     );
@@ -624,7 +803,8 @@ export class ParallaxWeapon {
     if (
       active &&
       firing &&
-      this.fireTimer <= 0
+      this.fireTimer <= 0 &&
+      this.specialActiveTimer <= 0
     ) {
       this.fire(
         player,
@@ -634,6 +814,16 @@ export class ParallaxWeapon {
 
       this.fireTimer =
         this.fireCooldown;
+    }
+
+    if (active) {
+      this.applySpecialLaserDamage(
+        dt,
+        player,
+        pointerWorld,
+        target,
+        artPixelSize,
+      );
     }
 
     for (
@@ -714,9 +904,7 @@ export class ParallaxWeapon {
               true;
 
             target.takeDamage?.(
-              volley.special
-                ? this.specialFocusBonusDamage
-                : this.focusBonusDamage,
+              this.focusBonusDamage,
             );
 
             this.focusFlashes.push({
@@ -726,8 +914,7 @@ export class ParallaxWeapon {
                 bullet.focusY,
               life: 0.18,
               maxLife: 0.18,
-              special:
-                volley.special,
+              special: false,
             });
           }
         }
@@ -919,59 +1106,154 @@ export class ParallaxWeapon {
     if (
       this.specialVisual > 0.02
     ) {
+      const {
+        muzzles,
+      } =
+        this.getMuzzles(
+          player,
+          pointerWorld,
+          artPixelSize,
+        );
+
       ctx.save();
 
-      ctx.globalAlpha =
-        0.28 *
-        this.specialVisual;
-
-      ctx.strokeStyle =
-        '#ffffff';
-
-      ctx.lineWidth = 2;
-
       for (
-        const pivot
-        of [
-          topPivot,
-          basePivot,
-          bottomPivot,
-        ]
+        const muzzle
+        of muzzles
       ) {
-        ctx.beginPath();
-        ctx.moveTo(
-          pivot.x,
-          pivot.y,
-        );
-        ctx.lineTo(
+        const sx =
+          muzzle.point.x -
+          cameraX;
+
+        const sy =
+          muzzle.point.y;
+
+        const fx =
           pointerWorld.x -
-            cameraX,
-          pointerWorld.y,
-        );
+          cameraX;
+
+        const fy =
+          pointerWorld.y;
+
+        ctx.globalAlpha =
+          0.22 *
+          this.specialVisual;
+
+        ctx.strokeStyle =
+          '#ffffff';
+
+        ctx.lineWidth =
+          12 *
+          this.specialVisual;
+
+        ctx.shadowColor =
+          '#ffffff';
+
+        ctx.shadowBlur =
+          18 *
+          this.specialVisual;
+
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(fx, fy);
+        ctx.stroke();
+
+        ctx.globalAlpha =
+          0.88 *
+          this.specialVisual;
+
+        ctx.lineWidth =
+          3 +
+          2 *
+          this.specialVisual;
+
+        ctx.shadowBlur =
+          8 *
+          this.specialVisual;
+
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(fx, fy);
         ctx.stroke();
       }
 
+      const pulse =
+        1 +
+        0.16 *
+        Math.sin(
+          this.visualTime *
+          13,
+        );
+
       const radius =
-        12 +
-        7 *
-        this.specialVisual;
+        (
+          22 +
+          10 *
+          this.specialVisual
+        ) *
+        pulse;
+
+      const fx =
+        pointerWorld.x -
+        cameraX;
+
+      const fy =
+        pointerWorld.y;
 
       ctx.globalAlpha =
-        0.55 *
+        0.2 *
         this.specialVisual;
 
-      ctx.strokeRect(
-        Math.round(
-          pointerWorld.x -
-          cameraX -
-          radius,
-        ),
-        Math.round(
-          pointerWorld.y -
-          radius,
-        ),
-        radius * 2,
-        radius * 2,
+      ctx.fillStyle =
+        '#ffffff';
+
+      ctx.shadowColor =
+        '#ffffff';
+
+      ctx.shadowBlur =
+        36 *
+        this.specialVisual;
+
+      ctx.beginPath();
+      ctx.arc(
+        fx,
+        fy,
+        radius * 1.65,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+
+      ctx.globalAlpha =
+        0.95 *
+        this.specialVisual;
+
+      ctx.shadowBlur =
+        24 *
+        this.specialVisual;
+
+      ctx.beginPath();
+      ctx.arc(
+        fx,
+        fy,
+        radius,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+
+      ctx.globalAlpha =
+        this.specialVisual;
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle =
+        '#ffffff';
+
+      ctx.fillRect(
+        Math.round(fx - 4),
+        Math.round(fy - 4),
+        8,
+        8,
       );
 
       ctx.restore();

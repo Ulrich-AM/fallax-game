@@ -18,14 +18,14 @@ import {
   purchaseItem,
   grantItem,
   resetEquipmentState,
-} from './equipment.js?v=60';
+} from './equipment.js?v=60a';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
 import { MachWeapon } from './MachWeapon.js?v=54c';
 import { RelayWeapon } from './RelayWeapon.js?v=60';
-import { ParallaxWeapon } from './ParallaxWeapon.js?v=60';
-import { AnchorWeapon } from './AnchorWeapon.js?v=60';
+import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
+import { AnchorWeapon } from './AnchorWeapon.js?v=60a';
 import { KeplerWeapon } from './KeplerWeapon.js?v=60';
 import { BackfireAbility } from './BackfireAbility.js?v=52';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
@@ -53,7 +53,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v60';
+const BUILD_VERSION = 'v60a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
