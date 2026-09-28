@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fallax - boss rush</title>
-  <link rel="stylesheet" href="style.css?v=56" />
+  <link rel="stylesheet" href="style.css?v=57" />
 </head>
 <body>
   <div id="app">
@@ -39,9 +39,19 @@
         <canvas id="game" width="1280" height="720" aria-label="Bossfights game"></canvas>
         <div class="game-hint">Esc: menu</div>
 
-        <div class="weapon-switcher" aria-label="Weapon slots">
-          <button id="weapon-slot-1" class="weapon-slot-button"></button>
-          <button id="weapon-slot-2" class="weapon-slot-button"></button>
+        <div class="combat-loadout">
+          <div class="extra-region">
+            <div class="extra-region-label">extras</div>
+            <div class="extra-switcher" aria-label="Extra slots">
+              <button id="extra-slot-1" class="extra-slot-button"></button>
+              <button id="extra-slot-2" class="extra-slot-button"></button>
+            </div>
+          </div>
+
+          <div class="weapon-switcher" aria-label="Weapon slots">
+            <button id="weapon-slot-1" class="weapon-slot-button"></button>
+            <button id="weapon-slot-2" class="weapon-slot-button"></button>
+          </div>
         </div>
 
         <div id="death-menu" class="death-menu hidden">
@@ -139,6 +149,8 @@
             <div class="control-row"><span>special</span><button class="keybind-button" data-bind-action="special"></button></div>
             <div class="control-row"><span>weapon slot 1</span><button class="keybind-button" data-bind-action="weapon1"></button></div>
             <div class="control-row"><span>weapon slot 2</span><button class="keybind-button" data-bind-action="weapon2"></button></div>
+            <div class="control-row"><span>extra slot 1</span><button class="keybind-button" data-bind-action="extra1"></button></div>
+            <div class="control-row"><span>extra slot 2</span><button class="keybind-button" data-bind-action="extra2"></button></div>
             <div class="control-row"><span>restart fight</span><button class="keybind-button" data-bind-action="restart"></button></div>
           </div>
 
@@ -606,6 +618,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=56"></script>
+  <script type="module" src="src/main.js?v=57"></script>
 </body>
 </html>
