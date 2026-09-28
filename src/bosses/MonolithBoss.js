@@ -729,22 +729,24 @@ export class MonolithBoss {
   update(dt, context) {
     if (this.dead) return;
 
-    this.ai.update(
-      dt,
-      context,
-    );
+    if (!context.broken) {
+      this.ai.update(
+        dt,
+        context,
+      );
 
-    this.updateArmTracking(
-      dt,
-      context.player,
-    );
+      this.updateArmTracking(
+        dt,
+        context.player,
+      );
 
-    this.animationTime =
-      (
-        this.animationTime +
-        dt
-      ) %
-      this.animationDuration;
+      this.animationTime =
+        (
+          this.animationTime +
+          dt
+        ) %
+        this.animationDuration;
+    }
 
     this.hurtFlash =
       Math.max(
