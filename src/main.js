@@ -909,6 +909,7 @@ function setControlBinding(action, newCode) {
   saveControlBindings();
   renderKeybinds();
   refreshWeaponButtons();
+  refreshExtraButtons();
 
   return true;
 }
@@ -937,6 +938,7 @@ resetKeybindsButton?.addEventListener(
     saveControlBindings();
     renderKeybinds();
     refreshWeaponButtons();
+  refreshExtraButtons();
   },
 );
 
@@ -1285,14 +1287,108 @@ function refreshWeaponButtons() {
   });
 }
 
+let lastExtraButtonText = ['', ''];
+
+function refreshExtraButtons() {
+  extraSlotButtons.forEach(
+    (button, index) => {
+      const id =
+        getExtraSlotId(index);
+
+      const item =
+        getItem(id);
+
+      const binding =
+        controlBindings[
+          index === 0
+            ? 'extra1'
+            : 'extra2'
+        ];
+
+      const cooldown =
+        id
+          ? extraSystem
+              .getCooldown(id)
+          : 0;
+
+      const active =
+        id
+          ? extraSystem
+              .isActive(id)
+          : false;
+
+      const suffix =
+        cooldown > 0
+          ? ` ${cooldown.toFixed(1)}s`
+          : '';
+
+      const text =
+        item
+          ? `${keyLabel(binding)}: ${item.name.toLowerCase()}${suffix}`
+          : 'empty';
+
+      if (
+        lastExtraButtonText[index] !==
+        text
+      ) {
+        button.textContent = text;
+        lastExtraButtonText[index] =
+          text;
+      }
+
+      button.disabled = !item;
+      button.classList.toggle(
+        'active',
+        active,
+      );
+
+      button.classList.toggle(
+        'cooldown',
+        cooldown > 0,
+      );
+    },
+  );
+}
+
+function activateExtraSlot(index) {
+  const id =
+    getExtraSlotId(index);
+
+  if (!id) return false;
+
+  const activated =
+    extraSystem.activate(
+      id,
+      player,
+      world,
+    );
+
+  if (activated) {
+    refreshExtraButtons();
+  }
+
+  return activated;
+}
+
 function selectWeaponSlot(index) {
   if (!getWeaponSlotId(index)) return;
   activeWeaponSlot = index;
   refreshWeaponButtons();
+  refreshExtraButtons();
 }
 
 weaponSlotButtons[0].addEventListener('click', () => selectWeaponSlot(0));
 weaponSlotButtons[1].addEventListener('click', () => selectWeaponSlot(1));
+
+extraSlotButtons[0].addEventListener(
+  'click',
+  () => activateExtraSlot(0),
+);
+
+extraSlotButtons[1].addEventListener(
+  'click',
+  () => activateExtraSlot(1),
+);
 
 function setDeathMenuVisible(visible, result = 'defeated') {
   encounterResultTitle.textContent = result;
@@ -3293,6 +3389,7 @@ function renderEquipment() {
   renderSlots();
   renderInventory();
   refreshWeaponButtons();
+  refreshExtraButtons();
 }
 
 inventoryDropZone.addEventListener('dragover', (e) => {
