@@ -210,6 +210,9 @@ export class ParallaxWeapon {
 
     this.orbitRadius = 44;
     this.damage = 5.2;
+    this.focusBonusDamage = 9;
+    this.specialFocusBonusDamage = 16;
+    this.focusRadius = 115;
     this.bulletSpeed = 940;
     this.bulletLife = 2.2;
     this.bulletSize = 10;
@@ -223,17 +226,18 @@ export class ParallaxWeapon {
 
     this.specialDuration = 4;
     this.specialActiveTimer = 0;
+    this.specialVisual = 0;
 
     this.visualTime = 0;
-
-    // The source sprite positions remain the minimum spacing. The copies
-    // breathe farther outward from there so the motion is clearly visible
-    // even through the full-arena 0.5x camera.
-    this.ghostFloatDistance = 4.6;
+    this.baseGhostFloatDistance = 7;
+    this.specialGhostSpread = 28;
     this.ghostAlpha = 0.36;
-    this.specialGhostAlpha = 0.58;
+    this.specialGhostAlpha = 0.72;
 
     this.bullets = [];
+    this.volleys = new Map();
+    this.focusFlashes = [];
+    this.nextVolleyId = 1;
     this.shotSerial = 0;
 
     this.sprite =
@@ -263,8 +267,12 @@ export class ParallaxWeapon {
       this.specialCooldown;
 
     this.specialActiveTimer = 0;
+    this.specialVisual = 0;
     this.visualTime = 0;
     this.bullets.length = 0;
+    this.volleys.clear();
+    this.focusFlashes.length = 0;
+    this.nextVolleyId = 1;
     this.shotSerial = 0;
   }
 
@@ -294,31 +302,47 @@ export class ParallaxWeapon {
     };
   }
 
-  ghostOffsetUnits() {
-    const wave =
-      (
-        Math.sin(
-          this.visualTime *
-          Math.PI *
-          2 /
-          1.9,
-        ) +
-        1
-      ) *
-      0.5;
+  ghostOffsetUnits(
+    player,
+    pointerWorld,
+  ) {
+    const distance =
+      Math.hypot(
+        pointerWorld.x -
+          player.x,
+        pointerWorld.y -
+          player.y,
+      );
+
+    const distanceFactor =
+      clamp(
+        (
+          distance - 220
+        ) /
+        1180,
+        0,
+        1,
+      );
 
     return (
-      wave *
-      this.ghostFloatDistance
+      distanceFactor *
+        this.baseGhostFloatDistance +
+      this.specialVisual *
+        this.specialGhostSpread
     );
   }
 
   getGunPivots(
     aim,
     artPixelSize,
+    player,
+    pointerWorld,
   ) {
     const extra =
-      this.ghostOffsetUnits();
+      this.ghostOffsetUnits(
+        player,
+        pointerWorld,
+      );
 
     const localShift =
       extra *
@@ -381,8 +405,8 @@ export class ParallaxWeapon {
 
   get specialAbilities() {
     return [{
-      id: 'parallax-convergence',
-      name: 'convergence',
+      id: 'parallax-perspective-collapse',
+      name: 'perspective collapse',
       cooldown:
         this.specialCooldown,
       remaining:
@@ -407,6 +431,8 @@ export class ParallaxWeapon {
       this.getGunPivots(
         aim,
         artPixelSize,
+        player,
+        pointerWorld,
       );
 
     // The source file has no markers. These are estimated from the visible
@@ -453,28 +479,31 @@ export class ParallaxWeapon {
       },
     ];
 
-    const converging =
-      this.specialActiveTimer > 0;
+    const volleyId =
+      this.nextVolleyId++;
+
+    this.volleys.set(
+      volleyId,
+      {
+        hits: 0,
+        focusHits: 0,
+        special:
+          this.specialActiveTimer > 0,
+        life: 2.8,
+      },
+    );
 
     for (
       const muzzle
       of muzzles
     ) {
-      let shotAngle =
-        aim.angle;
-
-      if (
-        converging &&
-        muzzle.id !== 'base'
-      ) {
-        shotAngle =
-          Math.atan2(
-            pointerWorld.y -
-              muzzle.point.y,
-            pointerWorld.x -
-              muzzle.point.x,
-          );
-      }
+      const shotAngle =
+        Math.atan2(
+          pointerWorld.y -
+            muzzle.point.y,
+          pointerWorld.x -
+            muzzle.point.x,
+        );
 
       this.bullets.push({
         x:
@@ -499,6 +528,11 @@ export class ParallaxWeapon {
           this.damage,
         alpha:
           muzzle.alpha,
+        volleyId,
+        focusX:
+          pointerWorld.x,
+        focusY:
+          pointerWorld.y,
       });
     }
 
@@ -538,7 +572,54 @@ export class ParallaxWeapon {
         dt,
       );
 
+    const specialTarget =
+      this.specialActiveTimer > 0
+        ? 1
+        : 0;
+
+    const specialBlend =
+      1 -
+      Math.exp(
+        -8 * dt,
+      );
+
+    this.specialVisual +=
+      (
+        specialTarget -
+        this.specialVisual
+      ) *
+      specialBlend;
+
     this.visualTime += dt;
+
+    for (
+      const volley
+      of this.volleys.values()
+    ) {
+      volley.life -= dt;
+    }
+
+    for (
+      const [id, volley]
+      of this.volleys
+    ) {
+      if (volley.life <= 0) {
+        this.volleys.delete(id);
+      }
+    }
+
+    for (
+      const flash
+      of this.focusFlashes
+    ) {
+      flash.life -= dt;
+    }
+
+    this.focusFlashes =
+      this.focusFlashes.filter(
+        flash =>
+          flash.life > 0,
+      );
 
     if (
       active &&
@@ -601,6 +682,55 @@ export class ParallaxWeapon {
         target.takeDamage?.(
           bullet.damage,
         );
+
+        const volley =
+          this.volleys.get(
+            bullet.volleyId,
+          );
+
+        if (volley) {
+          volley.hits++;
+
+          const focusDistance =
+            Math.hypot(
+              bullet.x -
+                bullet.focusX,
+              bullet.y -
+                bullet.focusY,
+            );
+
+          if (
+            focusDistance <=
+            this.focusRadius
+          ) {
+            volley.focusHits++;
+          }
+
+          if (
+            volley.focusHits >= 3 &&
+            !volley.focusAwarded
+          ) {
+            volley.focusAwarded =
+              true;
+
+            target.takeDamage?.(
+              volley.special
+                ? this.specialFocusBonusDamage
+                : this.focusBonusDamage,
+            );
+
+            this.focusFlashes.push({
+              x:
+                bullet.focusX,
+              y:
+                bullet.focusY,
+              life: 0.18,
+              maxLife: 0.18,
+              special:
+                volley.special,
+            });
+          }
+        }
 
         bullet.life = 0;
       }
@@ -747,15 +877,20 @@ export class ParallaxWeapon {
       this.getGunPivots(
         aim,
         artPixelSize,
+        player,
+        pointerWorld,
       );
 
     const special =
-      this.specialActiveTimer > 0;
+      this.specialVisual > 0.02;
 
     const ghostAlpha =
-      special
-        ? this.specialGhostAlpha
-        : this.ghostAlpha;
+      this.ghostAlpha +
+      (
+        this.specialGhostAlpha -
+        this.ghostAlpha
+      ) *
+      this.specialVisual;
 
     const topPivot = {
       x:
@@ -780,6 +915,112 @@ export class ParallaxWeapon {
       y:
         pivots.base.y,
     };
+
+    if (
+      this.specialVisual > 0.02
+    ) {
+      ctx.save();
+
+      ctx.globalAlpha =
+        0.28 *
+        this.specialVisual;
+
+      ctx.strokeStyle =
+        '#ffffff';
+
+      ctx.lineWidth = 2;
+
+      for (
+        const pivot
+        of [
+          topPivot,
+          basePivot,
+          bottomPivot,
+        ]
+      ) {
+        ctx.beginPath();
+        ctx.moveTo(
+          pivot.x,
+          pivot.y,
+        );
+        ctx.lineTo(
+          pointerWorld.x -
+            cameraX,
+          pointerWorld.y,
+        );
+        ctx.stroke();
+      }
+
+      const radius =
+        12 +
+        7 *
+        this.specialVisual;
+
+      ctx.globalAlpha =
+        0.55 *
+        this.specialVisual;
+
+      ctx.strokeRect(
+        Math.round(
+          pointerWorld.x -
+          cameraX -
+          radius,
+        ),
+        Math.round(
+          pointerWorld.y -
+          radius,
+        ),
+        radius * 2,
+        radius * 2,
+      );
+
+      ctx.restore();
+    }
+
+    for (
+      const flash
+      of this.focusFlashes
+    ) {
+      const t =
+        clamp(
+          flash.life /
+          flash.maxLife,
+          0,
+          1,
+        );
+
+      const size =
+        (
+          flash.special
+            ? 34
+            : 24
+        ) *
+        (
+          1 +
+          (1 - t) * 0.7
+        );
+
+      ctx.save();
+      ctx.globalAlpha = t;
+      ctx.strokeStyle =
+        '#ffffff';
+      ctx.lineWidth =
+        flash.special
+          ? 6
+          : 4;
+
+      ctx.strokeRect(
+        flash.x -
+          cameraX -
+          size / 2,
+        flash.y -
+          size / 2,
+        size,
+        size,
+      );
+
+      ctx.restore();
+    }
 
     this.drawRenderer(
       this.topSprite,
