@@ -259,6 +259,8 @@ export class RelayWeapon {
 
     this.overloadDuration = 3;
     this.overloadTimer = 0;
+    this.overloadVisual = 0;
+    this.overloadFadeSpeed = 6;
     this.overloadMultiplier = 3;
 
     this.projectiles = [];
@@ -278,6 +280,7 @@ export class RelayWeapon {
       this.specialCooldown;
 
     this.overloadTimer = 0;
+    this.overloadVisual = 0;
     this.projectiles.length = 0;
     this.nodes.length = 0;
     this.links.length = 0;
@@ -769,9 +772,12 @@ export class RelayWeapon {
     }
 
     const damageMultiplier =
-      this.overloadTimer > 0
-        ? this.overloadMultiplier
-        : 1;
+      1 +
+      (
+        this.overloadMultiplier -
+        1
+      ) *
+      this.overloadVisual;
 
     for (
       const link
@@ -894,6 +900,25 @@ export class RelayWeapon {
         dt,
       );
 
+    const overloadTarget =
+      this.overloadTimer > 0
+        ? 1
+        : 0;
+
+    const overloadBlend =
+      1 -
+      Math.exp(
+        -this.overloadFadeSpeed *
+        dt,
+      );
+
+    this.overloadVisual +=
+      (
+        overloadTarget -
+        this.overloadVisual
+      ) *
+      overloadBlend;
+
     if (
       active &&
       firing &&
@@ -947,7 +972,10 @@ export class RelayWeapon {
     active = true,
   ) {
     const overloaded =
-      this.overloadTimer > 0;
+      this.overloadVisual > 0.01;
+
+    const overloadStrength =
+      this.overloadVisual;
 
     ctx.save();
 
@@ -968,25 +996,25 @@ export class RelayWeapon {
       if (!a || !b) continue;
 
       ctx.globalAlpha =
-        overloaded
-          ? 0.95
-          : 0.42;
+        0.42 +
+        0.53 *
+        overloadStrength;
 
       ctx.strokeStyle =
         '#ffffff';
 
       ctx.lineWidth =
-        overloaded
-          ? 6
-          : 3;
+        3 +
+        3 *
+        overloadStrength;
 
       ctx.shadowColor =
         '#ffffff';
 
       ctx.shadowBlur =
-        overloaded
-          ? 22
-          : 7;
+        7 +
+        15 *
+        overloadStrength;
 
       ctx.beginPath();
       ctx.moveTo(
@@ -1032,9 +1060,9 @@ export class RelayWeapon {
         '#ffffff';
 
       ctx.shadowBlur =
-        overloaded
-          ? 18
-          : 8;
+        8 +
+        10 *
+        overloadStrength;
 
       ctx.fillRect(
         Math.round(
@@ -1104,9 +1132,9 @@ export class RelayWeapon {
       artPixelSize,
       {
         glowStrength:
-          overloaded
-            ? 1.3
-            : 1,
+          1 +
+          0.3 *
+          overloadStrength,
       },
     );
   }
