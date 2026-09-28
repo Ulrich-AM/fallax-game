@@ -54,6 +54,7 @@ export class DeveloperConsole {
     input,
     prompt = '>',
     maxLines = 180,
+    accessPassword = null,
     onOpen = null,
     onClose = null,
   }) {
@@ -62,8 +63,14 @@ export class DeveloperConsole {
     this.input = input;
     this.prompt = prompt;
     this.maxLines = maxLines;
+    this.accessPassword =
+      typeof accessPassword === 'string' &&
+      accessPassword.length > 0
+        ? accessPassword
+        : null;
     this.onOpen = onOpen;
     this.onClose = onClose;
+    this.welcomed = false;
 
     this.commands = new Map();
     this.history = [];
@@ -108,10 +115,10 @@ export class DeveloperConsole {
     return this;
   }
 
-  open() {
+  async open() {
     if (this.opened) {
       this.input?.focus();
-      return;
+      return true;
     }
 
     this.opened = true;
@@ -119,12 +126,53 @@ export class DeveloperConsole {
     this.onOpen?.();
     this.input?.focus();
 
-    if (this.output?.children.length === 0) {
+    if (this.accessPassword) {
+      while (this.opened) {
+        const password =
+          await this.requestSecret(
+            'developer console password:',
+          );
+
+        if (
+          !this.opened ||
+          password == null
+        ) {
+          this.close();
+          return false;
+        }
+
+        if (
+          password ===
+          this.accessPassword
+        ) {
+          this.print(
+            'access granted.',
+            'success',
+          );
+          break;
+        }
+
+        this.print(
+          'access denied.',
+          'error',
+        );
+      }
+    }
+
+    if (!this.opened) {
+      return false;
+    }
+
+    if (!this.welcomed) {
       this.print(
         'developer console ready. type "help" for commands.',
         'muted',
       );
+
+      this.welcomed = true;
     }
+
+    return true;
   }
 
   close() {

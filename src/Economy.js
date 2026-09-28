@@ -43,6 +43,19 @@ export class Economy {
     }
   }
 
+  setDenarius(amount) {
+    this.denarius =
+      clampAmount(amount);
+
+    this.save();
+
+    return this.denarius;
+  }
+
+  resetDenarius() {
+    return this.setDenarius(0);
+  }
+
   addDenarius(amount) {
     const gain =
       clampAmount(amount);

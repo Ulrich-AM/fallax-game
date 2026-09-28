@@ -5,9 +5,12 @@ export const EQUIPMENT_CATEGORIES = [
   { id: 'armor', label: 'Armor', slotCount: 2, slotLabel: 'Armor' },
 ];
 
+const EQUIPMENT_STORAGE_KEY = 'fallax.equipment.v1';
+
 export const ITEM_LIBRARY = {
   vector: {
     id: 'vector',
+    price: 0,
     name: 'Vector',
     category: 'weapons',
     description: 'A compact burst-fire weapon.',
@@ -15,6 +18,7 @@ export const ITEM_LIBRARY = {
   },
   euclid: {
     id: 'euclid',
+    price: 160,
     name: 'Euclid',
     category: 'weapons',
     description: 'A sustained precision energy weapon.',
@@ -22,6 +26,7 @@ export const ITEM_LIBRARY = {
   },
   horizon: {
     id: 'horizon',
+    price: 280,
     name: 'Horizon',
     category: 'weapons',
     description: 'A charged precision weapon with powerful recoil.',
@@ -29,6 +34,7 @@ export const ITEM_LIBRARY = {
   },
   mach: {
     id: 'mach',
+    price: 220,
     name: 'Mach',
     category: 'weapons',
     description: 'A pressure-wave weapon with strong sustained recoil.',
@@ -36,6 +42,7 @@ export const ITEM_LIBRARY = {
   },
   backfire: {
     id: 'backfire',
+    price: 120,
     name: 'Backfire',
     category: 'abilities',
     description: 'Dash propulsion that sprays a rear-facing bullet fan.',
@@ -43,6 +50,7 @@ export const ITEM_LIBRARY = {
   },
   strike: {
     id: 'strike',
+    price: 180,
     name: 'Strike',
     category: 'abilities',
     description: 'A dash through an enemy becomes a powerful melee strike.',
@@ -50,6 +58,7 @@ export const ITEM_LIBRARY = {
   },
   turret: {
     id: 'turret',
+    price: 150,
     name: 'Turret',
     category: 'extra',
     description: 'Deploys a spinning square that fires a two-sided spiral until destroyed or expired.',
@@ -57,6 +66,7 @@ export const ITEM_LIBRARY = {
   },
   decoy: {
     id: 'decoy',
+    price: 130,
     name: 'Decoy',
     category: 'extra',
     description: 'Deploys a temporary clone that bosses prioritize for 10 seconds.',
@@ -66,17 +76,143 @@ export const ITEM_LIBRARY = {
 
 export const ownedItems = [
   'vector',
-  'euclid',
-  'turret',
-  'decoy',
 ];
 
 export const loadout = {
-  weapons: ['vector', 'euclid'],
+  weapons: ['vector', null],
   abilities: [null, null, null],
-  extra: ['turret', 'decoy'],
+  extra: [null, null],
   armor: [null, null],
 };
+
+function saveEquipmentState() {
+  try {
+    localStorage.setItem(
+      EQUIPMENT_STORAGE_KEY,
+      JSON.stringify({
+        ownedItems,
+        loadout,
+      }),
+    );
+  } catch {
+    // Equipment still works for the current session.
+  }
+}
+
+function restoreEquipmentState() {
+  try {
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          EQUIPMENT_STORAGE_KEY,
+        ) ?? 'null',
+      );
+
+    if (
+      !saved ||
+      typeof saved !== 'object'
+    ) {
+      return;
+    }
+
+    const restoredOwned =
+      Array.isArray(
+        saved.ownedItems,
+      )
+        ? saved.ownedItems
+            .filter(
+              id =>
+                typeof id === 'string' &&
+                ITEM_LIBRARY[id],
+            )
+        : [];
+
+    if (
+      !restoredOwned.includes(
+        'vector',
+      )
+    ) {
+      restoredOwned.unshift(
+        'vector',
+      );
+    }
+
+    ownedItems.splice(
+      0,
+      ownedItems.length,
+      ...new Set(restoredOwned),
+    );
+
+    for (
+      const category
+      of EQUIPMENT_CATEGORIES
+    ) {
+      const savedSlots =
+        Array.isArray(
+          saved.loadout?.[
+            category.id
+          ],
+        )
+          ? saved.loadout[
+              category.id
+            ]
+          : [];
+
+      const restoredSlots =
+        Array.from(
+          {
+            length:
+              category.slotCount,
+          },
+          (_, index) => {
+            const itemId =
+              savedSlots[index];
+
+            const item =
+              ITEM_LIBRARY[
+                itemId
+              ];
+
+            if (
+              !item ||
+              item.category !==
+                category.id ||
+              !ownedItems.includes(
+                itemId,
+              )
+            ) {
+              return null;
+            }
+
+            return itemId;
+          },
+        );
+
+      loadout[
+        category.id
+      ].splice(
+        0,
+        loadout[
+          category.id
+        ].length,
+        ...restoredSlots,
+      );
+    }
+
+    if (
+      !loadout.weapons.some(
+        Boolean,
+      )
+    ) {
+      loadout.weapons[0] =
+        'vector';
+    }
+  } catch {
+    // Keep the fresh Vector-only defaults if saved equipment is malformed.
+  }
+}
+
+restoreEquipmentState();
 
 export function getCategory(id) {
   return EQUIPMENT_CATEGORIES.find(category => category.id === id) ?? null;
@@ -105,6 +241,7 @@ export function equipItem(itemId, categoryId, slotIndex) {
   if (existing) loadout[existing.category][existing.index] = null;
 
   loadout[categoryId][slotIndex] = itemId;
+  saveEquipmentState();
   return true;
 }
 
@@ -113,6 +250,7 @@ export function unequipSlot(categoryId, slotIndex) {
   if (!category) return false;
   if (slotIndex < 0 || slotIndex >= category.slotCount) return false;
   loadout[categoryId][slotIndex] = null;
+  saveEquipmentState();
   return true;
 }
 
@@ -131,9 +269,19 @@ export function getExtraSlotId(index) {
 
 export const SHOP_CATALOG = Object.keys(ITEM_LIBRARY);
 
-export function purchaseItem(itemId) {
-  if (!ITEM_LIBRARY[itemId]) return false;
-  if (ownedItems.includes(itemId)) return true;
-  ownedItems.push(itemId);
+export function grantItem(itemId) {
+  if (!ITEM_LIBRARY[itemId]) {
+    return false;
+  }
+
+  if (!ownedItems.includes(itemId)) {
+    ownedItems.push(itemId);
+    saveEquipmentState();
+  }
+
   return true;
+}
+
+export function purchaseItem(itemId) {
+  return grantItem(itemId);
 }
