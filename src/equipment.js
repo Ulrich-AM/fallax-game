@@ -8,6 +8,7 @@ export const EQUIPMENT_CATEGORIES = [
 export const ITEM_LIBRARY = {
   vector: {
     id: 'vector',
+    price: 0,
     name: 'Vector',
     category: 'weapons',
     description: 'A compact burst-fire weapon.',
@@ -15,6 +16,7 @@ export const ITEM_LIBRARY = {
   },
   euclid: {
     id: 'euclid',
+    price: 160,
     name: 'Euclid',
     category: 'weapons',
     description: 'A sustained precision energy weapon.',
@@ -22,6 +24,7 @@ export const ITEM_LIBRARY = {
   },
   horizon: {
     id: 'horizon',
+    price: 280,
     name: 'Horizon',
     category: 'weapons',
     description: 'A charged precision weapon with powerful recoil.',
@@ -29,6 +32,7 @@ export const ITEM_LIBRARY = {
   },
   mach: {
     id: 'mach',
+    price: 220,
     name: 'Mach',
     category: 'weapons',
     description: 'A pressure-wave weapon with strong sustained recoil.',
@@ -36,6 +40,7 @@ export const ITEM_LIBRARY = {
   },
   backfire: {
     id: 'backfire',
+    price: 120,
     name: 'Backfire',
     category: 'abilities',
     description: 'Dash propulsion that sprays a rear-facing bullet fan.',
@@ -43,6 +48,7 @@ export const ITEM_LIBRARY = {
   },
   strike: {
     id: 'strike',
+    price: 180,
     name: 'Strike',
     category: 'abilities',
     description: 'A dash through an enemy becomes a powerful melee strike.',
@@ -50,6 +56,7 @@ export const ITEM_LIBRARY = {
   },
   turret: {
     id: 'turret',
+    price: 150,
     name: 'Turret',
     category: 'extra',
     description: 'Deploys a spinning square that fires a two-sided spiral until destroyed or expired.',
@@ -57,6 +64,7 @@ export const ITEM_LIBRARY = {
   },
   decoy: {
     id: 'decoy',
+    price: 130,
     name: 'Decoy',
     category: 'extra',
     description: 'Deploys a temporary clone that bosses prioritize for 10 seconds.',
@@ -66,15 +74,12 @@ export const ITEM_LIBRARY = {
 
 export const ownedItems = [
   'vector',
-  'euclid',
-  'turret',
-  'decoy',
 ];
 
 export const loadout = {
-  weapons: ['vector', 'euclid'],
+  weapons: ['vector', null],
   abilities: [null, null, null],
-  extra: ['turret', 'decoy'],
+  extra: [null, null],
   armor: [null, null],
 };
 
@@ -131,9 +136,18 @@ export function getExtraSlotId(index) {
 
 export const SHOP_CATALOG = Object.keys(ITEM_LIBRARY);
 
-export function purchaseItem(itemId) {
-  if (!ITEM_LIBRARY[itemId]) return false;
-  if (ownedItems.includes(itemId)) return true;
-  ownedItems.push(itemId);
+export function grantItem(itemId) {
+  if (!ITEM_LIBRARY[itemId]) {
+    return false;
+  }
+
+  if (!ownedItems.includes(itemId)) {
+    ownedItems.push(itemId);
+  }
+
   return true;
+}
+
+export function purchaseItem(itemId) {
+  return grantItem(itemId);
 }
