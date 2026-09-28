@@ -26,7 +26,7 @@ import { MachWeapon } from './MachWeapon.js?v=54c';
 import { RelayWeapon } from './RelayWeapon.js?v=60';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=60b';
-import { KeplerWeapon } from './KeplerWeapon.js?v=60';
+import { KeplerWeapon } from './KeplerWeapon.js?v=62a';
 import { BackfireAbility } from './BackfireAbility.js?v=60c';
 import { GuardSystem } from './GuardSystem.js?v=62';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
@@ -56,7 +56,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v62';
+const BUILD_VERSION = 'v62a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
