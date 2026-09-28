@@ -28,16 +28,18 @@ import { ParallaxWeapon } from './ParallaxWeapon.js?v=60a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=60b';
 import { KeplerWeapon } from './KeplerWeapon.js?v=60';
 import { BackfireAbility } from './BackfireAbility.js?v=60c';
-import { GuardSystem } from './GuardSystem.js?v=61';
+import { GuardSystem } from './GuardSystem.js?v=62';
+import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
+import { WeaponRuntime } from './WeaponRuntime.js?v=62';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
 } from './ExtraSystem.js?v=57';
 import { Economy } from './Economy.js?v=58';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=61';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=61';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=55bc';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=62';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=62';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=62';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=55';
@@ -54,7 +56,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v61';
+const BUILD_VERSION = 'v62';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -270,6 +272,21 @@ const keplerWeapon = new KeplerWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
 const guardSystem = new GuardSystem();
+const bossStaggerSystem =
+  new BossStaggerSystem();
+
+const weaponRuntime =
+  new WeaponRuntime({
+    vector: vectorWeapon,
+    euclid: euclidWeapon,
+    horizon: horizonWeapon,
+    mach: machWeapon,
+    relay: relayWeapon,
+    parallax: parallaxWeapon,
+    anchor: anchorWeapon,
+    kepler: keplerWeapon,
+  });
+
 const extraSystem = new ExtraSystem();
 const economy = new Economy();
 renderDenariusBalance();
@@ -1489,15 +1506,7 @@ function getActiveWeaponId() {
 }
 
 function getWeaponInstance(id) {
-  if (id === 'vector') return vectorWeapon;
-  if (id === 'euclid') return euclidWeapon;
-  if (id === 'horizon') return horizonWeapon;
-  if (id === 'mach') return machWeapon;
-  if (id === 'relay') return relayWeapon;
-  if (id === 'parallax') return parallaxWeapon;
-  if (id === 'anchor') return anchorWeapon;
-  if (id === 'kepler') return keplerWeapon;
-  return null;
+  return weaponRuntime.get(id);
 }
 
 function getActiveWeaponInstance() {
@@ -1512,34 +1521,19 @@ function playRepeated(count, callback) {
   for (let i = 0; i < count; i++) callback();
 }
 
-function syncWeaponAudio(activeWeaponId = getActiveWeaponId()) {
-  if (currentScreen !== 'game' || encounterOver) {
-    audio.stopWeaponLoops();
-    return;
-  }
-
-  const euclidSpecial =
-    activeWeaponId === 'euclid' &&
-    euclidWeapon.specialActiveTimer > 0;
-
-  audio.setLoop(
-    'euclidSpecial',
-    euclidSpecial,
-  );
-
-  audio.setLoop(
-    'euclidShoot',
-    activeWeaponId === 'euclid' &&
-      euclidWeapon.firing &&
-      !euclidSpecial,
-  );
-
-  audio.setLoop(
-    'machShoot',
-    activeWeaponId === 'mach' &&
-      pointer.firing &&
-      machWeapon.specialActiveTimer <= 0,
-  );
+function syncWeaponAudio(
+  activeWeaponId =
+    getActiveWeaponId(),
+) {
+  weaponRuntime.syncLoopAudio({
+    activeId:
+      activeWeaponId,
+    currentScreen,
+    encounterOver,
+    firing:
+      pointer.firing,
+    audio,
+  });
 }
 
 function refreshWeaponButtons() {
@@ -2204,16 +2198,12 @@ function update(dt) {
   if (pressed.has(controlBindings.restart)) {
     encounterElapsed = 0;
     player.reset();
-    vectorWeapon.reset();
-    euclidWeapon.reset();
-    horizonWeapon.reset();
-    machWeapon.reset();
-    relayWeapon.reset();
-    parallaxWeapon.reset();
-    anchorWeapon.reset();
-    keplerWeapon.reset();
+    weaponRuntime.resetAll();
     backfireAbility.reset(player);
     guardSystem.reset(player);
+    bossStaggerSystem.reset(
+      activeBoss,
+    );
     extraSystem.reset();
     refreshExtraButtons();
     activeBoss?.reset?.(world);
@@ -2221,6 +2211,8 @@ function update(dt) {
 
   const activeWeaponId = getActiveWeaponId();
   const activeWeapon = getActiveWeaponInstance();
+  const pointerWorld =
+    getPointerWorld();
 
   const dashSerialBefore = player.dashSerial;
   const groundedBefore = player.grounded;
@@ -2228,17 +2220,23 @@ function update(dt) {
   const playerHealthBefore = player.health;
   const bossHealthBefore = activeBoss?.health ?? 0;
 
-  const vectorShotsBefore = vectorWeapon.shotSerial;
-  const horizonShotsBefore = horizonWeapon.shotSerial;
-  const relayShotsBefore = relayWeapon.shotSerial;
-  const parallaxShotsBefore = parallaxWeapon.shotSerial;
-  const anchorShotsBefore = anchorWeapon.shotSerial;
-  const keplerShotsBefore = keplerWeapon.shotSerial;
-  const backfireShotsBefore = backfireAbility.shotSerial;
-  const machSpecialWavesBefore = machWeapon.specialWavesFired;
-  const bossShotsBefore = activeBoss?.shotSerial ?? 0;
+  const weaponShotsBefore =
+    weaponRuntime.captureShotSerials();
+
+  const backfireShotsBefore =
+    backfireAbility.shotSerial;
+
+  const machSpecialWavesBefore =
+    machWeapon.specialWavesFired;
+
+  const bossShotsBefore =
+    activeBoss?.shotSerial ?? 0;
+
   const parriesBefore =
-    guardSystem.reflectedProjectiles;
+    guardSystem.parrySerial;
+
+  const breakSerialBefore =
+    bossStaggerSystem.breakSerial;
 
   const backfireEquipped = isAbilityEquipped('backfire');
   const strikeEquipped = isAbilityEquipped('strike');
@@ -2246,15 +2244,16 @@ function update(dt) {
 
   const playerInput = {
     ...readInput(),
-    dashTarget: getPointerWorld(),
+    dashTarget: pointerWorld,
     dashCooldownMultiplier: backfireEquipped
       ? backfireAbility.dashCooldownMultiplier
       : 1,
   };
 
   const weaponLocksPlayer =
-    !!activeWeapon?.locksPlayer ||
-    !!machWeapon.locksPlayer;
+    weaponRuntime.locksPlayer(
+      activeWeaponId,
+    );
   const lockedPlayerX = player.x;
   const lockedPlayerY = player.y;
 
@@ -2275,8 +2274,7 @@ function update(dt) {
     dt,
     {
       player,
-      pointerWorld:
-        getPointerWorld(),
+      pointerWorld,
       guardHeld:
         pointer.guarding,
       guardPressed:
@@ -2368,6 +2366,11 @@ function update(dt) {
     ) *
     lookFollow;
 
+  bossStaggerSystem.update(
+    dt,
+    activeBoss,
+  );
+
   extraSystem.update(
     dt,
     world,
@@ -2430,6 +2433,11 @@ function update(dt) {
       '#ffffff',
     );
 
+    bossStaggerSystem.addStagger(
+      24,
+      'strike',
+    );
+
     if (fxSettings.impactCamera) {
       triggerCameraShake(
         6.5,
@@ -2438,7 +2446,10 @@ function update(dt) {
     }
   }
 
-  activeBoss?.update?.(dt, {
+  if (
+    !bossStaggerSystem.isBroken
+  ) {
+    activeBoss?.update?.(dt, {
     player: bossTarget,
     realPlayer: player,
     damageTargets:
@@ -2447,24 +2458,68 @@ function update(dt) {
     cameraX: 0,
     viewportWidth: world.width,
     shakeCamera: triggerCameraShake,
-  });
+    });
+  }
 
   if (
-    guardSystem.reflectedProjectiles >
+    guardSystem.parrySerial >
     parriesBefore
   ) {
+    const parry =
+      guardSystem.lastParry;
+
+    bossStaggerSystem.addStagger(
+      parry?.type === 'rush'
+        ? 45
+        : 28,
+      parry?.type === 'rush'
+        ? 'rush-parry'
+        : 'projectile-parry',
+    );
+
     spawnSparkBurst(
       player.x,
       player.y,
-      14,
-      320,
+      parry?.type === 'rush'
+        ? 20
+        : 14,
+      parry?.type === 'rush'
+        ? 390
+        : 320,
       '#ffffff',
     );
 
     if (fxSettings.impactCamera) {
       triggerCameraShake(
-        5.5,
-        0.09,
+        parry?.type === 'rush'
+          ? 8
+          : 5.5,
+        parry?.type === 'rush'
+          ? 0.13
+          : 0.09,
+      );
+    }
+  }
+
+  if (
+    bossStaggerSystem.breakSerial >
+    breakSerialBefore &&
+    activeBoss
+  ) {
+    spawnSparkBurst(
+      activeBoss.x,
+      activeBoss.y,
+      26,
+      420,
+      '#ffffff',
+    );
+
+    activeBoss.hurtFlash = 1;
+
+    if (fxSettings.impactCamera) {
+      triggerCameraShake(
+        10,
+        0.18,
       );
     }
   }
@@ -2474,124 +2529,28 @@ function update(dt) {
   if (pressed.has(controlBindings.special)) {
     activeWeapon?.triggerSpecial?.({
       player,
-      pointerWorld: getPointerWorld(),
+      pointerWorld,
     });
   }
 
-  // Vector projectiles keep moving after switching weapons, but it only begins
-  // new bursts while its slot is active.
-  vectorWeapon.update(
+  weaponRuntime.updateAll({
     dt,
     player,
-    getPointerWorld(),
-    activeWeaponId === 'vector' && pointer.firing,
+    pointerWorld,
+    firing:
+      pointer.firing,
     world,
-    activeWeaponId === 'vector',
-  );
-  vectorWeapon.applyHitsToTarget(activeBoss, ART_PIXEL);
+    target:
+      activeBoss,
+    artPixel:
+      ART_PIXEL,
+    activeId:
+      activeWeaponId,
+  });
 
-  // Euclid has no ammo, heat, or charge depletion. Holding fire simply keeps
-  // the low-damage beam active for as long as this weapon is selected.
-  euclidWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'euclid' && pointer.firing,
-    activeBoss,
-    ART_PIXEL,
-    activeWeaponId === 'euclid',
-  );
-
-  horizonWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'horizon' && pointer.firing,
-    activeBoss,
-    ART_PIXEL,
-    activeWeaponId === 'horizon',
-  );
-
-  machWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'mach' && pointer.firing,
-    activeBoss,
-    activeWeaponId === 'mach',
-  );
-
-  relayWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'relay' && pointer.firing,
-    world,
-    activeBoss,
-    ART_PIXEL,
-    activeWeaponId === 'relay',
-  );
-
-  parallaxWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'parallax' && pointer.firing,
-    world,
-    activeBoss,
-    ART_PIXEL,
-    activeWeaponId === 'parallax',
-  );
-
-  anchorWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'anchor' && pointer.firing,
-    world,
-    activeBoss,
-    ART_PIXEL,
-    activeWeaponId === 'anchor',
-  );
-
-  keplerWeapon.update(
-    dt,
-    player,
-    getPointerWorld(),
-    activeWeaponId === 'kepler' && pointer.firing,
-    world,
-    activeBoss,
-    activeWeaponId === 'kepler',
-  );
-
-  playRepeated(
-    Math.max(0, vectorWeapon.shotSerial - vectorShotsBefore),
-    () => audio.playShot('vector'),
-  );
-
-  playRepeated(
-    Math.max(0, horizonWeapon.shotSerial - horizonShotsBefore),
-    () => audio.playShot('horizon'),
-  );
-
-  playRepeated(
-    Math.max(0, relayWeapon.shotSerial - relayShotsBefore),
-    () => audio.playShot('default'),
-  );
-
-  playRepeated(
-    Math.max(0, parallaxWeapon.shotSerial - parallaxShotsBefore),
-    () => audio.playShot('default'),
-  );
-
-  playRepeated(
-    Math.max(0, anchorWeapon.shotSerial - anchorShotsBefore),
-    () => audio.playShot('default'),
-  );
-
-  playRepeated(
-    Math.max(0, keplerWeapon.shotSerial - keplerShotsBefore),
-    () => audio.playShot('default'),
+  weaponRuntime.playShotAudio(
+    weaponShotsBefore,
+    audio,
   );
 
   playRepeated(
@@ -3151,78 +3110,22 @@ function renderGame() {
     0,
   );
 
-  const activeWeaponId = getActiveWeaponId();
+  const activeWeaponId =
+    getActiveWeaponId();
 
-  if (activeWeaponId === 'vector') {
-    vectorWeapon.draw(ctx, player, getPointerWorld(), 0, ART_PIXEL);
-  } else {
-    // Existing Vector rounds remain visible after changing weapons.
-    vectorWeapon.drawBullets(ctx, 0, ART_PIXEL);
-  }
+  const pointerWorld =
+    getPointerWorld();
 
-  if (activeWeaponId === 'euclid') {
-    euclidWeapon.draw(ctx, player, getPointerWorld(), 0, ART_PIXEL);
-  }
-
-  if (activeWeaponId === 'horizon') {
-    horizonWeapon.draw(
-      ctx,
-      player,
-      getPointerWorld(),
-      0,
+  weaponRuntime.drawAll({
+    ctx,
+    player,
+    pointerWorld,
+    cameraX: 0,
+    artPixel:
       ART_PIXEL,
-    );
-  } else {
-    horizonWeapon.drawSpecialProjectiles(ctx, 0);
-  }
-
-  if (activeWeaponId === 'mach') {
-    machWeapon.draw(
-      ctx,
-      player,
-      getPointerWorld(),
-      0,
-      ART_PIXEL,
-    );
-  } else {
-    machWeapon.drawWaves(ctx, 0);
-  }
-
-  relayWeapon.draw(
-    ctx,
-    player,
-    getPointerWorld(),
-    0,
-    ART_PIXEL,
-    activeWeaponId === 'relay',
-  );
-
-  parallaxWeapon.draw(
-    ctx,
-    player,
-    getPointerWorld(),
-    0,
-    ART_PIXEL,
-    activeWeaponId === 'parallax',
-  );
-
-  anchorWeapon.draw(
-    ctx,
-    player,
-    getPointerWorld(),
-    0,
-    ART_PIXEL,
-    activeWeaponId === 'anchor',
-  );
-
-  keplerWeapon.draw(
-    ctx,
-    player,
-    getPointerWorld(),
-    0,
-    ART_PIXEL,
-    activeWeaponId === 'kepler',
-  );
+    activeId:
+      activeWeaponId,
+  });
 
   backfireAbility.draw(ctx, 0);
 
@@ -3238,14 +3141,7 @@ function prepareEncounter(boss) {
   setDeathMenuVisible(false, 'defeated');
 
   player.reset();
-  vectorWeapon.reset();
-  euclidWeapon.reset();
-  horizonWeapon.reset();
-  machWeapon.reset();
-  relayWeapon.reset();
-  parallaxWeapon.reset();
-  anchorWeapon.reset();
-  keplerWeapon.reset();
+  weaponRuntime.resetAll();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
   guardSystem.reset(player);
@@ -3259,6 +3155,9 @@ function prepareEncounter(boss) {
 
   boss.reset(world);
   activeBoss = boss;
+  bossStaggerSystem.reset(
+    boss,
+  );
 
   camera.x = 0;
   camera.targetX = 0;
@@ -3343,71 +3242,12 @@ function getItemPreviewEntry(
   angleRadians = 0,
   centered = false,
 ) {
-  if (itemId === 'vector') {
-    return vectorWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'euclid') {
-    return euclidWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'horizon') {
-    return horizonWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'mach') {
-    return machWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'relay') {
-    return relayWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'parallax') {
-    return parallaxWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'anchor') {
-    return anchorWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  if (itemId === 'kepler') {
-    return keplerWeapon
-      .getSpriteEntry(
-        angleRadians,
-        centered,
-      );
-  }
-
-  return null;
+  return weaponRuntime
+    .getPreviewEntry(
+      itemId,
+      angleRadians,
+      centered,
+    );
 }
 
 function getPreviewRadiusUnits(itemId) {
@@ -4125,6 +3965,8 @@ window.BOSSFIGHTS = {
   anchorWeapon,
   keplerWeapon,
   guardSystem,
+  bossStaggerSystem,
+  weaponRuntime,
   backfireAbility,
   strikeAbility,
   extraSystem,
