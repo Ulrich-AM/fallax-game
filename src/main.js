@@ -17,7 +17,8 @@ import {
   SHOP_CATALOG,
   purchaseItem,
   grantItem,
-} from './equipment.js?v=59';
+  resetEquipmentState,
+} from './equipment.js?v=59b';
 import { VectorWeapon } from './VectorWeapon.js?v=54c';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
@@ -50,7 +51,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v59a';
+const BUILD_VERSION = 'v59b';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -72,6 +73,7 @@ const keybindButtons = [
 ];
 const keybindStatus = document.querySelector('#keybind-status');
 const resetKeybindsButton = document.querySelector('#reset-keybinds');
+const resetGameDataButton = document.querySelector('#reset-game-data');
 const devConsoleRoot = document.querySelector('#dev-console');
 const devConsoleOutput = document.querySelector('#dev-console-output');
 const devConsoleInput = document.querySelector('#dev-console-input');
@@ -448,6 +450,22 @@ function developerItemReference(item) {
   return `${singular[item.category] ?? item.category}.${item.id}`;
 }
 
+function resetGameProgress() {
+  economy.resetDenarius();
+  resetEquipmentState();
+
+  activeWeaponSlot = 0;
+  extraSystem.reset();
+
+  renderDenariusBalance();
+  renderEquipment();
+  renderShop();
+  refreshWeaponButtons();
+  refreshExtraButtons();
+
+  return true;
+}
+
 function registerDeveloperCommands() {
   devConsole.register('help', {
     description:
@@ -635,6 +653,18 @@ function registerDeveloperCommands() {
       renderShop();
 
       return 'denarius balance reset to 0.';
+    },
+  });
+
+  devConsole.register('reset.game', {
+    description:
+      'reset denarii, owned items, and loadout to a fresh save',
+    usage:
+      'reset.game',
+    execute: () => {
+      resetGameProgress();
+
+      return 'game progression reset. Vector is the only owned item and denarii is 0.';
     },
   });
 
@@ -1138,6 +1168,26 @@ resetKeybindsButton?.addEventListener(
     renderKeybinds();
     refreshWeaponButtons();
     refreshExtraButtons();
+  },
+);
+
+resetGameDataButton?.addEventListener(
+  'click',
+  () => {
+    const confirmed =
+      window.confirm(
+        'Reset all denarii, purchased items, and equipped items? This cannot be undone.',
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    resetGameProgress();
+
+    window.alert(
+      'Game progression reset. Vector is the only owned item and denarii is 0.',
+    );
   },
 );
 
