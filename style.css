@@ -12,6 +12,8 @@
 html,
 body {
   margin: 0;
+  user-select: none;
+  -webkit-user-select: none;
   width: 100%;
   min-height: 100%;
   background: #090a0d;
@@ -1491,4 +1493,13 @@ canvas {
 
 #sprite-preview-true-size:checked + span {
   color: #ffffff;
+}
+
+
+/* Keep editable fields selectable even though the game UI is not. */
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
 }
