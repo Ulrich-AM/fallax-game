@@ -29,6 +29,7 @@ export class KeplerWeapon {
     this.specialCooldownTimer=this.specialCooldown;
 
     this.visualTime=0;
+    this.orbitPhase=0;
     this.orbiters=[];
     this.bullets=[];
     this.nextOrbiterId=1;
@@ -41,6 +42,7 @@ export class KeplerWeapon {
     this.fireTimer=0;
     this.specialCooldownTimer=this.specialCooldown;
     this.visualTime=0;
+    this.orbitPhase=0;
     this.orbiters.length=0;
     this.bullets.length=0;
     this.nextOrbiterId=1;
@@ -56,34 +58,94 @@ export class KeplerWeapon {
     };
   }
 
-  addOrbiter(){
-    const index=this.orbiters.length;
-    this.orbiters.push({
-      id:this.nextOrbiterId++,
-      angle:
-        this.visualTime*this.orbiterAngularSpeed+
-        index*(Math.PI*2/Math.max(1,this.maxOrbiters)),
-      age:0,
-    });
-    this.shotSerial++;
+  findFreeOrbitSlot(){
+    const occupied=
+      new Set(
+        this.orbiters.map(
+          orbiter=>orbiter.slot,
+        ),
+      );
+
+    for(
+      let slot=0;
+      slot<this.maxOrbiters;
+      slot++
+    ){
+      if(!occupied.has(slot)){
+        return slot;
+      }
+    }
+
+    return null;
   }
 
-  orbiterPosition(player,orbiter,index){
+  addOrbiter(){
+    const slot=
+      this.findFreeOrbitSlot();
+
+    if(slot===null){
+      return false;
+    }
+
+    this.orbiters.push({
+      id:this.nextOrbiterId++,
+      slot,
+      age:0,
+    });
+
+    this.shotSerial++;
+    return true;
+  }
+
+  orbiterPosition(player,orbiter){
+    const slot=
+      orbiter.slot??0;
+
+    const angle=
+      this.orbitPhase+
+      slot*(
+        Math.PI*2/
+        Math.max(
+          1,
+          this.maxOrbiters,
+        )
+      );
+
     const radius=
       this.orbiterRadius+
-      (index%2)*this.orbiterRadiusStep;
+      (slot%2)*
+      this.orbiterRadiusStep;
 
     return {
-      x:player.x+Math.cos(orbiter.angle)*radius,
-      y:player.y+Math.sin(orbiter.angle)*radius,
+      x:
+        player.x+
+        Math.cos(angle)*
+        radius,
+      y:
+        player.y+
+        Math.sin(angle)*
+        radius,
     };
   }
 
   releaseOrbiter(player,pointerWorld,index=0,special=false){
     if(this.orbiters.length===0)return false;
 
-    const orbiter=this.orbiters.splice(index,1)[0];
-    const pos=this.orbiterPosition(player,orbiter,index);
+    const orbiter=
+      this.orbiters[index];
+
+    if(!orbiter)return false;
+
+    const pos=
+      this.orbiterPosition(
+        player,
+        orbiter,
+      );
+
+    this.orbiters.splice(
+      index,
+      1,
+    );
     const angle=Math.atan2(pointerWorld.y-pos.y,pointerWorld.x-pos.x);
 
     this.bullets.push({
@@ -131,10 +193,16 @@ export class KeplerWeapon {
     this.fireTimer=Math.max(0,this.fireTimer-dt);
     if(active)this.specialCooldownTimer=Math.max(0,this.specialCooldownTimer-dt);
     this.visualTime+=dt;
+    this.orbitPhase=
+      (
+        this.orbitPhase+
+        this.orbiterAngularSpeed*
+        dt
+      )%
+      (Math.PI*2);
 
     for(const orbiter of this.orbiters){
       orbiter.age+=dt;
-      orbiter.angle+=this.orbiterAngularSpeed*dt;
     }
 
     if(active&&firing&&this.fireTimer<=0){
@@ -188,8 +256,19 @@ export class KeplerWeapon {
 
     for(let i=0;i<this.orbiters.length;i++){
       const orbiter=this.orbiters[i];
-      const pos=this.orbiterPosition(player,orbiter,i);
-      const pulse=.82+.18*Math.sin(orbiter.age*7+i);
+      const pos=
+        this.orbiterPosition(
+          player,
+          orbiter,
+        );
+
+      const pulse=
+        .82+
+        .18*
+        Math.sin(
+          orbiter.age*7+
+          orbiter.slot,
+        );
 
       ctx.globalAlpha=.8*pulse;
       ctx.fillStyle='#f1f2f4';
