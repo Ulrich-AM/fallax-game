@@ -43,7 +43,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v55bc';
+const BUILD_VERSION = 'v56';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -173,6 +173,18 @@ const W = canvas.width;
 const H = canvas.height;
 const ART_PIXEL = 4;
 
+// v56 full-arena camera. Gameplay remains in world coordinates while the
+// complete arena is rendered at half scale for a fixed boss-rush view.
+const WORLD_VIEW_SCALE = 0.5;
+const WORLD_VIEW_WIDTH = 2560;
+const WORLD_VIEW_OFFSET_X = 0;
+const WORLD_VIEW_OFFSET_Y =
+  H - H * WORLD_VIEW_SCALE;
+
+const CAMERA_LOOK_X = 70;
+const CAMERA_LOOK_Y = 34;
+const CAMERA_LOOK_RESPONSE = 3.4;
+
 const COLORS = {
   bg: '#0b0c10',
   gridMinor: '#12151b',
@@ -191,7 +203,7 @@ const COLORS = {
 };
 
 const world = {
-  width: 2700,
+  width: WORLD_VIEW_WIDTH,
   floorY: 650,
   platforms: [
     { x: 340, y: 550, w: 250, h: 20 },
@@ -234,6 +246,10 @@ let activeBoss = null;
 const camera = {
   x: 0,
   targetX: 0,
+  lookX: 0,
+  lookY: 0,
+  targetLookX: 0,
+  targetLookY: 0,
   shakeTime: 0,
   shakeDuration: 0,
   shakeIntensity: 0,
@@ -1711,8 +1727,20 @@ function getCameraShakeOffset() {
 
 function getPointerWorld() {
   return {
-    x: pointer.screenX + camera.x,
-    y: pointer.screenY,
+    x:
+      (
+        pointer.screenX -
+        WORLD_VIEW_OFFSET_X
+      ) /
+      WORLD_VIEW_SCALE +
+      camera.lookX,
+    y:
+      (
+        pointer.screenY -
+        WORLD_VIEW_OFFSET_Y
+      ) /
+      WORLD_VIEW_SCALE +
+      camera.lookY,
   };
 }
 
@@ -1839,11 +1867,57 @@ function update(dt) {
     player.vy = 0;
   }
 
-  camera.targetX = player.x - W * 0.38;
-  camera.targetX = Math.max(0, Math.min(world.width - W, camera.targetX));
+  camera.x = 0;
+  camera.targetX = 0;
 
-  const follow = 1 - Math.exp(-9 * dt);
-  camera.x += (camera.targetX - camera.x) * follow;
+  const horizontalIntent =
+    Math.max(
+      -1,
+      Math.min(
+        1,
+        player.vx /
+        MOVEMENT.sprintSpeed,
+      ),
+    );
+
+  const verticalIntent =
+    Math.max(
+      -1,
+      Math.min(
+        1,
+        player.vy /
+        MOVEMENT.maxFallSpeed,
+      ),
+    );
+
+  camera.targetLookX =
+    horizontalIntent *
+    CAMERA_LOOK_X;
+
+  camera.targetLookY =
+    verticalIntent *
+    CAMERA_LOOK_Y;
+
+  const lookFollow =
+    1 -
+    Math.exp(
+      -CAMERA_LOOK_RESPONSE *
+      dt,
+    );
+
+  camera.lookX +=
+    (
+      camera.targetLookX -
+      camera.lookX
+    ) *
+    lookFollow;
+
+  camera.lookY +=
+    (
+      camera.targetLookY -
+      camera.lookY
+    ) *
+    lookFollow;
 
   backfireAbility.update(
     dt,
@@ -1883,8 +1957,8 @@ function update(dt) {
   activeBoss?.update?.(dt, {
     player,
     world,
-    cameraX: camera.x,
-    viewportWidth: W,
+    cameraX: 0,
+    viewportWidth: world.width,
     shakeCamera: triggerCameraShake,
   });
 
@@ -2037,39 +2111,84 @@ function update(dt) {
 
 function drawGrid() {
   ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(
+    -200,
+    -120,
+    world.width + 400,
+    H + 240,
+  );
 
   const spacing = 40;
-  const offset = -(camera.x % spacing);
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 2;
 
-  for (let i = -1; i < Math.ceil(W / spacing) + 2; i++) {
-    const worldIndex = Math.floor((camera.x + i * spacing) / spacing);
-    const x = Math.round(offset + i * spacing) + 0.5;
-    ctx.strokeStyle = worldIndex % 4 === 0 ? COLORS.gridMajor : COLORS.gridMinor;
+  for (
+    let x = -200;
+    x <= world.width + 200;
+    x += spacing
+  ) {
+    const worldIndex =
+      Math.floor(
+        x / spacing,
+      );
+
+    ctx.strokeStyle =
+      worldIndex % 4 === 0
+        ? COLORS.gridMajor
+        : COLORS.gridMinor;
+
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, H);
+    ctx.moveTo(x + 1, -120);
+    ctx.lineTo(
+      x + 1,
+      H + 120,
+    );
     ctx.stroke();
   }
 
-  for (let y = 10; y < H; y += spacing) {
-    ctx.strokeStyle = Math.floor(y / spacing) % 4 === 0 ? COLORS.gridMajor : COLORS.gridMinor;
+  for (
+    let y = -110;
+    y < H + 120;
+    y += spacing
+  ) {
+    ctx.strokeStyle =
+      Math.floor(
+        y / spacing,
+      ) % 4 === 0
+        ? COLORS.gridMajor
+        : COLORS.gridMinor;
+
     ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(W, y + 0.5);
+    ctx.moveTo(
+      -200,
+      y + 1,
+    );
+    ctx.lineTo(
+      world.width + 200,
+      y + 1,
+    );
     ctx.stroke();
   }
 }
 
 function drawPlatforms() {
   ctx.fillStyle = COLORS.platform;
-  ctx.fillRect(-camera.x, world.floorY, world.width, H - world.floorY);
+  ctx.fillRect(
+    -200,
+    world.floorY,
+    world.width + 400,
+    H - world.floorY + 200,
+  );
+
   ctx.fillStyle = COLORS.platformTop;
-  ctx.fillRect(-camera.x, world.floorY, world.width, 3);
+  ctx.fillRect(
+    -200,
+    world.floorY,
+    world.width + 400,
+    3,
+  );
 
   for (const p of world.platforms) {
-    const x = Math.round(p.x - camera.x);
+    const x = Math.round(p.x);
     ctx.fillStyle = COLORS.platform;
     ctx.fillRect(x, p.y, p.w, p.h);
     ctx.fillStyle = COLORS.platformTop;
@@ -2099,24 +2218,68 @@ function drawPlayer() {
   drawRasterAt(playerRaster, player.x, player.y, 1, player.visualScale);
 }
 
-function drawResourceBar(label, value, max, x, y, width, color, rightText = '') {
+function drawResourceBar(
+  label,
+  value,
+  max,
+  x,
+  y,
+  width,
+  color,
+  rightText = '',
+) {
   ctx.save();
-  ctx.textBaseline = 'top';
-  const barHeight = 8;
 
-  ctx.font = "bold 11px 'Pixel Arial 11', Arial, sans-serif";
+  const barHeight = 6;
+
+  ctx.textBaseline = 'bottom';
+  ctx.font =
+    "bold 9px 'Pixel Arial 11', Arial, sans-serif";
+
   ctx.fillStyle = COLORS.text;
-  ctx.fillText(label, x, y - 15);
+  ctx.textAlign = 'left';
+  ctx.fillText(
+    label,
+    x,
+    y - 3,
+  );
+
+  if (rightText) {
+    ctx.font =
+      "9px 'Pixel Arial 11', Arial, sans-serif";
+
+    ctx.fillStyle = COLORS.dim;
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      rightText,
+      x + width,
+      y - 3,
+    );
+  }
 
   ctx.fillStyle = '#1b1f27';
-  ctx.fillRect(x, y, width, barHeight);
+  ctx.fillRect(
+    x,
+    y,
+    width,
+    barHeight,
+  );
+
   ctx.fillStyle = color;
   ctx.fillRect(
     x,
     y,
-    width * Math.max(0, Math.min(1, value / max)),
+    width *
+      Math.max(
+        0,
+        Math.min(
+          1,
+          value / max,
+        ),
+      ),
     barHeight,
   );
+
   ctx.strokeStyle = '#343a46';
   ctx.strokeRect(
     x + 0.5,
@@ -2125,106 +2288,143 @@ function drawResourceBar(label, value, max, x, y, width, color, rightText = '') 
     barHeight,
   );
 
-  if (rightText) {
-    ctx.font = "11px 'Pixel Arial 11', Arial, sans-serif";
-    ctx.fillStyle = COLORS.dim;
-    ctx.fillText(rightText, x + width + 10, y - 2);
-  }
-
   ctx.restore();
 }
 
 function drawHUD() {
-  const bx = 20;
-  const bw = 205;
-  const healthY = H - 88;
-  const specialY = H - 116;
-  const staminaY = H - 60;
-  const dashY = H - 32;
-
-  const activeWeapon = getActiveWeaponInstance();
-  const specials = activeWeapon?.specialAbilities ?? [];
-
-  if (specials.length > 0) {
-    const special = specials[0];
-    const readyRatio =
-      special.cooldown > 0
-        ? 1 - Math.min(1, special.remaining / special.cooldown)
-        : 1;
-
-    const specialText =
-      special.remaining <= 0
-        ? `READY [${keyLabel(controlBindings.special)}]`
-        : `${special.remaining.toFixed(1)}s`;
-
-    drawResourceBar(
-      'SPECIAL ABILITY',
-      readyRatio,
-      1,
-      bx,
-      specialY,
-      bw,
-      COLORS.special,
-      specialText,
-    );
-  }
+  const bx = 16;
+  const bw = 150;
+  const rowStep = 24;
+  let rowY = 30;
 
   drawResourceBar(
     'HEALTH',
     player.health,
     player.maxHealth,
     bx,
-    healthY,
+    rowY,
     bw,
     COLORS.health,
-    `${Math.ceil(player.health)} / ${player.maxHealth}`,
+    `${Math.ceil(
+      player.health,
+    )}/${player.maxHealth}`,
   );
+
+  rowY += rowStep;
 
   drawResourceBar(
     'STAMINA',
     player.stamina,
     MOVEMENT.staminaMax,
     bx,
-    staminaY,
+    rowY,
     bw,
-    player.staminaRatio < 0.25 ? COLORS.staminaLow : COLORS.stamina,
-    `${Math.ceil(player.stamina)} / ${MOVEMENT.staminaMax}`,
+    player.staminaRatio < 0.25
+      ? COLORS.staminaLow
+      : COLORS.stamina,
+    `${Math.ceil(
+      player.stamina,
+    )}/${MOVEMENT.staminaMax}`,
   );
 
-  const dashRatio = player.dashCooldownRatio;
+  rowY += rowStep;
+
+  const dashRatio =
+    player.dashCooldownRatio;
+
   let dashText = 'READY';
-  if (player.dashCooldownTimer > 0) dashText = `${player.dashCooldownTimer.toFixed(2)}s`;
-  else if (player.stamina < MOVEMENT.dashStaminaCost) dashText = `needs ${MOVEMENT.dashStaminaCost} stamina`;
+
+  if (
+    player.dashCooldownTimer > 0
+  ) {
+    dashText =
+      `${player.dashCooldownTimer.toFixed(2)}s`;
+  } else if (
+    player.stamina <
+    MOVEMENT.dashStaminaCost
+  ) {
+    dashText =
+      `NEEDS ${MOVEMENT.dashStaminaCost}`;
+  }
 
   drawResourceBar(
     'DASH',
     dashRatio,
     1,
     bx,
-    dashY,
+    rowY,
     bw,
-    player.dashReady ? COLORS.dash : '#8e8246',
+    player.dashReady
+      ? COLORS.dash
+      : '#8e8246',
     dashText,
   );
 
+  rowY += rowStep;
+
+  const activeWeapon =
+    getActiveWeaponInstance();
+
+  const specials =
+    activeWeapon
+      ?.specialAbilities ??
+    [];
+
+  if (specials.length > 0) {
+    const special =
+      specials[0];
+
+    const readyRatio =
+      special.cooldown > 0
+        ? 1 -
+          Math.min(
+            1,
+            special.remaining /
+            special.cooldown,
+          )
+        : 1;
+
+    const specialText =
+      special.remaining <= 0
+        ? `READY [${keyLabel(
+            controlBindings.special,
+          )}]`
+        : `${special.remaining.toFixed(1)}s`;
+
+    drawResourceBar(
+      'SPECIAL',
+      readyRatio,
+      1,
+      bx,
+      rowY,
+      bw,
+      COLORS.special,
+      specialText,
+    );
+
+    rowY += rowStep;
+  }
+
+  const activeItem =
+    getItem(
+      getActiveWeaponId(),
+    );
+
   ctx.save();
-  ctx.font = "12px 'Pixel Arial 11', Arial, sans-serif";
+  ctx.font =
+    "9px 'Pixel Arial 11', Arial, sans-serif";
+
   ctx.fillStyle = COLORS.dim;
-  ctx.textAlign = 'right';
-  const controlHint =
-    `${keyLabel(controlBindings.moveLeft)}/${keyLabel(controlBindings.moveRight)} move   ` +
-    `${keyLabel(controlBindings.jump)} jump   ` +
-    `${keyLabel(controlBindings.sprint)} sprint   ` +
-    `${keyLabel(controlBindings.dash)} dash   ` +
-    `${keyLabel(controlBindings.special)} special   LMB fire`;
+  ctx.textAlign = 'left';
 
   ctx.fillText(
-    controlHint,
-    W - 20,
-    H - 24,
+    activeItem
+      ? activeItem.name
+      : 'No weapon equipped',
+    bx,
+    rowY + 2,
   );
-  const activeItem = getItem(getActiveWeaponId());
-  ctx.fillText(activeItem ? activeItem.name : 'No weapon equipped', W - 20, H - 44);
+
   ctx.restore();
 }
 
@@ -2265,29 +2465,60 @@ function drawBossBar() {
 }
 
 function renderGame() {
-  const shake = getCameraShakeOffset();
+  const shake =
+    getCameraShakeOffset();
+
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(
+    0,
+    0,
+    W,
+    H,
+  );
 
   ctx.save();
-  ctx.translate(Math.round(shake.x), Math.round(shake.y));
+
+  ctx.translate(
+    WORLD_VIEW_OFFSET_X +
+      Math.round(shake.x) -
+      camera.lookX *
+      WORLD_VIEW_SCALE,
+    WORLD_VIEW_OFFSET_Y +
+      Math.round(shake.y) -
+      camera.lookY *
+      WORLD_VIEW_SCALE,
+  );
+
+  ctx.scale(
+    WORLD_VIEW_SCALE,
+    WORLD_VIEW_SCALE,
+  );
+
+  ctx.imageSmoothingEnabled =
+    false;
 
   drawGrid();
   drawPlatforms();
 
-  activeBoss?.draw?.(ctx, camera.x, ART_PIXEL);
+  activeBoss?.draw?.(
+    ctx,
+    0,
+    ART_PIXEL,
+  );
   drawParticles();
   drawPlayer();
 
   const activeWeaponId = getActiveWeaponId();
 
   if (activeWeaponId === 'vector') {
-    vectorWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+    vectorWeapon.draw(ctx, player, getPointerWorld(), 0, ART_PIXEL);
   } else {
     // Existing Vector rounds remain visible after changing weapons.
-    vectorWeapon.drawBullets(ctx, camera.x, ART_PIXEL);
+    vectorWeapon.drawBullets(ctx, 0, ART_PIXEL);
   }
 
   if (activeWeaponId === 'euclid') {
-    euclidWeapon.draw(ctx, player, getPointerWorld(), camera.x, ART_PIXEL);
+    euclidWeapon.draw(ctx, player, getPointerWorld(), 0, ART_PIXEL);
   }
 
   if (activeWeaponId === 'horizon') {
@@ -2295,11 +2526,11 @@ function renderGame() {
       ctx,
       player,
       getPointerWorld(),
-      camera.x,
+      0,
       ART_PIXEL,
     );
   } else {
-    horizonWeapon.drawSpecialProjectiles(ctx, camera.x);
+    horizonWeapon.drawSpecialProjectiles(ctx, 0);
   }
 
   if (activeWeaponId === 'mach') {
@@ -2307,14 +2538,14 @@ function renderGame() {
       ctx,
       player,
       getPointerWorld(),
-      camera.x,
+      0,
       ART_PIXEL,
     );
   } else {
-    machWeapon.drawWaves(ctx, camera.x);
+    machWeapon.drawWaves(ctx, 0);
   }
 
-  backfireAbility.draw(ctx, camera.x);
+  backfireAbility.draw(ctx, 0);
 
   ctx.restore();
 
@@ -2343,6 +2574,10 @@ function prepareEncounter(boss) {
 
   camera.x = 0;
   camera.targetX = 0;
+  camera.lookX = 0;
+  camera.lookY = 0;
+  camera.targetLookX = 0;
+  camera.targetLookY = 0;
   camera.shakeTime = 0;
   camera.shakeDuration = 0;
   camera.shakeIntensity = 0;
