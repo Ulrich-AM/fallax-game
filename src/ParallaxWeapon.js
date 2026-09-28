@@ -816,13 +816,15 @@ export class ParallaxWeapon {
         this.fireCooldown;
     }
 
-    this.applySpecialLaserDamage(
-      dt,
-      player,
-      pointerWorld,
-      target,
-      artPixelSize,
-    );
+    if (active) {
+      this.applySpecialLaserDamage(
+        dt,
+        player,
+        pointerWorld,
+        target,
+        artPixelSize,
+      );
+    }
 
     for (
       const bullet
