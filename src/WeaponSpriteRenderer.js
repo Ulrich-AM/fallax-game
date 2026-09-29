@@ -1,6 +1,6 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=49';
+} from './SpriteAssets.js?v=63a';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
