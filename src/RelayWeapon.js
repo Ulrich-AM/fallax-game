@@ -1,7 +1,7 @@
 import {
   WeaponSpriteRenderer,
   drawRasterAtPivot,
-} from './WeaponSpriteRenderer.js?v=59';
+} from './WeaponSpriteRenderer.js?v=63a';
 
 const RELAY_SPRITE_ASSET = {
   version: 2,
