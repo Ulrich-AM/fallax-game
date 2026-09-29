@@ -46,21 +46,21 @@ import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=62ba';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
-import { SpriteEditor } from './SpriteEditor.js?v=55';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=55';
+import { SpriteEditor } from './SpriteEditor.js?v=63a';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=63a';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=55';
+} from './SpriteAssets.js?v=63a';
 import {
   drawRasterAtPivot,
-} from './WeaponSpriteRenderer.js?v=54c';
+} from './WeaponSpriteRenderer.js?v=63a';
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v63';
+const BUILD_VERSION = 'v63a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -109,6 +109,7 @@ const spriteEditorImportFile = document.querySelector('#sprite-editor-import-fil
 const spriteWeaponTools = document.querySelector('#sprite-weapon-tools');
 const spriteWeaponMarkerInfo = document.querySelector('#sprite-weapon-marker-info');
 const spriteWeaponTestControls = document.querySelector('#sprite-weapon-test-controls');
+const spriteWeaponFlipReverse = document.querySelector('#sprite-weapon-flip-reverse');
 const spriteBossTools = document.querySelector('#sprite-boss-tools');
 const spriteBossMarkerName = document.querySelector('#sprite-boss-marker-name');
 const spriteBossMarkerInfo = document.querySelector('#sprite-boss-marker-info');
@@ -368,6 +369,7 @@ const spriteEditor =
     weaponToolsRoot: spriteWeaponTools,
     weaponMarkerInfo: spriteWeaponMarkerInfo,
     weaponTestControls: spriteWeaponTestControls,
+    flipOnReverseInput: spriteWeaponFlipReverse,
     bossToolsRoot: spriteBossTools,
     bossMarkerNameInput: spriteBossMarkerName,
     bossMarkerInfo: spriteBossMarkerInfo,
@@ -3670,7 +3672,6 @@ function createItemCard(itemId, source = null) {
 
   card.innerHTML = `
     <div class="item-title">
-      <span class="item-icon" aria-hidden="true"></span>
       <span>${item.name}</span>
     </div>
     <div class="item-category">${getItemCategoryLabel(item)}</div>
@@ -3899,7 +3900,6 @@ function createShopItemCard(itemId) {
 
   card.innerHTML = `
     <div class="item-title">
-      <span class="item-icon" aria-hidden="true"></span>
       <span>${item.name}</span>
     </div>
     <div class="item-category">${getItemCategoryLabel(item)}</div>
