@@ -1,3 +1,9 @@
+import {
+  ensureProgressEpoch,
+} from './ProgressEpoch.js?v=63';
+
+ensureProgressEpoch();
+
 const STORAGE_KEY = 'fallax.economy.v1';
 
 function clampAmount(value) {
