@@ -5,7 +5,7 @@ import {
 } from './pixelShapes.js?v=36';
 import {
   PlayerController,
-} from './PlayerController.js?v=36';
+} from './PlayerController.js?v=60c';
 
 const OUTLINE = '#35383e';
 const BODY = '#737880';
