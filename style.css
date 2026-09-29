@@ -1441,14 +1441,16 @@ canvas {
   font-size: 10px;
 }
 
-.item-tooltip-stat-label {
+.item-tooltip-copy .item-tooltip-stat-label {
   color: #747c88;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.35px;
 }
 
-.item-tooltip-stat-value {
+.item-tooltip-copy .item-tooltip-stat-value {
   color: #d7dbe2;
+  font-size: 10px;
   font-weight: 400;
   text-align: right;
 }
