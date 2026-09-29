@@ -324,6 +324,7 @@ export function createSpriteAsset({
     markers: {},
     render: {
       mergeOutlines: true,
+      flipOnReverse: false,
       outline: {
         enabled: true,
         color: '#35383e',
@@ -383,6 +384,8 @@ export function normalizeSpriteAsset(input) {
     render: {
       mergeOutlines:
         input.render?.mergeOutlines !== false,
+      flipOnReverse:
+        input.render?.flipOnReverse === true,
       outline: normalizeOutline(
         input.render?.outline,
       ),
