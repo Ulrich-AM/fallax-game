@@ -597,6 +597,46 @@ function easeOutCubic(value) {
   );
 }
 
+function easeInCubic(value) {
+  const t =
+    clamp(
+      value,
+      0,
+      1,
+    );
+
+  return t * t * t;
+}
+
+function easeInOutSine(value) {
+  const t =
+    clamp(
+      value,
+      0,
+      1,
+    );
+
+  return (
+    -(Math.cos(Math.PI * t) - 1) /
+    2
+  );
+}
+
+function smoothStep01(value) {
+  const t =
+    clamp(
+      value,
+      0,
+      1,
+    );
+
+  return (
+    t *
+    t *
+    (3 - 2 * t)
+  );
+}
+
 function createGroupAsset(
   asset,
   groupId,
@@ -684,6 +724,16 @@ export class MonolithBoss {
     this.leftArmOverride = null;
     this.rightArmOverride = null;
 
+    // Procedural pose channels are kept outside the raster cache. Translation
+    // can therefore animate every simulation frame without forcing a new
+    // sprite compile. Arm rotation still uses the quantized raster cache.
+    this.headOffsetX = 0;
+    this.headOffsetY = 0;
+    this.leftArmOffsetX = 0;
+    this.leftArmOffsetY = 0;
+    this.rightArmOffsetX = 0;
+    this.rightArmOffsetY = 0;
+
     this.armAimStrength = 0.72;
     this.armAimClamp = 86;
     this.armSpring = 18;
@@ -726,12 +776,22 @@ export class MonolithBoss {
 
     this.lariatDirection = 1;
     this.lariatStartX = this.x;
+    this.lariatStartY = this.y;
     this.lariatEndX = this.x;
+    this.lariatTargetY = this.y;
+    this.lariatPredictedX = this.x;
+    this.lariatPredictedY = this.y;
     this.lariatHit = false;
 
     this.grabbedTarget = null;
     this.grabDashSerial = 0;
     this.grabSide = 1;
+    this.grabAimX = this.x;
+    this.grabAimY = this.y;
+    this.grabHandX = this.x;
+    this.grabHandY = this.y;
+    this.grabWindStartX = this.x;
+    this.grabWindStartY = this.y;
 
     this.throwState = null;
 
@@ -746,6 +806,18 @@ export class MonolithBoss {
     this.draglineDashSerial = 0;
     this.draglineActive = false;
     this.draglineAttached = false;
+    this.draglineInitialDistance = 1;
+    this.draglineSqueezeTimer = 0;
+    this.draglineSqueezeCount = 0;
+    this.draglineSqueezeFlash = 0;
+
+    this.recoverStartY = this.y;
+    this.recoverHeadOffsetX = 0;
+    this.recoverHeadOffsetY = 0;
+    this.recoverLeftArmOffsetX = 0;
+    this.recoverLeftArmOffsetY = 0;
+    this.recoverRightArmOffsetX = 0;
+    this.recoverRightArmOffsetY = 0;
 
     this.sweepDirection = 1;
     this.sweepHit = false;
