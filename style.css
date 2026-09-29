@@ -490,6 +490,12 @@ canvas {
   font-size: 12px;
 }
 
+.shop-item-stats {
+  color: #8e96a2;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .shop-item-actions {
   display: flex;
   justify-content: flex-end;
@@ -1419,6 +1425,32 @@ canvas {
   color: #9aa1ac;
   font-size: 11px;
   line-height: 1.4;
+}
+
+.item-tooltip-stats {
+  display: grid;
+  gap: 4px;
+  padding-top: 7px;
+  border-top: 1px solid #2b3038;
+}
+
+.item-tooltip-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.item-tooltip-stat-label {
+  color: #747c88;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.item-tooltip-stat-value {
+  color: #d7dbe2;
+  font-weight: 400;
+  text-align: right;
 }
 
 #item-tooltip-canvas.hidden + .item-tooltip-copy {
