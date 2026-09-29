@@ -2105,7 +2105,7 @@ export class PrologueBoss {
       if (
         bullet.x < -80 ||
         bullet.x > world.width + 80 ||
-        bullet.y < -80 ||
+        bullet.y < world.roofY - 120 ||
         bullet.y > world.floorY + 120
       ) {
         bullet.life = 0;

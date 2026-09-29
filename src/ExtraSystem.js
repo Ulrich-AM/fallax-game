@@ -5,7 +5,7 @@ import {
 } from './pixelShapes.js?v=36';
 import {
   PlayerController,
-} from './PlayerController.js?v=36';
+} from './PlayerController.js?v=60c';
 
 const OUTLINE = '#35383e';
 const BODY = '#737880';
@@ -466,7 +466,8 @@ export class ExtraSystem {
         bullet.x < -80 ||
         bullet.x >
           world.width + 80 ||
-        bullet.y < -80 ||
+        bullet.y <
+          world.roofY - 120 ||
         bullet.y >
           world.floorY + 120
       ) {

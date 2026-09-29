@@ -53,7 +53,7 @@ export class BackfireAbility {
       bullet.life > 0 &&
       bullet.x > -100 &&
       bullet.x < world.width + 100 &&
-      bullet.y > -100 &&
+      bullet.y > world.roofY - 160 &&
       bullet.y < world.floorY + 160
     );
   }
