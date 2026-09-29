@@ -107,7 +107,7 @@ export function shouldFlipWeaponSprite(
   return (
     asset?.type === 'weapon' &&
     asset?.render?.flipOnReverse === true &&
-    Math.cos(angleRadians) < 0
+    Math.cos(angleRadians) < -0.000001
   );
 }
 
