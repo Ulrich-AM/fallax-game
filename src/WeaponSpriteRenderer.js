@@ -100,6 +100,48 @@ function shiftedShape(shape, offsetX, offsetY) {
   };
 }
 
+export function shouldFlipWeaponSprite(
+  asset,
+  angleRadians,
+) {
+  return (
+    asset?.type === 'weapon' &&
+    asset?.render?.flipOnReverse === true &&
+    Math.cos(angleRadians) < 0
+  );
+}
+
+export function mirrorShapeAcrossLocalX(
+  shape,
+) {
+  return {
+    ...shape,
+    parts:
+      shape.parts.map(part => {
+        const mirrored = {
+          ...part,
+          y: -(part.y ?? 0),
+          rotation:
+            -(part.rotation ?? 0),
+        };
+
+        if (
+          part.type === 'polygon'
+        ) {
+          mirrored.points =
+            part.points
+              .map(
+                ([x, y]) =>
+                  [x, -y],
+              )
+              .reverse();
+        }
+
+        return mirrored;
+      }),
+  };
+}
+
 export class WeaponSpriteRenderer {
   constructor(asset) {
     this.compiled =
@@ -156,11 +198,50 @@ export class WeaponSpriteRenderer {
               this.visualCenter.y,
             ),
         }));
+
+    this.flippedShape =
+      mirrorShapeAcrossLocalX(
+        this.compiled.shape,
+      );
+
+    this.flippedGlowParts =
+      this.compiled.glowParts
+        .map(part => ({
+          ...part,
+          shape:
+            mirrorShapeAcrossLocalX(
+              part.shape,
+            ),
+        }));
+
+    this.flippedCenteredShape =
+      mirrorShapeAcrossLocalX(
+        this.centeredShape,
+      );
+
+    this.flippedCenteredGlowShapes =
+      this.centeredGlowShapes
+        .map(part => ({
+          ...part,
+          shape:
+            mirrorShapeAcrossLocalX(
+              part.shape,
+            ),
+        }));
   }
 
   getEntry(angleRadians = 0) {
-    const key =
+    const angle =
       angleKey(angleRadians);
+
+    const flipped =
+      shouldFlipWeaponSprite(
+        this.compiled.asset,
+        angleRadians,
+      );
+
+    const key =
+      `${angle}:${flipped ? 1 : 0}`;
 
     if (
       this.rasterCache.has(key)
@@ -170,14 +251,24 @@ export class WeaponSpriteRenderer {
       );
     }
 
+    const shape =
+      flipped
+        ? this.flippedShape
+        : this.compiled.shape;
+
+    const glowParts =
+      flipped
+        ? this.flippedGlowParts
+        : this.compiled.glowParts;
+
     const base =
       rasterize(
-        this.compiled.shape,
-        key,
+        shape,
+        angle,
       );
 
     const glows =
-      this.compiled.glowParts
+      glowParts
         .map(part => ({
           color:
             part.glow.color,
@@ -186,12 +277,13 @@ export class WeaponSpriteRenderer {
           raster:
             rasterize(
               part.shape,
-              key,
+              angle,
             ),
         }));
 
     const entry = {
-      angle: key,
+      angle,
+      flipped,
       base,
       glows,
       compiled:
@@ -207,8 +299,17 @@ export class WeaponSpriteRenderer {
   }
 
   getCenteredEntry(angleRadians = 0) {
-    const key =
+    const angle =
       angleKey(angleRadians);
+
+    const flipped =
+      shouldFlipWeaponSprite(
+        this.compiled.asset,
+        angleRadians,
+      );
+
+    const key =
+      `${angle}:${flipped ? 1 : 0}`;
 
     if (
       this.centeredRasterCache
@@ -218,14 +319,24 @@ export class WeaponSpriteRenderer {
         .get(key);
     }
 
+    const shape =
+      flipped
+        ? this.flippedCenteredShape
+        : this.centeredShape;
+
+    const glowShapes =
+      flipped
+        ? this.flippedCenteredGlowShapes
+        : this.centeredGlowShapes;
+
     const base =
       rasterize(
-        this.centeredShape,
-        key,
+        shape,
+        angle,
       );
 
     const glows =
-      this.centeredGlowShapes
+      glowShapes
         .map(part => ({
           color:
             part.glow.color,
@@ -234,12 +345,13 @@ export class WeaponSpriteRenderer {
           raster:
             rasterize(
               part.shape,
-              key,
+              angle,
             ),
         }));
 
     const entry = {
-      angle: key,
+      angle,
+      flipped,
       base,
       glows,
       compiled:
@@ -283,8 +395,18 @@ export class WeaponSpriteRenderer {
       marker.x *
       artPixelSize;
 
+    const flipped =
+      shouldFlipWeaponSprite(
+        this.compiled.asset,
+        angleRadians,
+      );
+
     const localY =
-      marker.y *
+      (
+        flipped
+          ? -marker.y
+          : marker.y
+      ) *
       artPixelSize;
 
     return {
