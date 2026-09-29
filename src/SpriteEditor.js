@@ -6,7 +6,7 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=55';
+} from './SpriteAssets.js?v=63a';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
@@ -4875,7 +4875,9 @@ export class SpriteEditor {
       const [mx, my] =
         rotatePoint(
           marker.x,
-          marker.y,
+          flipped
+            ? -marker.y
+            : marker.y,
           angle,
         );
 
