@@ -3204,6 +3204,99 @@ export class MonolithBoss {
     this.rightArmOverride = null;
   }
 
+  resetPoseOffsets() {
+    this.headOffsetX = 0;
+    this.headOffsetY = 0;
+    this.leftArmOffsetX = 0;
+    this.leftArmOffsetY = 0;
+    this.rightArmOffsetX = 0;
+    this.rightArmOffsetY = 0;
+  }
+
+  predictTarget(
+    target,
+    seconds,
+    world,
+  ) {
+    if (!target) {
+      return {
+        x: this.x,
+        y: this.y + 190,
+      };
+    }
+
+    const halfW =
+      (target.w ?? 32) / 2;
+
+    const halfH =
+      (target.h ?? 56) / 2;
+
+    return {
+      x:
+        clamp(
+          target.x +
+            (target.vx ?? 0) *
+            seconds,
+          halfW,
+          world.width - halfW,
+        ),
+      y:
+        clamp(
+          target.y +
+            (target.vy ?? 0) *
+            seconds,
+          world.roofY + halfH,
+          world.floorY - halfH,
+        ),
+    };
+  }
+
+  pinTargetAt(
+    target,
+    x,
+    y,
+    world,
+  ) {
+    if (!target) return;
+
+    const halfW =
+      (target.w ?? 32) / 2;
+
+    const halfH =
+      (target.h ?? 56) / 2;
+
+    target.x =
+      clamp(
+        x,
+        halfW,
+        world.width - halfW,
+      );
+
+    target.y =
+      clamp(
+        y,
+        world.roofY + halfH,
+        world.floorY - halfH,
+      );
+
+    target.prevY =
+      target.y;
+
+    target.grounded = false;
+  }
+
+  draglineCatchPoint() {
+    return {
+      x:
+        this.x +
+        this.grabSide *
+          118,
+      y:
+        this.y +
+        188,
+    };
+  }
+
   resolveGrabTarget(context) {
     const target =
       context?.player ?? null;
@@ -3381,13 +3474,25 @@ export class MonolithBoss {
 
   releaseGrabEscape(target) {
     const startX =
-      this.x +
-      this.grabSide *
-        138;
+      Number.isFinite(
+        this.grabHandX,
+      )
+        ? this.grabHandX
+        : (
+            this.x +
+            this.grabSide *
+              138
+          );
 
     const startY =
-      this.y +
-      210;
+      Number.isFinite(
+        this.grabHandY,
+      )
+        ? this.grabHandY
+        : (
+            this.y +
+            210
+          );
 
     target
       ?.spawnGrabEscapeTrail
@@ -3399,6 +3504,7 @@ export class MonolithBoss {
   startWallThrow(
     target,
     world,
+    preferredDirection = 0,
   ) {
     if (!target) return;
 
@@ -3406,10 +3512,15 @@ export class MonolithBoss {
       (target.w ?? 32) / 2;
 
     const direction =
-      target.x <
-      world.width / 2
-        ? -1
-        : 1;
+      preferredDirection === -1 ||
+      preferredDirection === 1
+        ? preferredDirection
+        : (
+            target.x <
+            world.width / 2
+              ? -1
+              : 1
+          );
 
     const wallX =
       direction < 0
@@ -3558,6 +3669,7 @@ export class MonolithBoss {
     this.rightArmAngularVelocity = 0;
     this.activeArmSide = 'right';
     this.clearAttackPose();
+    this.resetPoseOffsets();
 
     this.animationEvaluationCache
       .clear();
@@ -3635,13 +3747,33 @@ export class MonolithBoss {
       MONOLITH_SPRITE.scale *
       this.artPixelSize;
 
+    const offsetX =
+      groupId === 'group-3'
+        ? this.leftArmOffsetX
+        : (
+            groupId === 'group-4'
+              ? this.rightArmOffsetX
+              : 0
+          );
+
+    const offsetY =
+      groupId === 'group-3'
+        ? this.leftArmOffsetY
+        : (
+            groupId === 'group-4'
+              ? this.rightArmOffsetY
+              : 0
+          );
+
     return {
       x:
         this.x +
-        pivot[0] * scale,
+        pivot[0] * scale +
+        offsetX,
       y:
         this.y +
-        pivot[1] * scale,
+        pivot[1] * scale +
+        offsetY,
     };
   }
 
@@ -4482,11 +4614,13 @@ export class MonolithBoss {
 
     const headX =
       this.x +
-      this.headHitOffsetX;
+      this.headHitOffsetX +
+      this.headOffsetX;
 
     const headY =
       this.y +
-      this.headHitOffsetY;
+      this.headHitOffsetY +
+      this.headOffsetY;
 
     return (
       Math.hypot(
