@@ -18,7 +18,7 @@ import {
   purchaseItem,
   grantItem,
   resetEquipmentState,
-} from './equipment.js?v=60b';
+} from './equipment.js?v=63';
 import { VectorWeapon } from './VectorWeapon.js?v=62ba';
 import { EuclidWeapon } from './EuclidWeapon.js?v=54c';
 import { HorizonWeapon } from './HorizonWeapon.js?v=54c';
@@ -27,18 +27,22 @@ import { RelayWeapon } from './RelayWeapon.js?v=62ba';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=62ba';
 import { AnchorWeapon } from './AnchorWeapon.js?v=62ba';
 import { KeplerWeapon } from './KeplerWeapon.js?v=62ba';
-import { BackfireAbility } from './BackfireAbility.js?v=60c';
+import { BackfireAbility } from './BackfireAbility.js?v=63';
 import { GuardSystem } from './GuardSystem.js?v=62';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
 import { WeaponRuntime } from './WeaponRuntime.js?v=62';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
-} from './ExtraSystem.js?v=57';
-import { Economy } from './Economy.js?v=58';
+} from './ExtraSystem.js?v=63';
+import { Economy } from './Economy.js?v=63';
+import {
+  PROGRESS_EPOCH,
+  getProgressEpochStatus,
+} from './ProgressEpoch.js?v=63';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=62';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=62';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=63';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=62ba';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
@@ -56,7 +60,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v62ba';
+const BUILD_VERSION = 'v63';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -144,6 +148,7 @@ const itemTooltip = document.querySelector('#item-tooltip');
 const itemTooltipCanvas = document.querySelector('#item-tooltip-canvas');
 const itemTooltipName = document.querySelector('#item-tooltip-name');
 const itemTooltipDescription = document.querySelector('#item-tooltip-description');
+const itemTooltipStats = document.querySelector('#item-tooltip-stats');
 const chapterBack = document.querySelector('#chapter-back');
 const chapterTabs = document.querySelector('#chapter-tabs');
 const bossList = document.querySelector('#boss-list');
@@ -702,6 +707,40 @@ function registerDeveloperCommands() {
       resetGameProgress();
 
       return 'game progression reset. Vector is the only owned item and denarii is 0.';
+    },
+  });
+
+  devConsole.register('progress.epoch', {
+    description:
+      'show the deployed progression epoch used for global save invalidation',
+    usage:
+      'progress.epoch',
+    execute: () => {
+      const status =
+        getProgressEpochStatus();
+
+      return [
+        `deployed progress epoch: ${PROGRESS_EPOCH}`,
+        `this browser epoch: ${status.stored}`,
+        'increment PROGRESS_EPOCH and deploy to invalidate all existing equipment/currency saves on their next load.',
+      ];
+    },
+  });
+
+  devConsole.register('reset.everyone', {
+    description:
+      'explain global reset behavior and reset this browser',
+    usage:
+      'reset.everyone',
+    execute: () => {
+      resetGameProgress();
+
+      return [
+        'this browser progression was reset.',
+        'Fallax is static/localStorage-only, so a live console command cannot reach other players\' browsers.',
+        `v63 uses progress epoch ${PROGRESS_EPOCH}; that deployed epoch invalidates every older save when each player next loads the game.`,
+        'for another future global wipe, increment PROGRESS_EPOCH in src/ProgressEpoch.js and deploy.',
+      ];
     },
   });
 
@@ -3408,6 +3447,49 @@ function showItemTooltip(itemId, event) {
 
   itemTooltipName.textContent = item.name;
   itemTooltipDescription.textContent = item.description;
+
+  if (itemTooltipStats) {
+    itemTooltipStats.replaceChildren();
+
+    for (
+      const stat
+      of item.stats ?? []
+    ) {
+      const row =
+        document.createElement('div');
+
+      row.className =
+        'item-tooltip-stat';
+
+      const label =
+        document.createElement('span');
+
+      label.className =
+        'item-tooltip-stat-label';
+
+      label.textContent =
+        stat.label;
+
+      const value =
+        document.createElement('strong');
+
+      value.className =
+        'item-tooltip-stat-value';
+
+      value.textContent =
+        stat.value;
+
+      row.append(
+        label,
+        value,
+      );
+
+      itemTooltipStats.appendChild(
+        row,
+      );
+    }
+  }
+
   itemTooltip.classList.remove('hidden');
 
   const hasPreview =
@@ -3806,12 +3888,24 @@ function createShopItemCard(itemId) {
       ),
     );
 
+  const compactStats =
+    (item.stats ?? [])
+      .slice(0, 2)
+      .map(
+        stat =>
+          `${stat.label}: ${stat.value}`,
+      )
+      .join(' • ');
+
   card.innerHTML = `
     <div class="item-title">
       <span class="item-icon" aria-hidden="true"></span>
       <span>${item.name}</span>
     </div>
     <div class="item-category">${getItemCategoryLabel(item)}</div>
+    ${compactStats
+      ? `<div class="shop-item-stats">${compactStats}</div>`
+      : ''}
     <div class="shop-item-price">${price === 0 ? 'free' : `${price} denarii`}</div>
     <div class="shop-item-actions"></div>
   `;
