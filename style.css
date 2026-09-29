@@ -270,14 +270,6 @@ canvas {
   font-weight: 700;
 }
 
-.item-icon {
-  width: 18px;
-  height: 18px;
-  border: 1px solid #c8ccd4;
-  background: #6f747c;
-  image-rendering: pixelated;
-}
-
 .item-description {
   color: #8b929d;
   font-size: 12px;
