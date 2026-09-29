@@ -1,7 +1,7 @@
 import {
   WeaponSpriteRenderer,
   drawRasterAtPivot,
-} from './WeaponSpriteRenderer.js?v=60a';
+} from './WeaponSpriteRenderer.js?v=63a';
 
 const PARALLAX_PARTS = {
   bottom: {

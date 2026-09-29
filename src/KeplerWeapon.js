@@ -1,6 +1,6 @@
 import {
   WeaponSpriteRenderer,
-} from './WeaponSpriteRenderer.js?v=60';
+} from './WeaponSpriteRenderer.js?v=63a';
 
 const KEPLER_SPRITE_ASSET = {"version":2,"name":"kepler","displayName":"kepler","type":"weapon","scale":1,"pivot":[0,0],"parts":[{"id":"polygon-1","name":"polygon-1","type":"polygon","material":"glow-white","groupId":null,"x":0,"y":0,"rotation":0,"outline":null,"points":[[6,0],[6,-1],[7,-2],[9,-2],[10,-1],[10,0],[12,0],[12,-2],[10,-4],[6,-4],[4,-2],[4,0]]},{"id":"polygon-mirror-2","name":"polygon-1 mirror","type":"polygon","material":"glow-white","groupId":null,"x":0,"y":0,"rotation":0,"outline":null,"points":[[4,0],[4,2],[6,4],[10,4],[12,2],[12,0],[10,0],[10,1],[9,2],[7,2],[6,1],[6,0]]}],"groups":[],"hitboxes":[],"animations":{"clips":{"idle":{"name":"idle","duration":1,"loop":true,"tracks":[]},"fire":{"name":"fire","duration":0.25,"loop":false,"tracks":[]},"special":{"name":"special","duration":0.6,"loop":false,"tracks":[]}}},"markers":{"muzzle":{"x":8,"y":0,"rotation":0}},"render":{"mergeOutlines":true,"outline":{"enabled":true,"color":"#35383e","thickness":1},"padding":2}};
 
