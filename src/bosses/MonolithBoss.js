@@ -2098,6 +2098,9 @@ export class MonolithBoss {
             world,
           );
 
+          target.vx = 0;
+          target.vy = 0;
+
           owner.grabHandX =
             holdX;
 
@@ -3648,6 +3651,9 @@ export class MonolithBoss {
     this.draglineAttached = false;
     this.draglineTarget = null;
     this.draglineLife = 0;
+    this.draglineSqueezeTimer = 0;
+    this.draglineSqueezeCount = 0;
+    this.draglineSqueezeFlash = 0;
   }
 
   reset(world) {
@@ -4538,29 +4544,31 @@ export class MonolithBoss {
     }
 
     if (
-      state ===
-      'commandGrab' &&
+      (
+        state ===
+          'commandGrab' ||
+        state ===
+          'commandGrabTurn'
+      ) &&
       this.ai.stateTime >
         0.18
     ) {
       ctx.save();
-      ctx.globalAlpha = 0.42;
+      ctx.globalAlpha = 0.34;
       ctx.fillStyle = '#ffffff';
 
       ctx.fillRect(
         Math.round(
-          this.x +
-          this.grabSide *
-            138 -
+          this.grabHandX -
           cameraX -
-          15,
+          9,
         ),
         Math.round(
-          this.y +
-          195,
+          this.grabHandY -
+          9,
         ),
-        30,
-        30,
+        18,
+        18,
       );
 
       ctx.restore();
