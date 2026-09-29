@@ -11,6 +11,10 @@ import {
   rasterize,
 } from './pixelShapes.js?v=49';
 import {
+  mirrorShapeAcrossLocalX,
+  shouldFlipWeaponSprite,
+} from './WeaponSpriteRenderer.js?v=63a';
+import {
   normalizeAnimations,
   evaluateAnimation,
   applyAnimationPose,
@@ -110,6 +114,7 @@ export class SpriteEditor {
     weaponToolsRoot,
     weaponMarkerInfo,
     weaponTestControls,
+    flipOnReverseInput,
     bossToolsRoot,
     bossMarkerNameInput,
     bossMarkerInfo,
@@ -182,6 +187,8 @@ export class SpriteEditor {
       weaponMarkerInfo;
     this.weaponTestControls =
       weaponTestControls;
+    this.flipOnReverseInput =
+      flipOnReverseInput;
     this.bossToolsRoot =
       bossToolsRoot;
     this.bossMarkerNameInput =
@@ -351,6 +358,20 @@ export class SpriteEditor {
     this.symmetryInput?.addEventListener(
       'change',
       () => this.renderCanvas(),
+    );
+
+    this.flipOnReverseInput?.addEventListener(
+      'change',
+      () => {
+        this.pushHistory();
+        this.future.length = 0;
+
+        this.asset.render ??= {};
+        this.asset.render.flipOnReverse =
+          !!this.flipOnReverseInput.checked;
+
+        this.renderPreview();
+      },
     );
 
     this.scaleInput?.addEventListener(
@@ -935,6 +956,11 @@ export class SpriteEditor {
         String(this.asset.scale ?? 1);
     }
 
+    if (this.flipOnReverseInput) {
+      this.flipOnReverseInput.checked =
+        this.asset.render?.flipOnReverse === true;
+    }
+
     this.opened = true;
     this.updateModeUi();
     this.root.classList.remove('hidden');
@@ -1034,6 +1060,10 @@ export class SpriteEditor {
       8,
     );
 
+    candidate.render ??= {};
+    candidate.render.flipOnReverse =
+      !!this.flipOnReverseInput?.checked;
+
     return normalizeSpriteAsset(
       candidate,
     );
@@ -1112,6 +1142,11 @@ export class SpriteEditor {
     if (this.scaleInput) {
       this.scaleInput.value =
         String(imported.scale ?? 1);
+    }
+
+    if (this.flipOnReverseInput) {
+      this.flipOnReverseInput.checked =
+        imported.render?.flipOnReverse === true;
     }
 
     this.setTool('select');
@@ -1904,6 +1939,11 @@ export class SpriteEditor {
     if (this.scaleInput) {
       this.scaleInput.value =
         String(this.asset.scale ?? 1);
+    }
+
+    if (this.flipOnReverseInput) {
+      this.flipOnReverseInput.checked =
+        this.asset.render?.flipOnReverse === true;
     }
 
     this.updateModeUi();
@@ -4473,9 +4513,27 @@ export class SpriteEditor {
     angle,
     glowStrength,
   ) {
+    const angleRadians =
+      angle *
+      Math.PI /
+      180;
+
+    const flipped =
+      shouldFlipWeaponSprite(
+        compiled.asset,
+        angleRadians,
+      );
+
+    const previewShape =
+      flipped
+        ? mirrorShapeAcrossLocalX(
+            compiled.shape,
+          )
+        : compiled.shape;
+
     const raster =
       rasterize(
-        compiled.shape,
+        previewShape,
         angle,
       );
 
@@ -4560,7 +4618,9 @@ export class SpriteEditor {
       const [mx, my] =
         rotatePoint(
           marker.x,
-          marker.y,
+          flipped
+            ? -marker.y
+            : marker.y,
           angle,
         );
 
@@ -4713,9 +4773,16 @@ export class SpriteEditor {
         const glowPart
         of compiled.glowParts
       ) {
+        const glowShape =
+          flipped
+            ? mirrorShapeAcrossLocalX(
+                glowPart.shape,
+              )
+            : glowPart.shape;
+
         const glowRaster =
           rasterize(
-            glowPart.shape,
+            glowShape,
             angle,
           );
 
