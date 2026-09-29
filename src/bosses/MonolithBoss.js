@@ -4211,22 +4211,58 @@ export class MonolithBoss {
           id: 'head',
           raster:
             head.raster,
+          offsetX:
+            this.headOffsetX,
+          offsetY:
+            this.headOffsetY,
         },
         {
           id: 'left-arm',
           raster:
             leftArm.raster,
+          offsetX:
+            this.leftArmOffsetX,
+          offsetY:
+            this.leftArmOffsetY,
         },
         {
           id: 'right-arm',
           raster:
             rightArm.raster,
+          offsetX:
+            this.rightArmOffsetX,
+          offsetY:
+            this.rightArmOffsetY,
         },
       ],
       glows: [
-        ...head.glows,
-        ...leftArm.glows,
-        ...rightArm.glows,
+        ...head.glows.map(
+          glow => ({
+            ...glow,
+            offsetX:
+              this.headOffsetX,
+            offsetY:
+              this.headOffsetY,
+          }),
+        ),
+        ...leftArm.glows.map(
+          glow => ({
+            ...glow,
+            offsetX:
+              this.leftArmOffsetX,
+            offsetY:
+              this.leftArmOffsetY,
+          }),
+        ),
+        ...rightArm.glows.map(
+          glow => ({
+            ...glow,
+            offsetX:
+              this.rightArmOffsetX,
+            offsetY:
+              this.rightArmOffsetY,
+          }),
+        ),
       ],
     };
   }
@@ -4237,6 +4273,8 @@ export class MonolithBoss {
     cameraX,
     artPixelSize,
     alpha = 1,
+    offsetX = 0,
+    offsetY = 0,
   ) {
     const bounds =
       raster.shapeBounds ?? {
@@ -4255,11 +4293,13 @@ export class MonolithBoss {
       Math.round(
         this.x -
         cameraX +
+        offsetX +
         bounds.minX *
         artPixelSize,
       ),
       Math.round(
         this.y +
+        offsetY +
         bounds.minY *
         artPixelSize,
       ),
@@ -4554,6 +4594,8 @@ export class MonolithBoss {
         cameraX,
         artPixelSize,
         0.76,
+        glow.offsetX ?? 0,
+        glow.offsetY ?? 0,
       );
 
       ctx.restore();
@@ -4569,6 +4611,8 @@ export class MonolithBoss {
         cameraX,
         artPixelSize,
         1,
+        layer.offsetX ?? 0,
+        layer.offsetY ?? 0,
       );
     }
 
@@ -4598,6 +4642,8 @@ export class MonolithBoss {
           cameraX,
           artPixelSize,
           this.hurtFlash * 0.78,
+          head.offsetX ?? 0,
+          head.offsetY ?? 0,
         );
       }
 
