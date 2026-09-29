@@ -1384,6 +1384,11 @@ canvas {
 
 .shop-section-heading {
   align-items: center;
+  justify-content: flex-start;
+}
+
+.shop-section-heading .shop-reroll-button {
+  margin-left: 10px;
 }
 
 .shop-section-heading > div {
