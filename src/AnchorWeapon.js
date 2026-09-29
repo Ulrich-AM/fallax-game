@@ -1,6 +1,6 @@
 import {
   WeaponSpriteRenderer,
-} from './WeaponSpriteRenderer.js?v=60a';
+} from './WeaponSpriteRenderer.js?v=63a';
 
 const ANCHOR_TIP_PARTS = [
   {
