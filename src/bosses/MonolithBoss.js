@@ -2769,14 +2769,14 @@ export class MonolithBoss {
           ) {
             let damage = 4;
 
-            if (progress >= 0.72) {
+            if (progress >= 0.64) {
               damage = 14;
             } else if (
-              progress >= 0.48
+              progress >= 0.44
             ) {
               damage = 10;
             } else if (
-              progress >= 0.24
+              progress >= 0.22
             ) {
               damage = 7;
             }
