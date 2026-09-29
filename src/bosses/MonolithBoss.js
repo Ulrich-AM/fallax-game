@@ -849,14 +849,14 @@ export class MonolithBoss {
       .addState('idle', {
         enter: (owner, ai) => {
           owner.clearAttackPose();
-          owner.draglineActive = false;
-          owner.draglineAttached = false;
+          owner.resetPoseOffsets();
+          owner.clearDragline();
 
           ai.setTimer(
             'attackDelay',
-            1.15 +
+            1.0 +
               Math.random() *
-                0.85,
+                0.72,
           );
         },
 
@@ -918,32 +918,32 @@ export class MonolithBoss {
 
           const options = [
             {
-              value: 'lariatWindup',
+              value: 'lariatSwoop',
               weight:
                 distance > 260
-                  ? 1.45
-                  : 0.55,
+                  ? 1.55
+                  : 0.75,
             },
             {
               value: 'commandGrab',
               weight:
-                distance < 315
-                  ? 1.75
-                  : 0.18,
+                distance < 470
+                  ? 1.65
+                  : 0.16,
             },
             {
               value: 'draglineWindup',
               weight:
-                distance > 430
-                  ? 1.55
-                  : 0.62,
+                distance > 380
+                  ? 1.58
+                  : 0.48,
             },
             {
               value: 'groundSweepWindup',
               weight:
                 distance < 720
-                  ? 1.0
-                  : 0.45,
+                  ? 0.72
+                  : 0.28,
             },
           ];
 
@@ -952,7 +952,7 @@ export class MonolithBoss {
               option.value ===
               owner.lastAttack
             ) {
-              option.weight *= 0.28;
+              option.weight *= 0.24;
             }
           }
 
@@ -962,6 +962,7 @@ export class MonolithBoss {
             );
 
           owner.lastAttack = next;
+
           ai.changeState(
             next,
             ctx,
@@ -969,7 +970,10 @@ export class MonolithBoss {
         },
       })
 
-      .addState('lariatWindup', {
+      // LARIAT
+      // The body moves first, the heavy arms lag and oscillate, then the pose
+      // settles before a large anticipation pullback and a fast committed rush.
+      .addState('lariatSwoop', {
         enter: (
           owner,
           ai,
@@ -978,70 +982,62 @@ export class MonolithBoss {
           const target =
             ai.targetPlayer(ctx);
 
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.36,
+              world,
+            );
+
+          owner.lariatPredictedX =
+            predicted.x;
+
+          owner.lariatPredictedY =
+            predicted.y;
+
           owner.lariatDirection =
-            target
-              ? (
-                  target.x >= owner.x
-                    ? 1
-                    : -1
-                )
-              : owner.patrolDirection;
+            predicted.x >= owner.x
+              ? 1
+              : -1;
 
           owner.attackArmSide =
             owner.lariatDirection > 0
               ? 'right'
               : 'left';
 
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            82,
-          );
-
           owner.lariatStartX =
             owner.x;
 
+          owner.lariatStartY =
+            owner.y;
+
           owner.lariatEndX =
             clamp(
-              owner.x +
+              predicted.x -
                 owner.lariatDirection *
-                  610,
+                  500,
               180,
               world.width - 180,
             );
 
-          owner.lariatHit = false;
-        },
-
-        update: (
-          owner,
-          ai,
-        ) => {
-          if (
-            ai.stateTime >=
-            0.48
-          ) {
-            ai.changeState(
-              'lariatRush',
+          // Put the leading fist at roughly the target's predicted vertical
+          // center rather than leaving Monolith high above the fight.
+          owner.lariatTargetY =
+            clamp(
+              predicted.y - 190,
+              world.roofY + 145,
+              world.floorY - 185,
             );
-          }
-        },
-      })
 
-      .addState('lariatRush', {
-        enter: owner => {
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            8,
-          );
+          owner.lariatHit = false;
+          owner.resetPoseOffsets();
         },
 
         update: (
           owner,
           ai,
-          dt,
-          ctx,
         ) => {
-          const duration = 0.38;
+          const duration = 0.62;
           const t =
             clamp(
               ai.stateTime /
@@ -1050,11 +1046,388 @@ export class MonolithBoss {
               1,
             );
 
+          const eased =
+            easeInOutSine(t);
+
+          const arc =
+            Math.sin(
+              t * Math.PI,
+            );
+
           owner.x =
             lerpValue(
               owner.lariatStartX,
               owner.lariatEndX,
-              easeOutCubic(t),
+              eased,
+            );
+
+          owner.y =
+            lerpValue(
+              owner.lariatStartY,
+              owner.lariatTargetY,
+              eased,
+            ) +
+            arc * 54;
+
+          const decay =
+            1 - t;
+
+          const flail =
+            Math.sin(
+              t *
+              Math.PI *
+              4.1,
+            ) *
+            34 *
+            decay;
+
+          owner.leftArmOverride =
+            owner.leftArmNeutral -
+            flail;
+
+          owner.rightArmOverride =
+            owner.rightArmNeutral +
+            flail * 0.88;
+
+          owner.leftArmOffsetX =
+            -owner.lariatDirection *
+            arc *
+            18;
+
+          owner.rightArmOffsetX =
+            owner.lariatDirection *
+            arc *
+            18;
+
+          owner.leftArmOffsetY =
+            -arc * 12;
+
+          owner.rightArmOffsetY =
+            arc * 10;
+
+          owner.headOffsetX =
+            -owner.lariatDirection *
+            arc *
+            8;
+
+          owner.headOffsetY =
+            arc * 7;
+
+          if (t >= 1) {
+            ai.changeState(
+              'lariatStabilize',
+            );
+          }
+        },
+      })
+
+      .addState('lariatStabilize', {
+        update: (
+          owner,
+          ai,
+        ) => {
+          const duration = 0.28;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const decay =
+            1 - smoothStep01(t);
+
+          const settle =
+            Math.sin(
+              t *
+              Math.PI *
+              3,
+            ) *
+            11 *
+            decay;
+
+          owner.leftArmOverride =
+            owner.leftArmNeutral -
+            settle;
+
+          owner.rightArmOverride =
+            owner.rightArmNeutral +
+            settle;
+
+          owner.leftArmOffsetX *=
+            0.86;
+
+          owner.rightArmOffsetX *=
+            0.86;
+
+          owner.leftArmOffsetY *=
+            0.86;
+
+          owner.rightArmOffsetY *=
+            0.86;
+
+          owner.headOffsetX *=
+            0.82;
+
+          owner.headOffsetY *=
+            0.82;
+
+          owner.y =
+            owner.lariatTargetY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            7;
+
+          if (t >= 1) {
+            ai.changeState(
+              'lariatWindup',
+            );
+          }
+        },
+      })
+
+      .addState('lariatWindup', {
+        enter: owner => {
+          owner.lariatStartX =
+            owner.x;
+
+          owner.lariatStartY =
+            owner.y;
+        },
+
+        update: (
+          owner,
+          ai,
+        ) => {
+          const duration = 0.46;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          const direction =
+            owner.lariatDirection;
+
+          owner.x =
+            owner.lariatStartX -
+            direction *
+            118 *
+            eased;
+
+          owner.y =
+            owner.lariatStartY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            12;
+
+          if (direction > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                128,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -18,
+                eased,
+              );
+
+            owner.rightArmOffsetX =
+              -58 * eased;
+
+            owner.leftArmOffsetX =
+              26 * eased;
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -128,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                18,
+                eased,
+              );
+
+            owner.leftArmOffsetX =
+              58 * eased;
+
+            owner.rightArmOffsetX =
+              -26 * eased;
+          }
+
+          owner.leftArmOffsetY =
+            -16 * eased;
+
+          owner.rightArmOffsetY =
+            -16 * eased;
+
+          owner.headOffsetX =
+            -direction *
+            14 *
+            eased;
+
+          owner.headOffsetY =
+            -7 *
+            Math.sin(
+              t * Math.PI,
+            );
+
+          if (t >= 1) {
+            owner.lariatStartX =
+              owner.x;
+
+            owner.lariatStartY =
+              owner.y;
+
+            owner.lariatEndX =
+              clamp(
+                owner.lariatPredictedX +
+                  direction *
+                  270,
+                165,
+                world.width - 165,
+              );
+
+            ai.changeState(
+              'lariatRush',
+            );
+          }
+        },
+      })
+
+      .addState('lariatRush', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.30;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const snap =
+            easeOutCubic(t);
+
+          const direction =
+            owner.lariatDirection;
+
+          owner.x =
+            lerpValue(
+              owner.lariatStartX,
+              owner.lariatEndX,
+              snap,
+            );
+
+          owner.y =
+            lerpValue(
+              owner.lariatStartY,
+              owner.lariatTargetY,
+              easeInOutSine(t),
+            );
+
+          if (direction > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                128,
+                5,
+                snap,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -18,
+                -108,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                -58,
+                94,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                26,
+                -42,
+                snap,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -128,
+                -5,
+                snap,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                18,
+                108,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                58,
+                -94,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                -26,
+                42,
+                snap,
+              );
+          }
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              -16,
+              5,
+              snap,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              -16,
+              5,
+              snap,
+            );
+
+          owner.headOffsetX =
+            direction *
+            11 *
+            snap;
+
+          owner.headOffsetY =
+            -5 *
+            Math.sin(
+              t * Math.PI,
             );
 
           const target =
@@ -1066,18 +1439,18 @@ export class MonolithBoss {
           ) {
             const contactX =
               owner.x +
-              owner.lariatDirection *
-                150;
+              direction *
+              215;
 
             const contactY =
               owner.y +
-              235;
+              190;
 
             if (
               owner.circleHitsTarget(
                 contactX,
                 contactY,
-                165,
+                96,
                 target,
               )
             ) {
@@ -1089,12 +1462,12 @@ export class MonolithBoss {
                     y: contactY,
                   },
                   {
-                    damage: 22,
-                    stabilityCost: 16,
+                    damage: 24,
+                    stabilityCost: 17,
                     knockbackX:
-                      owner.lariatDirection *
-                      690,
-                    knockbackY: -210,
+                      direction *
+                      760,
+                    knockbackY: -230,
                   },
                 );
 
@@ -1115,6 +1488,94 @@ export class MonolithBoss {
           }
 
           if (t >= 1) {
+            owner.lariatStartX =
+              owner.x;
+
+            owner.lariatStartY =
+              owner.y;
+
+            ai.changeState(
+              'lariatFollowThrough',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('lariatFollowThrough', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.26;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeOutCubic(t);
+
+          const direction =
+            owner.lariatDirection;
+
+          owner.x =
+            owner.lariatStartX +
+            direction *
+            74 *
+            eased;
+
+          owner.y =
+            owner.lariatStartY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            9;
+
+          if (direction > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                5,
+                -24,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -108,
+                -66,
+                eased,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -5,
+                24,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                108,
+                66,
+                eased,
+              );
+          }
+
+          owner.headOffsetX =
+            direction *
+            lerpValue(
+              11,
+              3,
+              eased,
+            );
+
+          if (t >= 1) {
             ai.changeState(
               'recover',
               ctx,
@@ -1123,6 +1584,10 @@ export class MonolithBoss {
         },
       })
 
+      // COMMAND GRAB
+      // A close-range, dodgeable reach. The chosen hand retracts, snaps to the
+      // predicted player position, then carries the captured target through a
+      // visible turn/wind before the same hand releases the wall throw.
       .addState('commandGrab', {
         enter: (
           owner,
@@ -1134,9 +1599,16 @@ export class MonolithBoss {
               ctx,
             );
 
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.18,
+              world,
+            );
+
           owner.grabSide =
-            target &&
-            target.x < owner.x
+            predicted.x <
+            owner.x
               ? -1
               : 1;
 
@@ -1145,13 +1617,38 @@ export class MonolithBoss {
               ? 'right'
               : 'left';
 
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            18,
-          );
+          owner.grabAimX =
+            predicted.x;
+
+          owner.grabAimY =
+            predicted.y;
+
+          owner.grabWindStartX =
+            owner.x;
+
+          owner.grabWindStartY =
+            owner.y;
+
+          owner.grabBodyTargetY =
+            clamp(
+              predicted.y - 245,
+              owner.spawnY - 15,
+              world.floorY - 205,
+            );
+
+          owner.grabHandX =
+            owner.x +
+            owner.grabSide *
+              125;
+
+          owner.grabHandY =
+            owner.y +
+            185;
 
           owner.grabbedTarget =
             null;
+
+          owner.resetPoseOffsets();
         },
 
         update: (
@@ -1160,12 +1657,233 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
+          const totalDuration = 0.62;
+          const windDuration = 0.34;
+          const time =
+            Math.min(
+              ai.stateTime,
+              totalDuration,
+            );
+
+          const side =
+            owner.grabSide;
+
           if (
-            ai.stateTime <
-            0.52
+            time <
+            windDuration
           ) {
+            const t =
+              time /
+              windDuration;
+
+            const eased =
+              easeInOutSine(t);
+
+            owner.y =
+              lerpValue(
+                owner.grabWindStartY,
+                owner.grabBodyTargetY,
+                eased * 0.48,
+              );
+
+            if (side > 0) {
+              owner.rightArmOverride =
+                lerpValue(
+                  owner.rightArmNeutral,
+                  126,
+                  eased,
+                );
+
+              owner.leftArmOverride =
+                lerpValue(
+                  owner.leftArmNeutral,
+                  -20,
+                  eased,
+                );
+
+              owner.rightArmOffsetX =
+                -52 * eased;
+
+              owner.leftArmOffsetX =
+                24 * eased;
+            } else {
+              owner.leftArmOverride =
+                lerpValue(
+                  owner.leftArmNeutral,
+                  -126,
+                  eased,
+                );
+
+              owner.rightArmOverride =
+                lerpValue(
+                  owner.rightArmNeutral,
+                  20,
+                  eased,
+                );
+
+              owner.leftArmOffsetX =
+                52 * eased;
+
+              owner.rightArmOffsetX =
+                -24 * eased;
+            }
+
+            owner.leftArmOffsetY =
+              -18 * eased;
+
+            owner.rightArmOffsetY =
+              -18 * eased;
+
+            owner.headOffsetX =
+              -side *
+              15 *
+              eased;
+
+            owner.headOffsetY =
+              -6 *
+              Math.sin(
+                t * Math.PI,
+              );
+
             return;
           }
+
+          const t =
+            clamp(
+              (
+                time -
+                windDuration
+              ) /
+              (
+                totalDuration -
+                windDuration
+              ),
+              0,
+              1,
+            );
+
+          const snap =
+            easeOutCubic(t);
+
+          owner.y =
+            lerpValue(
+              owner.grabWindStartY,
+              owner.grabBodyTargetY,
+              0.48 +
+                snap * 0.32,
+            );
+
+          const handStartX =
+            owner.grabWindStartX +
+            side * 105;
+
+          const handStartY =
+            owner.grabWindStartY +
+            175;
+
+          owner.grabHandX =
+            lerpValue(
+              handStartX,
+              owner.grabAimX,
+              snap,
+            );
+
+          owner.grabHandY =
+            lerpValue(
+              handStartY,
+              owner.grabAimY,
+              snap,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.grabAimX -
+                owner.x
+              ) *
+              0.42,
+              -170,
+              170,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.grabAimY -
+                (
+                  owner.y +
+                  175
+                )
+              ) *
+              0.34,
+              -80,
+              125,
+            );
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                126,
+                10,
+                snap,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -20,
+                -68,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                -52,
+                reachX,
+                snap,
+              );
+
+            owner.rightArmOffsetY =
+              lerpValue(
+                -18,
+                reachY,
+                snap,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -126,
+                -10,
+                snap,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                20,
+                68,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                52,
+                reachX,
+                snap,
+              );
+
+            owner.leftArmOffsetY =
+              lerpValue(
+                -18,
+                reachY,
+                snap,
+              );
+          }
+
+          owner.headOffsetX =
+            lerpValue(
+              -side * 15,
+              side * 6,
+              snap,
+            );
 
           const target =
             owner.resolveGrabTarget(
@@ -1174,13 +1892,16 @@ export class MonolithBoss {
 
           if (
             target &&
-            owner.canCommandGrab(
-              target,
-            ) &&
             !(
               target
                 .dashInvulnerabilityTimer >
               0
+            ) &&
+            owner.circleHitsTarget(
+              owner.grabHandX,
+              owner.grabHandY,
+              74,
+              target,
             )
           ) {
             owner.grabbedTarget =
@@ -1189,28 +1910,96 @@ export class MonolithBoss {
             owner.grabDashSerial =
               target.dashSerial ?? 0;
 
-            target.takeDamage?.(6);
+            owner.grabCaptureX =
+              target.x;
+
+            owner.grabCaptureY =
+              target.y;
+
+            target.takeDamage?.(4);
 
             ai.changeState(
-              'wallTossHold',
+              'commandGrabTurn',
               ctx,
             );
+
             return;
           }
 
-          ai.changeState(
-            'recover',
-            ctx,
-          );
+          if (t >= 1) {
+            ai.changeState(
+              'commandGrabWhiff',
+              ctx,
+            );
+          }
         },
       })
 
-      .addState('wallTossHold', {
+      .addState('commandGrabWhiff', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.24;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeOutCubic(t);
+
+          const side =
+            owner.grabSide;
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                10,
+                -18,
+                eased,
+              );
+
+            owner.rightArmOffsetX +=
+              0.7;
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -10,
+                18,
+                eased,
+              );
+
+            owner.leftArmOffsetX -=
+              0.7;
+          }
+
+          owner.headOffsetX =
+            side *
+            5 *
+            (1 - t);
+
+          if (t >= 1) {
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('commandGrabTurn', {
         enter: owner => {
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            4,
-          );
+          owner.grabWindStartX =
+            owner.x;
+
+          owner.grabWindStartY =
+            owner.y;
         },
 
         update: (
@@ -1254,23 +2043,225 @@ export class MonolithBoss {
             return;
           }
 
-          owner.pinGrabbedTarget(
+          const duration = 0.72;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          const side =
+            owner.grabSide;
+
+          owner.x =
+            owner.grabWindStartX -
+            side *
+            Math.sin(
+              t * Math.PI,
+            ) *
+            38;
+
+          owner.y =
+            owner.grabWindStartY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            12;
+
+          const holdX =
+            owner.x +
+            side *
+            lerpValue(
+              150,
+              -96,
+              eased,
+            );
+
+          const holdY =
+            owner.y +
+            198 -
+            Math.sin(
+              eased *
+              Math.PI,
+            ) *
+            108;
+
+          owner.pinTargetAt(
             target,
+            holdX,
+            holdY,
             world,
           );
 
-          if (
-            ai.stateTime >=
-            0.34
-          ) {
+          owner.grabHandX =
+            holdX;
+
+          owner.grabHandY =
+            holdY;
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                10,
+                138,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -68,
+                -24,
+                eased,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                70,
+                -44,
+                eased,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -10,
+                -138,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                68,
+                24,
+                eased,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                -70,
+                44,
+                eased,
+              );
+          }
+
+          owner.headOffsetX =
+            -side *
+            Math.sin(
+              t * Math.PI,
+            ) *
+            20;
+
+          owner.headOffsetY =
+            -Math.sin(
+              t * Math.PI,
+            ) *
+            8;
+
+          if (t >= 1) {
+            ai.changeState(
+              'commandGrabRelease',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('commandGrabRelease', {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
+          const target =
+            owner.grabbedTarget;
+
+          if (target) {
             owner.startWallThrow(
               target,
               world,
+              owner.grabSide,
+            );
+          }
+
+          owner.grabbedTarget =
+            null;
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.25;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
             );
 
-            owner.grabbedTarget =
-              null;
+          const snap =
+            easeOutCubic(t);
 
+          const side =
+            owner.grabSide;
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                138,
+                3,
+                snap,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -24,
+                -82,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                -44,
+                104,
+                snap,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -138,
+                -3,
+                snap,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                24,
+                82,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                44,
+                -104,
+                snap,
+              );
+          }
+
+          owner.headOffsetX =
+            side *
+            14 *
+            snap;
+
+          if (t >= 1) {
             ai.changeState(
               'recover',
               ctx,
@@ -1279,6 +2270,10 @@ export class MonolithBoss {
         },
       })
 
+      // DRAGLINE SQUEEZE
+      // This is now a long-range grab instead of a harmless reposition tool.
+      // The hand reaches out like Command Grab, drags the target inward, then
+      // visibly clenches in damage bursts that grow as the distance closes.
       .addState('draglineWindup', {
         enter: (
           owner,
@@ -1290,27 +2285,30 @@ export class MonolithBoss {
               ctx,
             );
 
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.24,
+              world,
+            );
+
           owner.attackArmSide =
-            target &&
-            target.x < owner.x
+            predicted.x <
+            owner.x
               ? 'left'
               : 'right';
 
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            72,
-          );
+          owner.grabSide =
+            owner.attackArmSide ===
+            'left'
+              ? -1
+              : 1;
 
           owner.draglineLockedX =
-            target?.x ??
-            owner.x;
+            predicted.x;
 
           owner.draglineLockedY =
-            target?.y ??
-            (
-              owner.y +
-              240
-            );
+            predicted.y;
 
           owner.draglineActive =
             false;
@@ -1320,6 +2318,8 @@ export class MonolithBoss {
 
           owner.draglineTarget =
             null;
+
+          owner.resetPoseOffsets();
         },
 
         update: (
@@ -1328,27 +2328,81 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const target =
-            owner.resolveGrabTarget(
-              ctx,
+          const duration = 0.50;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
             );
 
-          if (
-            target &&
-            ai.stateTime <
-            0.34
-          ) {
-            owner.draglineLockedX =
-              target.x;
+          const eased =
+            easeInOutSine(t);
 
-            owner.draglineLockedY =
-              target.y;
+          const side =
+            owner.grabSide;
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                148,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -18,
+                eased,
+              );
+
+            owner.rightArmOffsetX =
+              -68 * eased;
+
+            owner.leftArmOffsetX =
+              28 * eased;
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -148,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                18,
+                eased,
+              );
+
+            owner.leftArmOffsetX =
+              68 * eased;
+
+            owner.rightArmOffsetX =
+              -28 * eased;
           }
 
-          if (
-            ai.stateTime >=
-            0.56
-          ) {
+          owner.leftArmOffsetY =
+            -22 * eased;
+
+          owner.rightArmOffsetY =
+            -22 * eased;
+
+          owner.headOffsetX =
+            -side *
+            18 *
+            eased;
+
+          owner.headOffsetY =
+            -8 *
+            Math.sin(
+              t * Math.PI,
+            );
+
+          if (t >= 1) {
             ai.changeState(
               'draglineCast',
               ctx,
@@ -1370,46 +2424,20 @@ export class MonolithBoss {
               groupId,
             );
 
+          owner.draglineCastStartX =
+            start.x;
+
+          owner.draglineCastStartY =
+            start.y;
+
           owner.draglineHookX =
             start.x;
 
           owner.draglineHookY =
             start.y;
 
-          const dx =
-            owner.draglineLockedX -
-            start.x;
-
-          const dy =
-            owner.draglineLockedY -
-            start.y;
-
-          const length =
-            Math.hypot(
-              dx,
-              dy,
-            ) || 1;
-
-          const speed = 1320;
-
-          owner.draglineVX =
-            dx /
-            length *
-            speed;
-
-          owner.draglineVY =
-            dy /
-            length *
-            speed;
-
-          owner.draglineLife = 0.95;
           owner.draglineActive = true;
           owner.draglineAttached = false;
-
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            16,
-          );
         },
 
         update: (
@@ -1418,15 +2446,124 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          owner.draglineLife -= dt;
+          const duration = 0.38;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
 
-          owner.draglineHookX +=
-            owner.draglineVX *
-            dt;
+          const snap =
+            easeOutCubic(t);
 
-          owner.draglineHookY +=
-            owner.draglineVY *
-            dt;
+          const side =
+            owner.grabSide;
+
+          owner.draglineHookX =
+            lerpValue(
+              owner.draglineCastStartX,
+              owner.draglineLockedX,
+              snap,
+            );
+
+          owner.draglineHookY =
+            lerpValue(
+              owner.draglineCastStartY,
+              owner.draglineLockedY,
+              snap,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.draglineLockedX -
+                owner.x
+              ) *
+              0.28,
+              -210,
+              210,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.draglineLockedY -
+                (
+                  owner.y +
+                  170
+                )
+              ) *
+              0.22,
+              -100,
+              125,
+            );
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                148,
+                8,
+                snap,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                -18,
+                -78,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              lerpValue(
+                -68,
+                reachX,
+                snap,
+              );
+
+            owner.rightArmOffsetY =
+              lerpValue(
+                -22,
+                reachY,
+                snap,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -148,
+                -8,
+                snap,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                18,
+                78,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              lerpValue(
+                68,
+                reachX,
+                snap,
+              );
+
+            owner.leftArmOffsetY =
+              lerpValue(
+                -22,
+                reachY,
+                snap,
+              );
+          }
+
+          owner.headOffsetX =
+            lerpValue(
+              -side * 18,
+              side * 8,
+              snap,
+            );
 
           const target =
             owner.resolveGrabTarget(
@@ -1435,10 +2572,15 @@ export class MonolithBoss {
 
           if (
             target &&
+            !(
+              target
+                .dashInvulnerabilityTimer >
+              0
+            ) &&
             owner.circleHitsTarget(
               owner.draglineHookX,
               owner.draglineHookY,
-              34,
+              76,
               target,
             )
           ) {
@@ -1451,25 +2593,39 @@ export class MonolithBoss {
             owner.draglineAttached =
               true;
 
+            const catchPoint =
+              owner.draglineCatchPoint();
+
+            owner.draglineInitialDistance =
+              Math.max(
+                1,
+                Math.hypot(
+                  target.x -
+                    catchPoint.x,
+                  target.y -
+                    catchPoint.y,
+                ),
+              );
+
+            owner.draglineSqueezeTimer =
+              0.22;
+
+            owner.draglineSqueezeCount =
+              0;
+
+            owner.draglineSqueezeFlash =
+              0;
+
             ai.changeState(
-              'draglinePull',
+              'draglineSqueeze',
               ctx,
             );
+
             return;
           }
 
-          if (
-            owner.draglineLife <= 0 ||
-            owner.draglineHookX < -100 ||
-            owner.draglineHookX >
-              world.width + 100 ||
-            owner.draglineHookY <
-              world.roofY - 100 ||
-            owner.draglineHookY >
-              world.floorY + 100
-          ) {
-            owner.draglineActive =
-              false;
+          if (t >= 1) {
+            owner.clearDragline();
 
             ai.changeState(
               'recover',
@@ -1479,7 +2635,7 @@ export class MonolithBoss {
         },
       })
 
-      .addState('draglinePull', {
+      .addState('draglineSqueeze', {
         update: (
           owner,
           ai,
@@ -1522,31 +2678,15 @@ export class MonolithBoss {
             return;
           }
 
-          owner.draglineHookX =
-            target.x;
-
-          owner.draglineHookY =
-            target.y;
-
-          const catchX =
-            owner.x +
-            (
-              owner.attackArmSide ===
-              'left'
-                ? -115
-                : 115
-            );
-
-          const catchY =
-            owner.y +
-            220;
+          const catchPoint =
+            owner.draglineCatchPoint();
 
           const dx =
-            catchX -
+            catchPoint.x -
             target.x;
 
           const dy =
-            catchY -
+            catchPoint.y -
             target.y;
 
           const distance =
@@ -1555,69 +2695,205 @@ export class MonolithBoss {
               dy,
             );
 
-          if (distance > 0.001) {
-            const pullSpeed = 680;
+          const progress =
+            1 -
+            clamp(
+              distance /
+                owner.draglineInitialDistance,
+              0,
+              1,
+            );
+
+          const pullSpeed =
+            235 +
+            progress * 190;
+
+          if (
+            distance >
+            0.001
+          ) {
             const step =
               Math.min(
                 distance,
                 pullSpeed * dt,
               );
 
-            target.x +=
-              dx /
-              distance *
-              step;
-
-            target.y +=
-              dy /
-              distance *
-              step;
-
-            const halfW =
-              (target.w ?? 32) /
-              2;
-
-            const halfH =
-              (target.h ?? 56) /
-              2;
-
-            target.x =
-              clamp(
-                target.x,
-                halfW,
-                world.width -
-                  halfW,
-              );
-
-            target.y =
-              clamp(
-                target.y,
-                world.roofY +
-                  halfH,
-                world.floorY -
-                  halfH,
-              );
-
-            target.prevY =
-              target.y;
+            owner.pinTargetAt(
+              target,
+              target.x +
+                dx /
+                distance *
+                step,
+              target.y +
+                dy /
+                distance *
+                step,
+              world,
+            );
 
             target.vx =
               dx /
               distance *
-              320;
+              pullSpeed;
 
             target.vy =
               dy /
               distance *
-              320;
+              pullSpeed;
 
             target.grounded = false;
           }
 
+          owner.draglineHookX =
+            target.x;
+
+          owner.draglineHookY =
+            target.y;
+
+          owner.draglineSqueezeFlash =
+            Math.max(
+              0,
+              owner.draglineSqueezeFlash -
+              dt * 5.4,
+            );
+
+          owner.draglineSqueezeTimer -=
+            dt;
+
           if (
-            distance <= 205 ||
-            ai.stateTime >= 0.80
+            owner.draglineSqueezeTimer <=
+            0
           ) {
+            let damage = 4;
+
+            if (progress >= 0.72) {
+              damage = 14;
+            } else if (
+              progress >= 0.48
+            ) {
+              damage = 10;
+            } else if (
+              progress >= 0.24
+            ) {
+              damage = 7;
+            }
+
+            target.takeDamage?.(
+              damage,
+            );
+
+            owner.draglineSqueezeCount++;
+            owner.draglineSqueezeFlash = 1;
+            owner.draglineSqueezeTimer =
+              0.43;
+
+            ctx
+              .shakeCamera
+              ?.(2.1 + damage * 0.13, 0.07);
+          }
+
+          const side =
+            owner.grabSide;
+
+          const pulse =
+            Math.sin(
+              owner.draglineSqueezeFlash *
+              Math.PI,
+            );
+
+          const groupId =
+            owner.attackArmSide ===
+            'left'
+              ? 'group-3'
+              : 'group-4';
+
+          const pivot =
+            owner.armPivotWorld(
+              groupId,
+            );
+
+          const stretchX =
+            clamp(
+              (
+                target.x -
+                pivot.x
+              ) *
+              0.18,
+              -190,
+              190,
+            );
+
+          const stretchY =
+            clamp(
+              (
+                target.y -
+                pivot.y
+              ) *
+              0.16,
+              -100,
+              120,
+            );
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              12 -
+              pulse * 18;
+
+            owner.leftArmOverride =
+              -72 +
+              pulse * 12;
+
+            owner.rightArmOffsetX =
+              stretchX -
+              pulse * 20;
+
+            owner.rightArmOffsetY =
+              stretchY +
+              pulse * 9;
+          } else {
+            owner.leftArmOverride =
+              -12 +
+              pulse * 18;
+
+            owner.rightArmOverride =
+              72 -
+              pulse * 12;
+
+            owner.leftArmOffsetX =
+              stretchX +
+              pulse * 20;
+
+            owner.leftArmOffsetY =
+              stretchY +
+              pulse * 9;
+          }
+
+          owner.headOffsetX =
+            -side *
+            pulse *
+            7;
+
+          owner.headOffsetY =
+            pulse * 5;
+
+          const closeEnough =
+            distance <= 220 &&
+            owner.draglineSqueezeCount >= 3;
+
+          const timedOut =
+            ai.stateTime >= 3.2 &&
+            owner.draglineSqueezeCount >= 2;
+
+          if (
+            closeEnough ||
+            timedOut
+          ) {
+            target.vx =
+              side * 145;
+
+            target.vy = 70;
+            target.grounded = false;
+
             owner.clearDragline();
 
             ai.changeState(
@@ -1762,9 +3038,32 @@ export class MonolithBoss {
 
       .addState('recover', {
         enter: owner => {
-          owner.clearAttackPose();
-          owner.draglineActive =
-            owner.draglineAttached;
+          owner.recoverStartY =
+            owner.y;
+
+          owner.recoverHeadOffsetX =
+            owner.headOffsetX;
+
+          owner.recoverHeadOffsetY =
+            owner.headOffsetY;
+
+          owner.recoverLeftArmOffsetX =
+            owner.leftArmOffsetX;
+
+          owner.recoverLeftArmOffsetY =
+            owner.leftArmOffsetY;
+
+          owner.recoverRightArmOffsetX =
+            owner.rightArmOffsetX;
+
+          owner.recoverRightArmOffsetY =
+            owner.rightArmOffsetY;
+
+          owner.leftArmOverride =
+            owner.leftArmNeutral;
+
+          owner.rightArmOverride =
+            owner.rightArmNeutral;
         },
 
         update: (
@@ -1773,12 +3072,75 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          owner.y = owner.spawnY;
+          const duration = 0.64;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
 
-          if (
-            ai.stateTime >=
-            0.58
-          ) {
+          const eased =
+            easeInOutSine(t);
+
+          owner.y =
+            lerpValue(
+              owner.recoverStartY,
+              owner.spawnY,
+              eased,
+            ) -
+            Math.sin(
+              t * Math.PI,
+            ) *
+            7;
+
+          owner.headOffsetX =
+            lerpValue(
+              owner.recoverHeadOffsetX,
+              0,
+              eased,
+            );
+
+          owner.headOffsetY =
+            lerpValue(
+              owner.recoverHeadOffsetY,
+              0,
+              eased,
+            );
+
+          owner.leftArmOffsetX =
+            lerpValue(
+              owner.recoverLeftArmOffsetX,
+              0,
+              eased,
+            );
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              owner.recoverLeftArmOffsetY,
+              0,
+              eased,
+            );
+
+          owner.rightArmOffsetX =
+            lerpValue(
+              owner.recoverRightArmOffsetX,
+              0,
+              eased,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              owner.recoverRightArmOffsetY,
+              0,
+              eased,
+            );
+
+          if (t >= 1) {
+            owner.clearAttackPose();
+            owner.resetPoseOffsets();
+
             ai.changeState(
               'idle',
               ctx,
