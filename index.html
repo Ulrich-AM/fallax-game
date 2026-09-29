@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>fallax - boss rush</title>
-  <link rel="stylesheet" href="style.css?v=63a" />
+  <link rel="stylesheet" href="style.css?v=63b" />
 </head>
 <body>
   <div id="app">
@@ -169,7 +169,7 @@
           <div class="setting-row">
             <span>
               <strong>reset game data</strong>
-              <small>removes denarii, purchased items, and equipped items</small>
+              <small>removes currencies, purchased items, and equipped items</small>
             </span>
             <button id="reset-game-data" class="back-button danger-button">reset</button>
           </div>
@@ -606,7 +606,16 @@
       </div>
     </section>
 
-    <div id="denarius-balance" class="denarius-balance" aria-label="Denarius balance">0 denarius</div>
+    <div id="currency-display" class="currency-display hidden" aria-label="Currency balances">
+      <div class="currency-row currency-row-denarius">
+        <canvas id="denarius-icon" class="currency-icon" width="30" height="30" aria-hidden="true"></canvas>
+        <span id="denarius-balance" class="currency-balance">0 denarii</span>
+      </div>
+      <div class="currency-row currency-row-telos">
+        <canvas id="telos-icon" class="currency-icon" width="30" height="30" aria-hidden="true"></canvas>
+        <span id="telos-balance" class="currency-balance">0 telos</span>
+      </div>
+    </div>
     <div id="build-version" class="build-version" aria-label="Build version"></div>
 
     <section id="item-tooltip" class="item-tooltip hidden" aria-hidden="true">
@@ -640,6 +649,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=63a"></script>
+  <script type="module" src="src/main.js?v=63b"></script>
 </body>
 </html>

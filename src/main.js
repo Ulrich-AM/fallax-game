@@ -35,7 +35,7 @@ import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   ExtraSystem,
 } from './ExtraSystem.js?v=63';
-import { Economy } from './Economy.js?v=63';
+import { Economy } from './Economy.js?v=63b';
 import {
   PROGRESS_EPOCH,
   getProgressEpochStatus,
@@ -60,7 +60,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v63a';
+const BUILD_VERSION = 'v63b';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -177,7 +177,11 @@ const equipmentInventory = document.querySelector('#equipment-inventory');
 const inventoryDropZone = document.querySelector('#inventory-drop-zone');
 
 const buildVersionLabel = document.querySelector('#build-version');
+const currencyDisplay = document.querySelector('#currency-display');
 const denariusBalance = document.querySelector('#denarius-balance');
+const telosBalance = document.querySelector('#telos-balance');
+const denariusIconCanvas = document.querySelector('#denarius-icon');
+const telosIconCanvas = document.querySelector('#telos-icon');
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d');
 
@@ -185,10 +189,15 @@ if (buildVersionLabel) {
   buildVersionLabel.textContent = BUILD_VERSION;
 }
 
-function renderDenariusBalance() {
+function renderCurrencyBalances() {
   if (denariusBalance) {
     denariusBalance.textContent =
       `${economy.denarius} denarii`;
+  }
+
+  if (telosBalance) {
+    telosBalance.textContent =
+      `${economy.telos} telos`;
   }
 }
 
@@ -197,6 +206,143 @@ ctx.imageSmoothingEnabled = false;
 const W = canvas.width;
 const H = canvas.height;
 const ART_PIXEL = 4;
+
+function createCurrencyIconRaster(
+  fill,
+  outline,
+) {
+  return rasterize(
+    group([
+      rectangle({
+        width: 3,
+        height: 3,
+        color: fill,
+      }),
+    ], {
+      mergeOutlines: true,
+      outline: {
+        enabled: true,
+        color: outline,
+        thickness: 1,
+      },
+      padding: 1,
+    }),
+  );
+}
+
+const denariusIconRaster =
+  createCurrencyIconRaster(
+    '#858a93',
+    '#444952',
+  );
+
+const telosIconRaster =
+  createCurrencyIconRaster(
+    '#ffffff',
+    '#bfc5cf',
+  );
+
+function drawCurrencyIcon(
+  targetCanvas,
+  raster,
+  angle,
+  {
+    glow = false,
+  } = {},
+) {
+  if (
+    !targetCanvas ||
+    !raster
+  ) {
+    return;
+  }
+
+  const iconCtx =
+    targetCanvas.getContext('2d');
+
+  const width =
+    targetCanvas.width;
+
+  const height =
+    targetCanvas.height;
+
+  iconCtx.clearRect(
+    0,
+    0,
+    width,
+    height,
+  );
+
+  iconCtx.save();
+  iconCtx.imageSmoothingEnabled =
+    false;
+
+  iconCtx.translate(
+    Math.round(width / 2),
+    Math.round(height / 2),
+  );
+
+  iconCtx.rotate(angle);
+
+  if (glow) {
+    iconCtx.shadowColor =
+      '#ffffff';
+
+    iconCtx.shadowBlur = 8;
+  }
+
+  const pixelSize = 3;
+  const drawWidth =
+    raster.width *
+    pixelSize;
+
+  const drawHeight =
+    raster.height *
+    pixelSize;
+
+  iconCtx.drawImage(
+    raster,
+    Math.round(
+      -drawWidth / 2,
+    ),
+    Math.round(
+      -drawHeight / 2,
+    ),
+    drawWidth,
+    drawHeight,
+  );
+
+  iconCtx.restore();
+}
+
+function drawCurrencyIcons(now) {
+  if (
+    !currencyDisplay ||
+    currencyDisplay
+      .classList
+      .contains('hidden')
+  ) {
+    return;
+  }
+
+  const seconds =
+    now * 0.001;
+
+  drawCurrencyIcon(
+    denariusIconCanvas,
+    denariusIconRaster,
+    seconds * 0.72,
+  );
+
+  drawCurrencyIcon(
+    telosIconCanvas,
+    telosIconRaster,
+    -seconds * 1.05,
+    {
+      glow: true,
+    },
+  );
+}
 
 // v56 full-arena camera. Gameplay remains in world coordinates while the
 // complete arena is rendered at half scale for a fixed boss-rush view.
@@ -295,7 +441,7 @@ const weaponRuntime =
 
 const extraSystem = new ExtraSystem();
 const economy = new Economy();
-renderDenariusBalance();
+renderCurrencyBalances();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
 const monolithBoss = new MonolithBoss(world);
@@ -495,13 +641,13 @@ function developerItemReference(item) {
 }
 
 function resetGameProgress() {
-  economy.resetDenarius();
+  economy.resetCurrencies();
   resetEquipmentState();
 
   activeWeaponSlot = 0;
   extraSystem.reset();
 
-  renderDenariusBalance();
+  renderCurrencyBalances();
   renderEquipment();
   renderShop();
   refreshWeaponButtons();
@@ -627,7 +773,7 @@ function registerDeveloperCommands() {
         amount,
       );
 
-    renderDenariusBalance();
+    renderCurrencyBalances();
     renderShop();
 
     return `added ${gain} denarii. balance: ${economy.denarius}.`;
@@ -679,7 +825,7 @@ function registerDeveloperCommands() {
         amount,
       );
 
-      renderDenariusBalance();
+      renderCurrencyBalances();
       renderShop();
 
       return `denarius balance set to ${economy.denarius}.`;
@@ -693,22 +839,94 @@ function registerDeveloperCommands() {
       'reset.denarii',
     execute: () => {
       economy.resetDenarius();
-      renderDenariusBalance();
+      renderCurrencyBalances();
       renderShop();
 
       return 'denarius balance reset to 0.';
     },
   });
 
+  const giveTelos = ({ args }) => {
+    const amount =
+      Number(args[0]);
+
+    if (
+      !Number.isFinite(amount) ||
+      amount < 0
+    ) {
+      throw new Error(
+        'usage: give.telos <non-negative amount>',
+      );
+    }
+
+    const gain =
+      economy.addTelos(
+        amount,
+      );
+
+    renderCurrencyBalances();
+
+    return `added ${gain} telos. balance: ${economy.telos}.`;
+  };
+
+  devConsole.register('give.telos', {
+    description:
+      'add telos to the current balance',
+    usage:
+      'give.telos <amount>',
+    execute: giveTelos,
+  });
+
+  devConsole.register('set.telos', {
+    description:
+      'set the current telos balance exactly',
+    usage:
+      'set.telos <amount>',
+    execute: ({ args }) => {
+      const amount =
+        Number(args[0]);
+
+      if (
+        !Number.isFinite(amount) ||
+        amount < 0
+      ) {
+        throw new Error(
+          'usage: set.telos <non-negative amount>',
+        );
+      }
+
+      economy.setTelos(
+        amount,
+      );
+
+      renderCurrencyBalances();
+
+      return `telos balance set to ${economy.telos}.`;
+    },
+  });
+
+  devConsole.register('reset.telos', {
+    description:
+      'reset the telos balance to zero',
+    usage:
+      'reset.telos',
+    execute: () => {
+      economy.resetTelos();
+      renderCurrencyBalances();
+
+      return 'telos balance reset to 0.';
+    },
+  });
+
   devConsole.register('reset.game', {
     description:
-      'reset denarii, owned items, and loadout to a fresh save',
+      'reset currencies, owned items, and loadout to a fresh save',
     usage:
       'reset.game',
     execute: () => {
       resetGameProgress();
 
-      return 'game progression reset. Vector is the only owned item and denarii is 0.';
+      return 'game progression reset. Vector is the only owned item and both currencies are 0.';
     },
   });
 
@@ -1783,7 +2001,7 @@ function endEncounter(result) {
         reward.total,
       );
 
-    renderDenariusBalance();
+    renderCurrencyBalances();
 
     if (encounterReward) {
       const seconds =
@@ -1883,6 +2101,19 @@ function endEncounter(result) {
 function showScreen(name) {
   hideItemTooltip();
   currentScreen = name;
+
+  const showsCurrency =
+    name === 'shop' ||
+    name === 'equipment';
+
+  currencyDisplay?.classList.toggle(
+    'hidden',
+    !showsCurrency,
+  );
+
+  if (showsCurrency) {
+    renderCurrencyBalances();
+  }
 
   if (name === 'game') {
     if (activeBoss === monolithBoss) {
@@ -3976,7 +4207,7 @@ function createShopItemCard(itemId) {
       return;
     }
 
-    renderDenariusBalance();
+    renderCurrencyBalances();
 
     if (activeShopTab === 'random') {
       rollRandomShopItems();
@@ -4114,6 +4345,7 @@ function frame(now) {
 
   if (currentScreen === 'game') renderGame();
   drawItemTooltipPreview(now);
+  drawCurrencyIcons(now);
   requestAnimationFrame(frame);
 }
 

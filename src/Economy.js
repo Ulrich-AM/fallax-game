@@ -15,6 +15,7 @@ function clampAmount(value) {
 export class Economy {
   constructor() {
     this.denarius = 0;
+    this.telos = 0;
 
     try {
       const saved = JSON.parse(
@@ -29,9 +30,15 @@ export class Economy {
           clampAmount(
             saved.denarius,
           );
+
+        this.telos =
+          clampAmount(
+            saved.telos,
+          );
       }
     } catch {
       this.denarius = 0;
+      this.telos = 0;
     }
   }
 
@@ -42,6 +49,8 @@ export class Economy {
         JSON.stringify({
           denarius:
             this.denarius,
+          telos:
+            this.telos,
         }),
       );
     } catch {
@@ -87,5 +96,56 @@ export class Economy {
     this.save();
 
     return true;
+  }
+
+  setTelos(amount) {
+    this.telos =
+      clampAmount(amount);
+
+    this.save();
+
+    return this.telos;
+  }
+
+  resetTelos() {
+    return this.setTelos(0);
+  }
+
+  addTelos(amount) {
+    const gain =
+      clampAmount(amount);
+
+    this.telos += gain;
+    this.save();
+
+    return gain;
+  }
+
+  spendTelos(amount) {
+    const cost =
+      clampAmount(amount);
+
+    if (
+      cost >
+      this.telos
+    ) {
+      return false;
+    }
+
+    this.telos -= cost;
+    this.save();
+
+    return true;
+  }
+
+  resetCurrencies() {
+    this.denarius = 0;
+    this.telos = 0;
+    this.save();
+
+    return {
+      denarius: this.denarius,
+      telos: this.telos,
+    };
   }
 }
