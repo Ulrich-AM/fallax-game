@@ -10,7 +10,11 @@ import {
 } from './SpriteAnimation.js?v=55';
 import {
   PlayerController,
-} from './PlayerController.js?v=49';
+} from './PlayerController.js?v=60c';
+import {
+  mirrorShapeAcrossLocalX,
+  shouldFlipWeaponSprite,
+} from './WeaponSpriteRenderer.js?v=63a';
 
 function clamp(value, min, max) {
   return Math.max(
@@ -669,8 +673,19 @@ export class WeaponTestRoom {
         this.animationTime * 30,
       ) / 30;
 
+    const angleRadians =
+      angleKey *
+      Math.PI /
+      180;
+
+    const flipped =
+      shouldFlipWeaponSprite(
+        this.asset,
+        angleRadians,
+      );
+
     const key =
-      `${this.currentClipName}:${animationKey}:${angleKey}`;
+      `${this.currentClipName}:${animationKey}:${angleKey}:${flipped ? 1 : 0}`;
 
     if (
       this.rasterCache.has(key)
@@ -698,14 +713,34 @@ export class WeaponTestRoom {
         animatedAsset,
       );
 
+    const shape =
+      flipped
+        ? mirrorShapeAcrossLocalX(
+            compiled.shape,
+          )
+        : compiled.shape;
+
+    const glowParts =
+      flipped
+        ? compiled.glowParts.map(
+            part => ({
+              ...part,
+              shape:
+                mirrorShapeAcrossLocalX(
+                  part.shape,
+                ),
+            }),
+          )
+        : compiled.glowParts;
+
     const base =
       rasterize(
-        compiled.shape,
+        shape,
         angleKey,
       );
 
     const glows =
-      compiled.glowParts
+      glowParts
         .map(part => ({
           color:
             part.glow.color,
@@ -920,10 +955,20 @@ export class WeaponTestRoom {
 
     if (!marker) return;
 
+    const flipped =
+      shouldFlipWeaponSprite(
+        compiled.asset,
+        this.angle *
+          Math.PI /
+          180,
+      );
+
     const rotated =
       rotatePoint(
         marker.x,
-        marker.y,
+        flipped
+          ? -marker.y
+          : marker.y,
         this.angle,
       );
 
