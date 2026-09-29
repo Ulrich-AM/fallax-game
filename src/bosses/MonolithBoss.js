@@ -2763,13 +2763,18 @@ export class MonolithBoss {
           owner.draglineSqueezeTimer -=
             dt;
 
+          let squeezedThisFrame = false;
+
           if (
             owner.draglineSqueezeTimer <=
             0
           ) {
             let damage = 4;
 
-            if (progress >= 0.64) {
+            if (
+              distance <= 260 ||
+              progress >= 0.64
+            ) {
               damage = 14;
             } else if (
               progress >= 0.44
@@ -2789,6 +2794,8 @@ export class MonolithBoss {
             owner.draglineSqueezeFlash = 1;
             owner.draglineSqueezeTimer =
               0.43;
+
+            squeezedThisFrame = true;
 
             ctx
               .shakeCamera
@@ -2881,7 +2888,8 @@ export class MonolithBoss {
 
           const closeEnough =
             distance <= 220 &&
-            owner.draglineSqueezeCount >= 3;
+            owner.draglineSqueezeCount >= 3 &&
+            squeezedThisFrame;
 
           const timedOut =
             ai.stateTime >= 3.2 &&
