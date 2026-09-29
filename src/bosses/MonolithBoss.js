@@ -4551,36 +4551,6 @@ export class MonolithBoss {
       ctx.restore();
     }
 
-    if (
-      (
-        state ===
-          'commandGrab' ||
-        state ===
-          'commandGrabTurn'
-      ) &&
-      this.ai.stateTime >
-        0.18
-    ) {
-      ctx.save();
-      ctx.globalAlpha = 0.34;
-      ctx.fillStyle = '#ffffff';
-
-      ctx.fillRect(
-        Math.round(
-          this.grabHandX -
-          cameraX -
-          9,
-        ),
-        Math.round(
-          this.grabHandY -
-          9,
-        ),
-        18,
-        18,
-      );
-
-      ctx.restore();
-    }
   }
 
   draw(
