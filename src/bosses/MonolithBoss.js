@@ -1506,14 +1506,20 @@ export class MonolithBoss {
             target &&
             !owner.lariatHit
           ) {
+            const [contactOffsetX, contactOffsetY] =
+              rotateLocalPoint(
+                direction * 215,
+                190,
+                owner.bodyRotation,
+              );
+
             const contactX =
               owner.x +
-              direction *
-              215;
+              contactOffsetX;
 
             const contactY =
               owner.y +
-              190;
+              contactOffsetY;
 
             if (
               owner.circleHitsTarget(
