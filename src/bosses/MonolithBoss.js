@@ -828,6 +828,8 @@ export class MonolithBoss {
     this.sweepArmSide = 'right';
     this.sweepHit = false;
     this.sweepX = this.x;
+    this.sweepPredictedX = this.x;
+    this.sweepTravelDistance = 650;
     this.sweepLowerStartY = this.y;
     this.sweepLowerY = this.y;
     this.sweepDropOffsetY = 0;
@@ -936,16 +938,18 @@ export class MonolithBoss {
             {
               value: 'commandGrab',
               weight:
-                distance < 470
-                  ? 1.65
-                  : 0.16,
+                distance >= 220 &&
+                distance <= 520
+                  ? 1.72
+                  : 0.025,
             },
             {
               value: 'draglineWindup',
               weight:
-                distance > 380
-                  ? 1.58
-                  : 0.48,
+                distance >= 500 &&
+                distance <= 1250
+                  ? 1.62
+                  : 0.035,
             },
             {
               value: 'groundSweepWindup',
@@ -1746,8 +1750,8 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const totalDuration = 0.62;
-          const windDuration = 0.34;
+          const totalDuration = 0.86;
+          const windDuration = 0.56;
           const time =
             Math.min(
               ai.stateTime,
@@ -1779,42 +1783,42 @@ export class MonolithBoss {
               owner.rightArmOverride =
                 lerpValue(
                   owner.rightArmNeutral,
-                  126,
+                  158,
                   eased,
                 );
 
               owner.leftArmOverride =
                 lerpValue(
                   owner.leftArmNeutral,
-                  -20,
+                  -8,
                   eased,
                 );
 
               owner.rightArmOffsetX =
-                -52 * eased;
+                -104 * eased;
 
               owner.leftArmOffsetX =
-                24 * eased;
+                36 * eased;
             } else {
               owner.leftArmOverride =
                 lerpValue(
                   owner.leftArmNeutral,
-                  -126,
+                  -158,
                   eased,
                 );
 
               owner.rightArmOverride =
                 lerpValue(
                   owner.rightArmNeutral,
-                  20,
+                  8,
                   eased,
                 );
 
               owner.leftArmOffsetX =
-                52 * eased;
+                104 * eased;
 
               owner.rightArmOffsetX =
-                -24 * eased;
+                -36 * eased;
             }
 
             owner.leftArmOffsetY =
@@ -1823,16 +1827,45 @@ export class MonolithBoss {
             owner.rightArmOffsetY =
               -18 * eased;
 
+            const warningHold =
+              clamp(
+                (
+                  t - 0.72
+                ) /
+                0.28,
+                0,
+                1,
+              );
+
+            const tremble =
+              Math.sin(
+                warningHold *
+                Math.PI *
+                8,
+              ) *
+              warningHold *
+              4;
+
             owner.headOffsetX =
               -side *
-              15 *
-              eased;
+              (
+                22 * eased +
+                tremble
+              );
 
             owner.headOffsetY =
-              -6 *
+              -10 *
               Math.sin(
                 t * Math.PI,
               );
+
+            if (side > 0) {
+              owner.rightArmOffsetX -=
+                tremble * 1.8;
+            } else {
+              owner.leftArmOffsetX +=
+                tremble * 1.8;
+            }
 
             return;
           }
@@ -1912,21 +1945,21 @@ export class MonolithBoss {
           if (side > 0) {
             owner.rightArmOverride =
               lerpValue(
-                126,
+                158,
                 10,
                 snap,
               );
 
             owner.leftArmOverride =
               lerpValue(
-                -20,
+                -8,
                 -68,
                 snap,
               );
 
             owner.rightArmOffsetX =
               lerpValue(
-                -52,
+                -104,
                 reachX,
                 snap,
               );
@@ -1940,21 +1973,21 @@ export class MonolithBoss {
           } else {
             owner.leftArmOverride =
               lerpValue(
-                -126,
+                -158,
                 -10,
                 snap,
               );
 
             owner.rightArmOverride =
               lerpValue(
-                20,
+                8,
                 68,
                 snap,
               );
 
             owner.leftArmOffsetX =
               lerpValue(
-                52,
+                104,
                 reachX,
                 snap,
               );
@@ -1981,6 +2014,9 @@ export class MonolithBoss {
 
           if (
             target &&
+            owner.canCommandGrab(
+              target,
+            ) &&
             !(
               target
                 .dashInvulnerabilityTimer >
@@ -2006,9 +2042,16 @@ export class MonolithBoss {
               target.y;
 
             target.takeDamage?.(4);
+            target.vx = 0;
+            target.vy = 0;
+            target.grounded = false;
+
+            ctx
+              .shakeCamera
+              ?.(3.6, 0.09);
 
             ai.changeState(
-              'commandGrabTurn',
+              'commandGrabLatch',
               ctx,
             );
 
@@ -2018,6 +2061,97 @@ export class MonolithBoss {
           if (t >= 1) {
             ai.changeState(
               'commandGrabWhiff',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('commandGrabLatch', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.grabbedTarget;
+
+          if (
+            !target ||
+            target.dead ||
+            target.health <= 0
+          ) {
+            owner.grabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.grabDashSerial
+          ) {
+            owner.releaseGrabEscape(
+              target,
+            );
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const t =
+            clamp(
+              ai.stateTime /
+                0.16,
+              0,
+              1,
+            );
+
+          const squeeze =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.pinTargetAt(
+            target,
+            owner.grabHandX,
+            owner.grabHandY,
+            world,
+          );
+
+          target.vx = 0;
+          target.vy = 0;
+
+          if (
+            owner.grabSide > 0
+          ) {
+            owner.rightArmOverride =
+              10 -
+              squeeze * 16;
+          } else {
+            owner.leftArmOverride =
+              -10 +
+              squeeze * 16;
+          }
+
+          owner.headOffsetX =
+            owner.grabSide *
+            squeeze *
+            7;
+
+          if (t >= 1) {
+            ai.changeState(
+              'commandGrabTurn',
               ctx,
             );
           }
@@ -2833,6 +2967,9 @@ export class MonolithBoss {
 
           if (
             target &&
+            owner.canDraglineGrab(
+              target,
+            ) &&
             !(
               target
                 .dashInvulnerabilityTimer >
@@ -2875,10 +3012,18 @@ export class MonolithBoss {
               0;
 
             owner.draglineSqueezeFlash =
-              0;
+              1;
+
+            target.vx = 0;
+            target.vy = 0;
+            target.grounded = false;
+
+            ctx
+              .shakeCamera
+              ?.(3.2, 0.08);
 
             ai.changeState(
-              'draglineSqueeze',
+              'draglineLatch',
               ctx,
             );
 
@@ -2890,6 +3035,98 @@ export class MonolithBoss {
 
             ai.changeState(
               'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('draglineLatch', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.draglineTarget;
+
+          if (
+            !target ||
+            target.dead ||
+            target.health <= 0
+          ) {
+            owner.clearDragline();
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.draglineDashSerial
+          ) {
+            target
+              .spawnGrabEscapeTrail
+              ?.(target.x, target.y);
+
+            owner.clearDragline();
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const t =
+            clamp(
+              ai.stateTime /
+                0.18,
+              0,
+              1,
+            );
+
+          const clampPulse =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.draglineHookX =
+            target.x;
+
+          owner.draglineHookY =
+            target.y;
+
+          target.vx = 0;
+          target.vy = 0;
+          target.grounded = false;
+
+          if (
+            owner.grabSide > 0
+          ) {
+            owner.rightArmOverride =
+              8 -
+              clampPulse * 22;
+          } else {
+            owner.leftArmOverride =
+              -8 +
+              clampPulse * 22;
+          }
+
+          owner.headOffsetX =
+            -owner.grabSide *
+            clampPulse *
+            8;
+
+          if (t >= 1) {
+            ai.changeState(
+              'draglineSqueeze',
               ctx,
             );
           }
@@ -3901,9 +4138,35 @@ export class MonolithBoss {
       this.y;
 
     return (
-      dx <= 275 &&
-      dy >= 65 &&
-      dy <= 455
+      dx >= 205 &&
+      dx <= 525 &&
+      dy >= 35 &&
+      dy <= 520
+    );
+  }
+
+  canDraglineGrab(target) {
+    if (!target) return false;
+
+    const dx =
+      Math.abs(
+        target.x -
+        this.x,
+      );
+
+    const dy =
+      Math.abs(
+        target.y -
+        (
+          this.y +
+          170
+        ),
+      );
+
+    return (
+      dx >= 455 &&
+      dx <= 1325 &&
+      dy <= 620
     );
   }
 
