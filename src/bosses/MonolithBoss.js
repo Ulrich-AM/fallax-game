@@ -4057,9 +4057,9 @@ export class MonolithBoss {
         Math.abs(
           handVX,
         ) *
-        1.08,
-        820,
-        1480,
+        1.35,
+        1900,
+        2400,
       );
 
     let verticalSpeed =
