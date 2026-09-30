@@ -733,6 +733,7 @@ export class MonolithBoss {
     this.leftArmOffsetY = 0;
     this.rightArmOffsetX = 0;
     this.rightArmOffsetY = 0;
+    this.bodyRotation = 0;
 
     this.armAimStrength = 0.72;
     this.armAimClamp = 86;
@@ -781,6 +782,7 @@ export class MonolithBoss {
     this.lariatTargetY = this.y;
     this.lariatPredictedX = this.x;
     this.lariatPredictedY = this.y;
+    this.lariatAimRotation = 0;
     this.lariatHit = false;
 
     this.grabbedTarget = null;
@@ -792,6 +794,8 @@ export class MonolithBoss {
     this.grabHandY = this.y;
     this.grabWindStartX = this.x;
     this.grabWindStartY = this.y;
+    this.throwHandPrevX = this.x;
+    this.throwHandPrevY = this.y;
 
     this.throwState = null;
 
@@ -818,10 +822,15 @@ export class MonolithBoss {
     this.recoverLeftArmOffsetY = 0;
     this.recoverRightArmOffsetX = 0;
     this.recoverRightArmOffsetY = 0;
+    this.recoverBodyRotation = 0;
 
     this.sweepDirection = 1;
+    this.sweepArmSide = 'right';
     this.sweepHit = false;
     this.sweepX = this.x;
+    this.sweepLowerStartY = this.y;
+    this.sweepLowerY = this.y;
+    this.sweepDropOffsetY = 0;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
