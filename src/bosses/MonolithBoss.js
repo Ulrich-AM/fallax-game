@@ -941,7 +941,7 @@ export class MonolithBoss {
                 distance >= 220 &&
                 distance <= 520
                   ? 1.72
-                  : 0.025,
+                  : 0,
             },
             {
               value: 'draglineWindup',
@@ -949,7 +949,7 @@ export class MonolithBoss {
                 distance >= 500 &&
                 distance <= 1250
                   ? 1.62
-                  : 0.035,
+                  : 0,
             },
             {
               value: 'groundSweepWindup',
