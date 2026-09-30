@@ -1038,6 +1038,32 @@ export class MonolithBoss {
               world.floorY - 185,
             );
 
+          const aimDx =
+            Math.max(
+              150,
+              Math.abs(
+                predicted.x -
+                owner.lariatEndX,
+              ),
+            );
+
+          const aimDy =
+            predicted.y -
+            owner.lariatTargetY;
+
+          owner.lariatAimRotation =
+            clamp(
+              Math.atan2(
+                aimDy,
+                aimDx,
+              ) *
+              180 /
+              Math.PI *
+              owner.lariatDirection,
+              -28,
+              28,
+            );
+
           owner.lariatHit = false;
           owner.resetPoseOffsets();
         },
@@ -1122,6 +1148,14 @@ export class MonolithBoss {
           owner.headOffsetY =
             arc * 7;
 
+          owner.bodyRotation =
+            lerpValue(
+              0,
+              owner.lariatAimRotation *
+                0.72,
+              eased,
+            );
+
           if (t >= 1) {
             ai.changeState(
               'lariatStabilize',
@@ -1188,6 +1222,15 @@ export class MonolithBoss {
               t * Math.PI,
             ) *
             7;
+
+          owner.bodyRotation =
+            lerpValue(
+              owner.lariatAimRotation *
+                0.72,
+              owner.lariatAimRotation *
+                0.78,
+              smoothStep01(t),
+            );
 
           if (t >= 1) {
             ai.changeState(
@@ -1295,6 +1338,15 @@ export class MonolithBoss {
             -7 *
             Math.sin(
               t * Math.PI,
+            );
+
+          owner.bodyRotation =
+            lerpValue(
+              owner.lariatAimRotation *
+                0.78,
+              owner.lariatAimRotation *
+                0.92,
+              eased,
             );
 
           if (t >= 1) {
@@ -1437,6 +1489,14 @@ export class MonolithBoss {
             -5 *
             Math.sin(
               t * Math.PI,
+            );
+
+          owner.bodyRotation =
+            lerpValue(
+              owner.lariatAimRotation *
+                0.92,
+              owner.lariatAimRotation,
+              snap,
             );
 
           const target =
@@ -1582,6 +1642,20 @@ export class MonolithBoss {
               11,
               3,
               eased,
+            );
+
+          owner.bodyRotation =
+            lerpValue(
+              owner.lariatAimRotation,
+              clamp(
+                owner.lariatAimRotation *
+                  1.08,
+                -28,
+                28,
+              ),
+              Math.sin(
+                t * Math.PI,
+              ),
             );
 
           if (t >= 1) {
