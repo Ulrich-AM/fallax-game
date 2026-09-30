@@ -3231,6 +3231,7 @@ export class MonolithBoss {
     this.leftArmOffsetY = 0;
     this.rightArmOffsetX = 0;
     this.rightArmOffsetY = 0;
+    this.bodyRotation = 0;
   }
 
   predictTarget(
@@ -3755,7 +3756,7 @@ export class MonolithBoss {
       );
   }
 
-  armPivotWorld(groupId) {
+  baseArmPivotWorld(groupId) {
     const group =
       MONOLITH_SPRITE.groups
         .find(
@@ -3769,6 +3770,25 @@ export class MonolithBoss {
     const scale =
       MONOLITH_SPRITE.scale *
       this.artPixelSize;
+
+    const [rx, ry] =
+      rotateLocalPoint(
+        pivot[0] * scale,
+        pivot[1] * scale,
+        this.bodyRotation,
+      );
+
+    return {
+      x: this.x + rx,
+      y: this.y + ry,
+    };
+  }
+
+  armPivotWorld(groupId) {
+    const base =
+      this.baseArmPivotWorld(
+        groupId,
+      );
 
     const offsetX =
       groupId === 'group-3'
@@ -3788,15 +3808,16 @@ export class MonolithBoss {
               : 0
           );
 
-    return {
-      x:
-        this.x +
-        pivot[0] * scale +
+    const [rx, ry] =
+      rotateLocalPoint(
         offsetX,
-      y:
-        this.y +
-        pivot[1] * scale +
         offsetY,
+        this.bodyRotation,
+      );
+
+    return {
+      x: base.x + rx,
+      y: base.y + ry,
     };
   }
 
