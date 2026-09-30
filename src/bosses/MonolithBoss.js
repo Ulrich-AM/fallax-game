@@ -2257,24 +2257,15 @@ export class MonolithBoss {
       })
 
       .addState('commandGrabRelease', {
-        enter: (
-          owner,
-          ai,
-          ctx,
-        ) => {
-          const target =
-            owner.grabbedTarget;
+        enter: owner => {
+          owner.throwHandPrevX =
+            owner.grabHandX;
 
-          if (target) {
-            owner.startWallThrow(
-              target,
-              world,
-              owner.grabSide,
-            );
-          }
+          owner.throwHandPrevY =
+            owner.grabHandY;
 
-          owner.grabbedTarget =
-            null;
+          owner.throwReleased =
+            false;
         },
 
         update: (
@@ -2283,7 +2274,11 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const duration = 0.25;
+          const target =
+            owner.grabbedTarget;
+
+          const duration = 0.36;
+          const releaseAt = 0.72;
           const t =
             clamp(
               ai.stateTime /
@@ -2292,60 +2287,230 @@ export class MonolithBoss {
               1,
             );
 
-          const snap =
-            easeOutCubic(t);
+          const swingT =
+            clamp(
+              t /
+                releaseAt,
+              0,
+              1,
+            );
+
+          const swing =
+            easeInCubic(
+              swingT,
+            );
 
           const side =
             owner.grabSide;
+
+          const startAngle =
+            side > 0
+              ? 2.82
+              : 0.32;
+
+          const endAngle =
+            side > 0
+              ? -0.28
+              : Math.PI + 0.28;
+
+          const angle =
+            lerpValue(
+              startAngle,
+              endAngle,
+              swing,
+            );
+
+          const radius =
+            lerpValue(
+              108,
+              248,
+              easeInOutSine(
+                swingT,
+              ),
+            );
+
+          const centerX =
+            owner.x;
+
+          const centerY =
+            owner.y + 162;
+
+          owner.grabHandX =
+            centerX +
+            Math.cos(
+              angle,
+            ) *
+            radius;
+
+          owner.grabHandY =
+            centerY +
+            Math.sin(
+              angle,
+            ) *
+            radius;
+
+          const handVX =
+            (
+              owner.grabHandX -
+              owner.throwHandPrevX
+            ) /
+            Math.max(
+              dt,
+              1 / 240,
+            );
+
+          const handVY =
+            (
+              owner.grabHandY -
+              owner.throwHandPrevY
+            ) /
+            Math.max(
+              dt,
+              1 / 240,
+            );
+
+          owner.throwHandPrevX =
+            owner.grabHandX;
+
+          owner.throwHandPrevY =
+            owner.grabHandY;
+
+          const base =
+            owner.baseArmPivotWorld(
+              side > 0
+                ? 'group-4'
+                : 'group-3',
+            );
+
+          const armOffsetX =
+            clamp(
+              (
+                owner.grabHandX -
+                base.x
+              ) *
+              0.72,
+              -230,
+              230,
+            );
+
+          const armOffsetY =
+            clamp(
+              (
+                owner.grabHandY -
+                base.y
+              ) *
+              0.52,
+              -150,
+              150,
+            );
 
           if (side > 0) {
             owner.rightArmOverride =
               lerpValue(
                 138,
-                3,
-                snap,
+                -8,
+                swing,
               );
 
             owner.leftArmOverride =
               lerpValue(
                 -24,
-                -82,
-                snap,
+                -88,
+                swing,
               );
 
             owner.rightArmOffsetX =
-              lerpValue(
-                -44,
-                104,
-                snap,
-              );
+              armOffsetX;
+
+            owner.rightArmOffsetY =
+              armOffsetY;
           } else {
             owner.leftArmOverride =
               lerpValue(
                 -138,
-                -3,
-                snap,
+                8,
+                swing,
               );
 
             owner.rightArmOverride =
               lerpValue(
                 24,
-                82,
-                snap,
+                88,
+                swing,
               );
 
             owner.leftArmOffsetX =
-              lerpValue(
-                44,
-                -104,
-                snap,
-              );
+              armOffsetX;
+
+            owner.leftArmOffsetY =
+              armOffsetY;
           }
 
           owner.headOffsetX =
             side *
-            14 *
-            snap;
+            Math.sin(
+              swingT *
+              Math.PI,
+            ) *
+            16;
+
+          owner.headOffsetY =
+            -Math.sin(
+              swingT *
+              Math.PI,
+            ) *
+            9;
+
+          if (
+            target &&
+            !owner.throwReleased
+          ) {
+            if (
+              (
+                target.dashSerial ?? 0
+              ) !==
+              owner.grabDashSerial
+            ) {
+              owner.releaseGrabEscape(
+                target,
+              );
+
+              owner.throwReleased =
+                true;
+
+              ai.changeState(
+                'recover',
+                ctx,
+              );
+              return;
+            }
+
+            owner.pinTargetAt(
+              target,
+              owner.grabHandX,
+              owner.grabHandY,
+              world,
+            );
+
+            target.vx = 0;
+            target.vy = 0;
+
+            if (swingT >= 1) {
+              owner.startWallThrow(
+                target,
+                world,
+                side,
+                handVX,
+                handVY,
+              );
+
+              owner.grabbedTarget =
+                null;
+
+              owner.throwReleased =
+                true;
+            }
+          }
 
           if (t >= 1) {
             ai.changeState(
@@ -3610,11 +3775,10 @@ export class MonolithBoss {
     target,
     world,
     preferredDirection = 0,
+    handVX = 0,
+    handVY = 0,
   ) {
     if (!target) return;
-
-    const halfW =
-      (target.w ?? 32) / 2;
 
     const direction =
       preferredDirection === -1 ||
@@ -3627,35 +3791,53 @@ export class MonolithBoss {
               : 1
           );
 
-    const wallX =
-      direction < 0
-        ? halfW
-        : world.width -
-          halfW;
-
-    const speed = 1250;
-    const distance =
-      Math.abs(
-        wallX -
-        target.x,
+    const horizontalSpeed =
+      clamp(
+        Math.abs(
+          handVX,
+        ) *
+        1.08,
+        820,
+        1480,
       );
+
+    let verticalSpeed =
+      clamp(
+        handVY *
+        1.03,
+        -860,
+        360,
+      );
+
+    // A grappling throw should leave the player airborne even if the sampled
+    // release frame happens to be near the flat end of the hand arc.
+    if (
+      verticalSpeed >
+      -180
+    ) {
+      verticalSpeed = -260;
+    }
+
+    target.vx =
+      direction *
+      horizontalSpeed;
+
+    target.vy =
+      verticalSpeed;
+
+    target.grounded = false;
 
     this.throwState = {
       target,
       direction,
-      startX: target.x,
-      startY: target.y,
-      wallX,
-      elapsed: 0,
-      duration:
-        Math.max(
-          0.16,
-          distance /
-            speed,
-        ),
       dashSerial:
         target.dashSerial ?? 0,
       impactDamage: 26,
+      age: 0,
+      releaseVX:
+        target.vx,
+      releaseVY:
+        target.vy,
     };
   }
 
@@ -3680,6 +3862,8 @@ export class MonolithBoss {
       return;
     }
 
+    state.age += dt;
+
     if (
       (
         target.dashSerial ?? 0
@@ -3694,58 +3878,71 @@ export class MonolithBoss {
       return;
     }
 
-    state.elapsed += dt;
+    const world =
+      context?.world;
 
-    const t =
-      clamp(
-        state.elapsed /
-          state.duration,
-        0,
-        1,
+    if (!world) {
+      this.throwState = null;
+      return;
+    }
+
+    const halfW =
+      (target.w ?? 32) / 2;
+
+    const hitWall =
+      state.direction < 0
+        ? (
+            target.x <=
+            halfW + 1.5
+          )
+        : (
+            target.x >=
+            world.width -
+              halfW -
+              1.5
+          );
+
+    if (
+      state.age > 0.05 &&
+      hitWall
+    ) {
+      target.takeDamage?.(
+        state.impactDamage,
       );
 
-    target.x =
-      lerpValue(
-        state.startX,
-        state.wallX,
-        easeOutCubic(t),
-      );
+      target.vx =
+        -state.direction *
+        Math.max(
+          260,
+          Math.abs(
+            state.releaseVX,
+          ) *
+          0.22,
+        );
 
-    target.y =
-      state.startY -
-      Math.sin(
-        t *
-        Math.PI,
-      ) *
-        88;
+      target.vy =
+        Math.min(
+          -220,
+          target.vy ?? 0,
+        );
 
-    target.prevY =
-      target.y;
+      context
+        ?.shakeCamera
+        ?.(7.5, 0.14);
 
-    target.vx =
-      state.direction *
-      1250;
+      this.throwState = null;
+      return;
+    }
 
-    target.vy = 0;
-    target.grounded = false;
-
-    if (t < 1) return;
-
-    target.takeDamage?.(
-      state.impactDamage,
-    );
-
-    target.vx =
-      -state.direction *
-      310;
-
-    target.vy = -285;
-
-    context
-      ?.shakeCamera
-      ?.(7.5, 0.14);
-
-    this.throwState = null;
+    if (
+      (
+        target.grounded &&
+        state.age > 0.32
+      ) ||
+      state.age > 2.2
+    ) {
+      this.throwState = null;
+    }
   }
 
   clearDragline() {
