@@ -448,6 +448,69 @@ const monolithBoss = new MonolithBoss(world);
 const audio = new GameAudio();
 let activeBoss = null;
 
+const DEBUG_ATTACK_NAMES_KEY =
+  'fallax.debug.attackNames';
+
+let debugAttackNames = (() => {
+  try {
+    return (
+      localStorage.getItem(
+        DEBUG_ATTACK_NAMES_KEY,
+      ) === '1'
+    );
+  } catch {
+    return false;
+  }
+})();
+
+function setDebugAttackNames(
+  enabled,
+) {
+  debugAttackNames = !!enabled;
+
+  try {
+    localStorage.setItem(
+      DEBUG_ATTACK_NAMES_KEY,
+      debugAttackNames
+        ? '1'
+        : '0',
+    );
+  } catch {
+    // Debug display still works for this session if storage is unavailable.
+  }
+
+  return debugAttackNames;
+}
+
+function formatDebugAttackName(
+  value,
+) {
+  return String(value ?? '')
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      '$1 $2',
+    )
+    .replace(
+      /[_-]+/g,
+      ' ',
+    )
+    .trim()
+    .toUpperCase();
+}
+
+function getBossDebugAttackName(
+  boss,
+) {
+  if (!boss) return '';
+
+  return (
+    boss.debugAttackName ||
+    formatDebugAttackName(
+      boss.ai?.stateName,
+    )
+  );
+}
+
 const camera = {
   x: 0,
   targetX: 0,
@@ -698,6 +761,66 @@ function registerDeveloperCommands() {
       return null;
     },
   });
+
+  devConsole.register(
+    'debug.attacks',
+    {
+      description:
+        'show or hide the current boss attack name under the boss name',
+      usage:
+        'debug.attacks [on|off|toggle]',
+      execute: ({ args }) => {
+        const mode =
+          args[0]?.toLowerCase();
+
+        if (!mode) {
+          return (
+            'attack-name debug: ' +
+            (
+              debugAttackNames
+                ? 'on'
+                : 'off'
+            )
+          );
+        }
+
+        if (mode === 'toggle') {
+          setDebugAttackNames(
+            !debugAttackNames,
+          );
+        } else if (
+          mode === 'on' ||
+          mode === '1' ||
+          mode === 'true'
+        ) {
+          setDebugAttackNames(
+            true,
+          );
+        } else if (
+          mode === 'off' ||
+          mode === '0' ||
+          mode === 'false'
+        ) {
+          setDebugAttackNames(
+            false,
+          );
+        } else {
+          throw new Error(
+            'usage: debug.attacks [on|off|toggle]',
+          );
+        }
+
+        return (
+          'attack-name debug: ' +
+          (
+            debugAttackNames
+              ? 'on'
+              : 'off'
+          )
+        );
+      },
+    },
+  );
 
   devConsole.register('give', {
     description:
@@ -3310,14 +3433,46 @@ function drawBossBar() {
   const width = 560;
   const height = 12;
   const x = Math.round((W - width) / 2);
-  const y = 34;
+
+  const attackDebugName =
+    debugAttackNames
+      ? getBossDebugAttackName(
+          activeBoss,
+        )
+      : '';
+
+  const y =
+    attackDebugName
+      ? 48
+      : 34;
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.font = "bold 16px 'Pixel Arial 11', Arial, sans-serif";
+  ctx.font =
+    "bold 16px 'Pixel Arial 11', Arial, sans-serif";
   ctx.fillStyle = COLORS.text;
-  ctx.fillText(activeBoss.name, W / 2, y - 8);
+
+  ctx.fillText(
+    activeBoss.name,
+    W / 2,
+    attackDebugName
+      ? 24
+      : y - 8,
+  );
+
+  if (attackDebugName) {
+    ctx.font =
+      "9px 'Pixel Arial 11', Arial, sans-serif";
+
+    ctx.fillStyle = COLORS.dim;
+
+    ctx.fillText(
+      attackDebugName,
+      W / 2,
+      40,
+    );
+  }
 
   ctx.fillStyle = '#17191f';
   ctx.fillRect(x, y, width, height);
