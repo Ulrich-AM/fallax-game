@@ -3419,11 +3419,32 @@ export class MonolithBoss {
           const target =
             ai.targetPlayer(ctx);
 
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.68,
+              world,
+            );
+
+          owner.sweepPredictedX =
+            predicted.x;
+
           owner.sweepDirection =
-            target &&
-            target.x < owner.x
+            predicted.x <
+            owner.x
               ? -1
               : 1;
+
+          owner.sweepTravelDistance =
+            clamp(
+              Math.abs(
+                predicted.x -
+                owner.x,
+              ) +
+                120,
+              390,
+              760,
+            );
 
           owner.sweepArmSide =
             Math.random() < 0.5
@@ -3665,7 +3686,11 @@ export class MonolithBoss {
             owner.sweepDirection *
             lerpValue(
               34,
-              590,
+              Math.max(
+                320,
+                owner.sweepTravelDistance -
+                  70,
+              ),
               slide,
             );
 
@@ -3733,7 +3758,7 @@ export class MonolithBoss {
             owner.sweepDirection *
             lerpValue(
               105,
-              660,
+              owner.sweepTravelDistance,
               slide,
             );
 
@@ -3940,6 +3965,73 @@ export class MonolithBoss {
     }
 
     return 'phase 1';
+  }
+
+  get debugAttackName() {
+    const state =
+      this.ai?.stateName ?? '';
+
+    if (
+      state.startsWith(
+        'lariat',
+      )
+    ) {
+      return 'LARIAT';
+    }
+
+    if (
+      state ===
+        'commandGrab' ||
+      state ===
+        'commandGrabLatch' ||
+      state ===
+        'commandGrabWhiff'
+    ) {
+      return 'COMMAND GRAB';
+    }
+
+    if (
+      state ===
+        'commandGrabTurn' ||
+      state ===
+        'commandGrabRelease'
+    ) {
+      return 'WALL TOSS';
+    }
+
+    if (
+      state ===
+        'draglineWindup' ||
+      state ===
+        'draglineCast' ||
+      state ===
+        'draglineLatch' ||
+      state ===
+        'draglineSqueeze'
+    ) {
+      return 'DRAGLINE SQUEEZE';
+    }
+
+    if (
+      state ===
+        'groundSweepWindup' ||
+      state ===
+        'groundSweepDrop' ||
+      state ===
+        'groundSweep'
+    ) {
+      return 'GROUND SWEEP';
+    }
+
+    if (state === 'recover') {
+      return 'RECOVER';
+    }
+
+    if (state === 'idle') {
+      return 'IDLE';
+    }
+
+    return state;
   }
 
   setAttackArmPose(
