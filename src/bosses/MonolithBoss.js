@@ -3153,6 +3153,9 @@ export class MonolithBoss {
           owner.recoverRightArmOffsetY =
             owner.rightArmOffsetY;
 
+          owner.recoverBodyRotation =
+            owner.bodyRotation;
+
           owner.leftArmOverride =
             owner.leftArmNeutral;
 
@@ -3227,6 +3230,13 @@ export class MonolithBoss {
           owner.rightArmOffsetY =
             lerpValue(
               owner.recoverRightArmOffsetY,
+              0,
+              eased,
+            );
+
+          owner.bodyRotation =
+            lerpValue(
+              owner.recoverBodyRotation,
               0,
               eased,
             );
