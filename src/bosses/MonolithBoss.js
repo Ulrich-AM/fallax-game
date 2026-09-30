@@ -1772,6 +1772,26 @@ export class MonolithBoss {
             const eased =
               easeInOutSine(t);
 
+            if (t < 0.68) {
+              const liveTarget =
+                owner.resolveGrabTarget(
+                  ctx,
+                );
+
+              const livePrediction =
+                owner.predictTarget(
+                  liveTarget,
+                  0.16,
+                  world,
+                );
+
+              owner.grabAimX =
+                livePrediction.x;
+
+              owner.grabAimY =
+                livePrediction.y;
+            }
+
             owner.y =
               lerpValue(
                 owner.grabWindStartY,
@@ -2988,6 +3008,12 @@ export class MonolithBoss {
             owner.draglineDashSerial =
               target.dashSerial ?? 0;
 
+            owner.draglineLatchX =
+              target.x;
+
+            owner.draglineLatchY =
+              target.y;
+
             owner.draglineAttached =
               true;
 
@@ -3098,10 +3124,17 @@ export class MonolithBoss {
             );
 
           owner.draglineHookX =
-            target.x;
+            owner.draglineLatchX;
 
           owner.draglineHookY =
-            target.y;
+            owner.draglineLatchY;
+
+          owner.pinTargetAt(
+            target,
+            owner.draglineLatchX,
+            owner.draglineLatchY,
+            world,
+          );
 
           target.vx = 0;
           target.vy = 0;
