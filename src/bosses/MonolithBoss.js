@@ -4332,17 +4332,30 @@ export class MonolithBoss {
     ctx.globalAlpha = alpha;
     ctx.imageSmoothingEnabled = false;
 
+    ctx.translate(
+      Math.round(
+        this.x -
+        cameraX,
+      ),
+      Math.round(
+        this.y,
+      ),
+    );
+
+    ctx.rotate(
+      this.bodyRotation *
+      Math.PI /
+      180,
+    );
+
     ctx.drawImage(
       raster,
       Math.round(
-        this.x -
-        cameraX +
         offsetX +
         bounds.minX *
         artPixelSize,
       ),
       Math.round(
-        this.y +
         offsetY +
         bounds.minY *
         artPixelSize,
@@ -4674,15 +4687,22 @@ export class MonolithBoss {
   ) {
     if (this.dead) return false;
 
+    const [headOffsetX, headOffsetY] =
+      rotateLocalPoint(
+        this.headHitOffsetX +
+          this.headOffsetX,
+        this.headHitOffsetY +
+          this.headOffsetY,
+        this.bodyRotation,
+      );
+
     const headX =
       this.x +
-      this.headHitOffsetX +
-      this.headOffsetX;
+      headOffsetX;
 
     const headY =
       this.y +
-      this.headHitOffsetY +
-      this.headOffsetY;
+      headOffsetY;
 
     return (
       Math.hypot(
