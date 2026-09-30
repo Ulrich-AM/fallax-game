@@ -2726,29 +2726,33 @@ export class MonolithBoss {
               snap,
             );
 
+          const basePivot =
+            owner.baseArmPivotWorld(
+              side > 0
+                ? 'group-4'
+                : 'group-3',
+            );
+
           const reachX =
             clamp(
               (
-                owner.draglineLockedX -
-                owner.x
+                owner.draglineHookX -
+                basePivot.x
               ) *
-              0.28,
-              -210,
-              210,
+              0.78,
+              -560,
+              560,
             );
 
           const reachY =
             clamp(
               (
-                owner.draglineLockedY -
-                (
-                  owner.y +
-                  170
-                )
+                owner.draglineHookY -
+                basePivot.y
               ) *
-              0.22,
-              -100,
-              125,
+              0.72,
+              -360,
+              360,
             );
 
           if (side > 0) {
@@ -3066,7 +3070,7 @@ export class MonolithBoss {
               : 'group-4';
 
           const pivot =
-            owner.armPivotWorld(
+            owner.baseArmPivotWorld(
               groupId,
             );
 
@@ -3076,9 +3080,9 @@ export class MonolithBoss {
                 target.x -
                 pivot.x
               ) *
-              0.18,
-              -190,
-              190,
+              0.72,
+              -540,
+              540,
             );
 
           const stretchY =
@@ -3087,9 +3091,9 @@ export class MonolithBoss {
                 target.y -
                 pivot.y
               ) *
-              0.16,
-              -100,
-              120,
+              0.68,
+              -340,
+              340,
             );
 
           if (side > 0) {
@@ -4732,149 +4736,9 @@ export class MonolithBoss {
     ctx,
     cameraX,
   ) {
-    const state =
-      this.ai.stateName;
-
-    if (
-      state ===
-      'draglineWindup'
-    ) {
-      const groupId =
-        this.attackArmSide ===
-        'left'
-          ? 'group-3'
-          : 'group-4';
-
-      const start =
-        this.armPivotWorld(
-          groupId,
-        );
-
-      this.drawPixelLine(
-        ctx,
-        start.x -
-          cameraX,
-        start.y,
-        this.draglineLockedX -
-          cameraX,
-        this.draglineLockedY,
-        {
-          alpha: 0.18,
-          size: 7,
-          spacing: 30,
-          color: '#d4d7dc',
-        },
-      );
-    }
-
-    if (
-      this.draglineActive
-    ) {
-      const groupId =
-        this.attackArmSide ===
-        'left'
-          ? 'group-3'
-          : 'group-4';
-
-      const start =
-        this.armPivotWorld(
-          groupId,
-        );
-
-      this.drawPixelLine(
-        ctx,
-        start.x -
-          cameraX,
-        start.y,
-        this.draglineHookX -
-          cameraX,
-        this.draglineHookY,
-        {
-          alpha: 0.82,
-          size: 10,
-          spacing: 22,
-          color:
-            this.draglineAttached
-              ? '#f1f2f4'
-              : '#a4a9b1',
-        },
-      );
-
-      ctx.save();
-      ctx.fillStyle =
-        '#f1f2f4';
-
-      ctx.fillRect(
-        Math.round(
-          this.draglineHookX -
-          cameraX -
-          12,
-        ),
-        Math.round(
-          this.draglineHookY -
-          12,
-        ),
-        24,
-        24,
-      );
-
-      ctx.restore();
-    }
-
-    if (
-      state ===
-      'groundSweepWindup'
-    ) {
-      ctx.save();
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = '#d4d7dc';
-
-      const left =
-        this.sweepDirection > 0
-          ? this.x
-          : this.x - 650;
-
-      ctx.fillRect(
-        Math.round(
-          left -
-          cameraX,
-        ),
-        Math.round(
-          this.spawnY +
-          332,
-        ),
-        650,
-        8,
-      );
-
-      ctx.restore();
-    }
-
-    if (
-      state ===
-      'groundSweep'
-    ) {
-      ctx.save();
-      ctx.globalAlpha = 0.72;
-      ctx.fillStyle = '#aeb4bd';
-
-      ctx.fillRect(
-        Math.round(
-          this.sweepX -
-          cameraX -
-          44,
-        ),
-        Math.round(
-          this.spawnY +
-          328,
-        ),
-        88,
-        16,
-      );
-
-      ctx.restore();
-    }
-
+    // Grappler attacks are represented by Monolith's actual animated arms.
+    // Keep this hook for future dust/impact effects, but avoid surrogate
+    // tether lines or floor guide rectangles that disconnect visuals from hitboxes.
   }
 
   draw(
