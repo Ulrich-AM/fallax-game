@@ -3182,50 +3182,35 @@ export class MonolithBoss {
               ? -1
               : 1;
 
-          owner.attackArmSide =
-            owner.sweepDirection > 0
-              ? 'right'
-              : 'left';
+          owner.sweepArmSide =
+            Math.random() < 0.5
+              ? 'left'
+              : 'right';
 
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            86,
-          );
+          owner.attackArmSide =
+            owner.sweepArmSide;
+
+          owner.sweepLowerStartY =
+            owner.y;
+
+          owner.sweepLowerY =
+            clamp(
+              owner.y + 108,
+              world.roofY + 180,
+              world.floorY - 255,
+            );
 
           owner.sweepHit = false;
           owner.sweepX = owner.x;
+
+          owner.resetPoseOffsets();
         },
 
         update: (
           owner,
           ai,
         ) => {
-          if (
-            ai.stateTime >=
-            0.50
-          ) {
-            ai.changeState(
-              'groundSweep',
-            );
-          }
-        },
-      })
-
-      .addState('groundSweep', {
-        enter: owner => {
-          owner.setAttackArmPose(
-            owner.attackArmSide,
-            0,
-          );
-        },
-
-        update: (
-          owner,
-          ai,
-          dt,
-          ctx,
-        ) => {
-          const duration = 0.36;
+          const duration = 0.44;
           const t =
             clamp(
               ai.stateTime /
@@ -3234,14 +3219,280 @@ export class MonolithBoss {
               1,
             );
 
+          const eased =
+            easeInOutSine(t);
+
+          owner.y =
+            lerpValue(
+              owner.sweepLowerStartY,
+              owner.sweepLowerY,
+              eased,
+            );
+
+          owner.headOffsetY =
+            Math.sin(
+              t * Math.PI,
+            ) *
+            8;
+
+          owner.headOffsetX =
+            -owner.sweepDirection *
+            Math.sin(
+              t * Math.PI,
+            ) *
+            5;
+
+          if (
+            owner.sweepArmSide ===
+            'left'
+          ) {
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -82,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                28,
+                eased,
+              );
+          } else {
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                82,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -28,
+                eased,
+              );
+          }
+
+          if (t >= 1) {
+            ai.changeState(
+              'groundSweepDrop',
+            );
+          }
+        },
+      })
+
+      .addState('groundSweepDrop', {
+        enter: owner => {
+          const groupId =
+            owner.sweepArmSide ===
+            'left'
+              ? 'group-3'
+              : 'group-4';
+
+          const pivot =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          owner.sweepDropOffsetY =
+            clamp(
+              world.floorY -
+                72 -
+                pivot.y,
+              72,
+              300,
+            );
+        },
+
+        update: (
+          owner,
+          ai,
+        ) => {
+          const duration = 0.34;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeOutCubic(t);
+
+          const side =
+            owner.sweepArmSide ===
+            'left'
+              ? -1
+              : 1;
+
+          const offsetX =
+            side *
+            34 *
+            eased;
+
+          const offsetY =
+            owner.sweepDropOffsetY *
+            eased;
+
+          if (
+            owner.sweepArmSide ===
+            'left'
+          ) {
+            owner.leftArmOverride =
+              lerpValue(
+                -82,
+                -4,
+                eased,
+              );
+
+            owner.leftArmOffsetX =
+              offsetX;
+
+            owner.leftArmOffsetY =
+              offsetY;
+
+            owner.rightArmOverride =
+              lerpValue(
+                28,
+                58,
+                eased,
+              );
+          } else {
+            owner.rightArmOverride =
+              lerpValue(
+                82,
+                4,
+                eased,
+              );
+
+            owner.rightArmOffsetX =
+              offsetX;
+
+            owner.rightArmOffsetY =
+              offsetY;
+
+            owner.leftArmOverride =
+              lerpValue(
+                -28,
+                -58,
+                eased,
+              );
+          }
+
+          owner.headOffsetY =
+            lerpValue(
+              0,
+              7,
+              Math.sin(
+                t * Math.PI,
+              ),
+            );
+
+          if (t >= 1) {
+            ai.changeState(
+              'groundSweep',
+            );
+          }
+        },
+      })
+
+      .addState('groundSweep', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.52;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const slide =
+            easeInOutSine(t);
+
+          const slideOffsetX =
+            owner.sweepDirection *
+            lerpValue(
+              34,
+              590,
+              slide,
+            );
+
+          const slideOffsetY =
+            owner.sweepDropOffsetY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            5;
+
+          if (
+            owner.sweepArmSide ===
+            'left'
+          ) {
+            owner.leftArmOverride =
+              -4 +
+              Math.sin(
+                t * Math.PI,
+              ) *
+              5;
+
+            owner.leftArmOffsetX =
+              slideOffsetX;
+
+            owner.leftArmOffsetY =
+              slideOffsetY;
+
+            owner.rightArmOverride =
+              58 -
+              Math.sin(
+                t * Math.PI,
+              ) *
+              8;
+          } else {
+            owner.rightArmOverride =
+              4 -
+              Math.sin(
+                t * Math.PI,
+              ) *
+              5;
+
+            owner.rightArmOffsetX =
+              slideOffsetX;
+
+            owner.rightArmOffsetY =
+              slideOffsetY;
+
+            owner.leftArmOverride =
+              -58 +
+              Math.sin(
+                t * Math.PI,
+              ) *
+              8;
+          }
+
+          owner.headOffsetX =
+            -owner.sweepDirection *
+            Math.sin(
+              t * Math.PI,
+            ) *
+            8;
+
           owner.sweepX =
             owner.x +
             owner.sweepDirection *
-              lerpValue(
-                75,
-                650,
-                easeOutCubic(t),
-              );
+            lerpValue(
+              105,
+              660,
+              slide,
+            );
 
           const target =
             ai.targetPlayer(ctx);
@@ -3251,8 +3502,8 @@ export class MonolithBoss {
             !owner.sweepHit &&
             owner.circleHitsTarget(
               owner.sweepX,
-              world.floorY - 58,
-              104,
+              world.floorY - 52,
+              96,
               target,
             )
           ) {
@@ -3263,15 +3514,15 @@ export class MonolithBoss {
                   x: owner.sweepX,
                   y:
                     world.floorY -
-                    58,
+                    52,
                 },
                 {
                   damage: 18,
                   stabilityCost: 13,
                   knockbackX:
                     owner.sweepDirection *
-                    560,
-                  knockbackY: -430,
+                    570,
+                  knockbackY: -420,
                 },
               );
 
