@@ -2966,9 +2966,102 @@ export class MonolithBoss {
             owner.piledriverImpactY =
               world.floorY - 250;
 
+            owner.piledriverWarningLead =
+              ctx
+                .getAttackWarningLead
+                ?.(0.52) ??
+              0.52;
+
+            ctx
+              .spawnAttackTelegraph
+              ?.({
+                x:
+                  owner.piledriverTargetX,
+                y:
+                  world.floorY - 46,
+                duration:
+                  owner.piledriverWarningLead,
+                scale: 1.16,
+              });
+
+            ai.changeState(
+              'piledriverAimHold',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('piledriverAimHold', {
+        update: (
+          owner,
+          ai,
+        ) => {
+          const t =
+            clamp(
+              ai.stateTime /
+                Math.max(
+                  0.001,
+                  owner.piledriverWarningLead,
+                ),
+              0,
+              1,
+            );
+
+          const tension =
+            Math.sin(
+              t *
+              Math.PI *
+              4,
+            ) *
+            (1 - t);
+
+          owner.y =
+            owner.piledriverApexY +
+            Math.sin(
+              t * Math.PI,
+            ) *
+            4;
+
+          owner.leftArmOverride =
+            -8 -
+            tension * 7;
+
+          owner.rightArmOverride =
+            8 +
+            tension * 7;
+
+          owner.leftArmOffsetX =
+            112 -
+            tension * 8;
+
+          owner.rightArmOffsetX =
+            -112 +
+            tension * 8;
+
+          owner.leftArmOffsetY =
+            30 +
+            tension * 16;
+
+          owner.rightArmOffsetY =
+            30 +
+            tension * 16;
+
+          owner.headOffsetY =
+            -Math.abs(
+              tension,
+            ) *
+            3;
+
+          if (t >= 1) {
+            owner.piledriverStartX =
+              owner.x;
+
+            owner.piledriverStartY =
+              owner.y;
+
             ai.changeState(
               'piledriverDive',
-              ctx,
             );
           }
         },
