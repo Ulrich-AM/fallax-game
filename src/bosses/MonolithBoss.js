@@ -2088,6 +2088,27 @@ export class MonolithBoss {
             owner.grabCaptureY =
               target.y;
 
+            owner.grabHoldLocalX =
+              owner.grabSide * 150;
+
+            owner.grabHoldLocalY =
+              198;
+
+            owner.grabHandX =
+              owner.x +
+              owner.grabHoldLocalX;
+
+            owner.grabHandY =
+              owner.y +
+              owner.grabHoldLocalY;
+
+            owner.pinTargetAt(
+              target,
+              owner.grabHandX,
+              owner.grabHandY,
+              world,
+            );
+
             target.takeDamage?.(4);
             target.vx = 0;
             target.vy = 0;
@@ -2168,6 +2189,14 @@ export class MonolithBoss {
             Math.sin(
               t * Math.PI,
             );
+
+          owner.grabHandX =
+            owner.x +
+            owner.grabHoldLocalX;
+
+          owner.grabHandY =
+            owner.y +
+            owner.grabHoldLocalY;
 
           owner.pinTargetAt(
             target,
@@ -2343,39 +2372,23 @@ export class MonolithBoss {
             ) *
             12;
 
-          const holdX =
+          owner.grabHandX =
             owner.x +
-            side *
-            lerpValue(
-              150,
-              -96,
-              eased,
-            );
+            owner.grabHoldLocalX;
 
-          const holdY =
+          owner.grabHandY =
             owner.y +
-            198 -
-            Math.sin(
-              eased *
-              Math.PI,
-            ) *
-            108;
+            owner.grabHoldLocalY;
 
           owner.pinTargetAt(
             target,
-            holdX,
-            holdY,
+            owner.grabHandX,
+            owner.grabHandY,
             world,
           );
 
           target.vx = 0;
           target.vy = 0;
-
-          owner.grabHandX =
-            holdX;
-
-          owner.grabHandY =
-            holdY;
 
           if (side > 0) {
             owner.rightArmOverride =
