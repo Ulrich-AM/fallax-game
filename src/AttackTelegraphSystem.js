@@ -94,7 +94,7 @@ export class AttackTelegraphSystem {
   }
 
   getLeadTime(
-    baseSeconds = 0.20,
+    baseSeconds = 0.34,
   ) {
     return Math.max(
       0.06,
@@ -118,7 +118,7 @@ export class AttackTelegraphSystem {
   spawn({
     x,
     y,
-    duration = 0.20,
+    duration = 0.34,
     scale = 1,
   } = {}) {
     if (
@@ -130,7 +130,7 @@ export class AttackTelegraphSystem {
 
     const life =
       Math.max(
-        0.06,
+        0.12,
         duration,
       );
 
@@ -213,11 +213,11 @@ export class AttackTelegraphSystem {
       );
 
     const flashRate =
-      5 +
-      progress * 8;
+      4 +
+      progress * 6;
 
     const flash =
-      0.48 +
+      0.68 +
       Math.abs(
         Math.sin(
           telegraph.age *
@@ -225,15 +225,30 @@ export class AttackTelegraphSystem {
           flashRate,
         ),
       ) *
-      0.52;
+      0.32;
 
     const pop =
       clamp(
         progress /
-        0.16,
+        0.14,
         0,
         1,
       );
+
+    const fade =
+      progress < 0.58
+        ? 1
+        : (
+            1 -
+            clamp(
+              (
+                progress - 0.58
+              ) /
+              0.42,
+              0,
+              1,
+            )
+          );
 
     const pulse =
       1 +
@@ -242,7 +257,7 @@ export class AttackTelegraphSystem {
         Math.PI *
         3,
       ) *
-      0.06;
+      0.05;
 
     const pixel =
       4 *
@@ -274,7 +289,10 @@ export class AttackTelegraphSystem {
     ctx.save();
 
     ctx.globalAlpha =
-      flash * pop;
+      0.58 *
+      flash *
+      pop *
+      fade;
 
     // Chunky dark backing polygon acts like a pixel-art outline.
     ctx.fillStyle =
