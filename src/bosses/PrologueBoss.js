@@ -1249,8 +1249,8 @@ export class PrologueBoss {
           owner.satelliteWarningLead =
             ctx
               .getAttackWarningLead
-              ?.(0.24) ??
-            0.24;
+              ?.(0.38) ??
+            0.38;
 
           ctx
             .spawnAttackTelegraph
@@ -1900,7 +1900,7 @@ export class PrologueBoss {
     this.satelliteLocalRotation = 0;
     this.satelliteMode = 'orbit';
     this.satelliteAttackHit = false;
-    this.satelliteWarningLead = 0.24;
+    this.satelliteWarningLead = 0.38;
     this.wallRushHitPlayer = false;
     this.wallRushDraggingPlayer = false;
     this.wallRushEscaped = false;
