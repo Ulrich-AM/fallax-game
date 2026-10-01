@@ -794,7 +794,7 @@ export class MonolithBoss {
     this.grabHandY = this.y;
     this.grabWindStartX = this.x;
     this.grabWindStartY = this.y;
-    this.commandGrabWarningLead = 0.22;
+    this.commandGrabWarningLead = 0.36;
     this.commandGrabTelegraphSpawned = false;
     this.grabHoldLocalX = 150;
     this.grabHoldLocalY = 198;
@@ -809,6 +809,7 @@ export class MonolithBoss {
     this.piledriverApexY = this.y;
     this.piledriverImpactY = this.y;
     this.piledriverImpactDone = false;
+    this.piledriverWarningLead = 0.52;
 
     this.dropCatchSide = 1;
     this.dropCatchAimX = this.x;
@@ -841,6 +842,8 @@ export class MonolithBoss {
     this.sweepLowerStartY = this.y;
     this.sweepLowerY = this.y;
     this.sweepDropOffsetY = 0;
+    this.sweepDropStartOffsetX = 0;
+    this.sweepDropStartOffsetY = 0;
 
     this.ai = new BossAI(this, {
       initialState: 'idle',
@@ -1773,8 +1776,8 @@ export class MonolithBoss {
           owner.commandGrabWarningLead =
             ctx
               .getAttackWarningLead
-              ?.(0.22) ??
-            0.22;
+              ?.(0.36) ??
+            0.36;
 
           owner.commandGrabTelegraphSpawned =
             false;
