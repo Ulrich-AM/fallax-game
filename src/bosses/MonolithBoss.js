@@ -4233,6 +4233,15 @@ export class MonolithBoss {
             ) *
             5;
 
+          const liftX =
+            -owner.sweepDirection *
+            52 *
+            eased;
+
+          const liftY =
+            -132 *
+            eased;
+
           if (
             owner.sweepArmSide ===
             'left'
@@ -4240,30 +4249,48 @@ export class MonolithBoss {
             owner.leftArmOverride =
               lerpValue(
                 owner.leftArmNeutral,
-                -82,
+                -128,
                 eased,
               );
+
+            owner.leftArmOffsetX =
+              liftX;
+
+            owner.leftArmOffsetY =
+              liftY;
 
             owner.rightArmOverride =
               lerpValue(
                 owner.rightArmNeutral,
-                28,
+                30,
                 eased,
               );
+
+            owner.rightArmOffsetY =
+              18 * eased;
           } else {
             owner.rightArmOverride =
               lerpValue(
                 owner.rightArmNeutral,
-                82,
+                128,
                 eased,
               );
+
+            owner.rightArmOffsetX =
+              liftX;
+
+            owner.rightArmOffsetY =
+              liftY;
 
             owner.leftArmOverride =
               lerpValue(
                 owner.leftArmNeutral,
-                -28,
+                -30,
                 eased,
               );
+
+            owner.leftArmOffsetY =
+              18 * eased;
           }
 
           if (t >= 1) {
@@ -4286,6 +4313,18 @@ export class MonolithBoss {
             owner.baseArmPivotWorld(
               groupId,
             );
+
+          owner.sweepDropStartOffsetX =
+            owner.sweepArmSide ===
+            'left'
+              ? owner.leftArmOffsetX
+              : owner.rightArmOffsetX;
+
+          owner.sweepDropStartOffsetY =
+            owner.sweepArmSide ===
+            'left'
+              ? owner.leftArmOffsetY
+              : owner.rightArmOffsetY;
 
           owner.sweepDropOffsetY =
             clamp(
@@ -4316,27 +4355,27 @@ export class MonolithBoss {
           const slam =
             easeInCubic(t);
 
-          const side =
-            owner.sweepArmSide ===
-            'left'
-              ? -1
-              : 1;
+          const targetOffsetX =
+            owner.sweepDirection *
+            38;
 
           const offsetX =
-            side *
             lerpValue(
-              18,
-              42,
+              owner.sweepDropStartOffsetX,
+              targetOffsetX,
               slam,
             );
 
           const offsetY =
-            owner.sweepDropOffsetY *
-              slam +
+            lerpValue(
+              owner.sweepDropStartOffsetY,
+              owner.sweepDropOffsetY,
+              slam,
+            ) +
             Math.sin(
               t * Math.PI,
             ) *
-              8;
+              6;
 
           if (
             owner.sweepArmSide ===
@@ -4344,7 +4383,7 @@ export class MonolithBoss {
           ) {
             owner.leftArmOverride =
               lerpValue(
-                -82,
+                -128,
                 -2,
                 slam,
               );
@@ -4364,7 +4403,7 @@ export class MonolithBoss {
           } else {
             owner.rightArmOverride =
               lerpValue(
-                82,
+                128,
                 2,
                 slam,
               );
