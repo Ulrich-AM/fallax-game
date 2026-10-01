@@ -2884,8 +2884,10 @@ export class MonolithBoss {
         update: (
           owner,
           ai,
+          dt,
+          ctx,
         ) => {
-          const duration = 0.34;
+          const duration = 0.30;
           const t =
             clamp(
               ai.stateTime /
@@ -2894,8 +2896,9 @@ export class MonolithBoss {
               1,
             );
 
-          const eased =
-            easeOutCubic(t);
+          // Accelerate the fist into the floor instead of easing gently down.
+          const slam =
+            easeInCubic(t);
 
           const side =
             owner.sweepArmSide ===
@@ -2905,12 +2908,19 @@ export class MonolithBoss {
 
           const offsetX =
             side *
-            34 *
-            eased;
+            lerpValue(
+              18,
+              42,
+              slam,
+            );
 
           const offsetY =
             owner.sweepDropOffsetY *
-            eased;
+              slam +
+            Math.sin(
+              t * Math.PI,
+            ) *
+              8;
 
           if (
             owner.sweepArmSide ===
@@ -2919,8 +2929,8 @@ export class MonolithBoss {
             owner.leftArmOverride =
               lerpValue(
                 -82,
-                -4,
-                eased,
+                -2,
+                slam,
               );
 
             owner.leftArmOffsetX =
@@ -2932,15 +2942,15 @@ export class MonolithBoss {
             owner.rightArmOverride =
               lerpValue(
                 28,
-                58,
-                eased,
+                62,
+                slam,
               );
           } else {
             owner.rightArmOverride =
               lerpValue(
                 82,
-                4,
-                eased,
+                2,
+                slam,
               );
 
             owner.rightArmOffsetX =
@@ -2952,23 +2962,87 @@ export class MonolithBoss {
             owner.leftArmOverride =
               lerpValue(
                 -28,
-                -58,
-                eased,
+                -62,
+                slam,
               );
           }
 
           owner.headOffsetY =
-            lerpValue(
-              0,
-              7,
-              Math.sin(
-                t * Math.PI,
-              ),
+            -Math.sin(
+              t * Math.PI,
+            ) *
+            7;
+
+          if (t >= 1) {
+            ctx
+              ?.shakeCamera
+              ?.(5.2, 0.10);
+
+            ai.changeState(
+              'groundSweepPlant',
+              ctx,
             );
+          }
+        },
+      })
+
+      .addState('groundSweepPlant', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.16;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const settle =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          if (
+            owner.sweepArmSide ===
+            'left'
+          ) {
+            owner.leftArmOverride =
+              -2 -
+              settle * 3;
+
+            owner.leftArmOffsetY =
+              owner.sweepDropOffsetY +
+              settle * 7;
+
+            owner.rightArmOverride =
+              62 -
+              settle * 5;
+          } else {
+            owner.rightArmOverride =
+              2 +
+              settle * 3;
+
+            owner.rightArmOffsetY =
+              owner.sweepDropOffsetY +
+              settle * 7;
+
+            owner.leftArmOverride =
+              -62 +
+              settle * 5;
+          }
+
+          owner.headOffsetY =
+            settle * 5;
 
           if (t >= 1) {
             ai.changeState(
               'groundSweep',
+              ctx,
             );
           }
         },
@@ -3315,6 +3389,8 @@ export class MonolithBoss {
         'groundSweepWindup' ||
       state ===
         'groundSweepDrop' ||
+      state ===
+        'groundSweepPlant' ||
       state ===
         'groundSweep'
     ) {
