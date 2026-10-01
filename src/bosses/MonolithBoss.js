@@ -2721,6 +2721,1259 @@ export class MonolithBoss {
         },
       })
 
+      // PHASE 2: PILEDRIVER
+      // Clasp both fists, rise with the arms lagging from inertia, then predict
+      // the target and dive into the floor. The hands whip upward during the
+      // fall before both plant hard at impact.
+      .addState('piledriverClasp', {
+        enter: owner => {
+          owner.piledriverStartX =
+            owner.x;
+
+          owner.piledriverStartY =
+            owner.y;
+
+          owner.piledriverImpactDone =
+            false;
+
+          owner.resetPoseOffsets();
+        },
+
+        update: (
+          owner,
+          ai,
+        ) => {
+          const duration = 0.46;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          owner.leftArmOverride =
+            lerpValue(
+              owner.leftArmNeutral,
+              -8,
+              eased,
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              owner.rightArmNeutral,
+              8,
+              eased,
+            );
+
+          owner.leftArmOffsetX =
+            112 * eased;
+
+          owner.rightArmOffsetX =
+            -112 * eased;
+
+          owner.leftArmOffsetY =
+            30 * eased;
+
+          owner.rightArmOffsetY =
+            30 * eased;
+
+          owner.headOffsetY =
+            9 *
+            Math.sin(
+              t * Math.PI,
+            );
+
+          if (t >= 1) {
+            ai.changeState(
+              'piledriverRise',
+            );
+          }
+        },
+      })
+
+      .addState('piledriverRise', {
+        enter: owner => {
+          owner.piledriverStartX =
+            owner.x;
+
+          owner.piledriverStartY =
+            owner.y;
+
+          owner.piledriverApexY =
+            clamp(
+              owner.y - 285,
+              world.roofY + 150,
+              world.floorY - 360,
+            );
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.68;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          owner.y =
+            lerpValue(
+              owner.piledriverStartY,
+              owner.piledriverApexY,
+              eased,
+            );
+
+          // The body rises first; the clasped fists trail downward from inertia.
+          const lag =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.leftArmOverride =
+            -8 -
+            lag * 16;
+
+          owner.rightArmOverride =
+            8 +
+            lag * 16;
+
+          owner.leftArmOffsetX =
+            112 -
+            lag * 18;
+
+          owner.rightArmOffsetX =
+            -112 +
+            lag * 18;
+
+          owner.leftArmOffsetY =
+            30 +
+            lag * 92;
+
+          owner.rightArmOffsetY =
+            30 +
+            lag * 92;
+
+          owner.headOffsetY =
+            lag * 6;
+
+          if (t >= 1) {
+            const target =
+              ai.targetPlayer(ctx);
+
+            const predicted =
+              owner.predictTarget(
+                target,
+                0.42,
+                world,
+              );
+
+            owner.piledriverTargetX =
+              clamp(
+                predicted.x,
+                190,
+                world.width - 190,
+              );
+
+            owner.piledriverStartX =
+              owner.x;
+
+            owner.piledriverStartY =
+              owner.y;
+
+            owner.piledriverImpactY =
+              world.floorY - 250;
+
+            ai.changeState(
+              'piledriverDive',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('piledriverDive', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.52;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const dive =
+            easeInCubic(t);
+
+          owner.x =
+            lerpValue(
+              owner.piledriverStartX,
+              owner.piledriverTargetX,
+              easeInOutSine(t),
+            );
+
+          owner.y =
+            lerpValue(
+              owner.piledriverStartY,
+              owner.piledriverImpactY,
+              dive,
+            );
+
+          const leftBase =
+            owner.baseArmPivotWorld(
+              'group-3',
+            );
+
+          const rightBase =
+            owner.baseArmPivotWorld(
+              'group-4',
+            );
+
+          const leftPlantY =
+            clamp(
+              world.floorY -
+                68 -
+                leftBase.y,
+              -80,
+              310,
+            );
+
+          const rightPlantY =
+            clamp(
+              world.floorY -
+                68 -
+                rightBase.y,
+              -80,
+              310,
+            );
+
+          // As the body reverses into a dive, the heavy clasped hands lag upward.
+          // During the final third they whip down into a two-fist plant.
+          const upwardLag =
+            t < 0.62
+              ? (
+                  Math.sin(
+                    t /
+                    0.62 *
+                    Math.PI,
+                  ) *
+                  -112
+                )
+              : 0;
+
+          const plantT =
+            clamp(
+              (
+                t - 0.62
+              ) /
+              0.38,
+              0,
+              1,
+            );
+
+          const plant =
+            easeInCubic(
+              plantT,
+            );
+
+          owner.leftArmOverride =
+            lerpValue(
+              -12,
+              -2,
+              plant,
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              12,
+              2,
+              plant,
+            );
+
+          owner.leftArmOffsetX =
+            lerpValue(
+              104,
+              78,
+              plant,
+            );
+
+          owner.rightArmOffsetX =
+            lerpValue(
+              -104,
+              -78,
+              plant,
+            );
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              36 + upwardLag,
+              leftPlantY,
+              plant,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              36 + upwardLag,
+              rightPlantY,
+              plant,
+            );
+
+          owner.headOffsetY =
+            -Math.sin(
+              t * Math.PI,
+            ) *
+            8;
+
+          if (
+            t >= 1 &&
+            !owner.piledriverImpactDone
+          ) {
+            owner.piledriverImpactDone =
+              true;
+
+            const target =
+              ai.targetPlayer(ctx);
+
+            if (
+              target &&
+              owner.circleHitsTarget(
+                owner.piledriverTargetX,
+                world.floorY - 46,
+                220,
+                target,
+              )
+            ) {
+              target.takeDamage?.(
+                32,
+              );
+
+              const direction =
+                target.x <
+                owner.piledriverTargetX
+                  ? -1
+                  : 1;
+
+              target.vx =
+                direction * 610;
+
+              target.vy = -520;
+              target.grounded = false;
+            }
+
+            ctx
+              ?.shakeCamera
+              ?.(9.2, 0.18);
+
+            ai.changeState(
+              'piledriverImpact',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('piledriverImpact', {
+        update: (
+          owner,
+          ai,
+        ) => {
+          const duration = 0.26;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const compress =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.y =
+            owner.piledriverImpactY +
+            compress * 9;
+
+          const leftBase =
+            owner.baseArmPivotWorld(
+              'group-3',
+            );
+
+          const rightBase =
+            owner.baseArmPivotWorld(
+              'group-4',
+            );
+
+          owner.leftArmOffsetX = 78;
+          owner.rightArmOffsetX = -78;
+
+          owner.leftArmOffsetY =
+            world.floorY -
+            68 -
+            leftBase.y;
+
+          owner.rightArmOffsetY =
+            world.floorY -
+            68 -
+            rightBase.y;
+
+          owner.leftArmOverride = -2;
+          owner.rightArmOverride = 2;
+
+          owner.headOffsetY =
+            compress * 7;
+
+          if (t >= 1) {
+            owner.piledriverStartY =
+              owner.y;
+
+            ai.changeState(
+              'piledriverRiseRecover',
+            );
+          }
+        },
+      })
+
+      .addState('piledriverRiseRecover', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.86;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          owner.y =
+            lerpValue(
+              owner.piledriverStartY,
+              owner.spawnY,
+              eased,
+            );
+
+          const handRelease =
+            smoothStep01(
+              clamp(
+                (
+                  t - 0.12
+                ) /
+                0.72,
+                0,
+                1,
+              ),
+            );
+
+          const leftBase =
+            owner.baseArmPivotWorld(
+              'group-3',
+            );
+
+          const rightBase =
+            owner.baseArmPivotWorld(
+              'group-4',
+            );
+
+          const leftFloorY =
+            world.floorY -
+            68 -
+            leftBase.y;
+
+          const rightFloorY =
+            world.floorY -
+            68 -
+            rightBase.y;
+
+          owner.leftArmOffsetX =
+            lerpValue(
+              78,
+              0,
+              handRelease,
+            );
+
+          owner.rightArmOffsetX =
+            lerpValue(
+              -78,
+              0,
+              handRelease,
+            );
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              leftFloorY,
+              0,
+              handRelease,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              rightFloorY,
+              0,
+              handRelease,
+            );
+
+          owner.leftArmOverride =
+            lerpValue(
+              -2,
+              owner.leftArmNeutral,
+              handRelease,
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              2,
+              owner.rightArmNeutral,
+              handRelease,
+            );
+
+          owner.headOffsetY =
+            Math.sin(
+              t * Math.PI,
+            ) *
+            5;
+
+          if (t >= 1) {
+            owner.clearAttackPose();
+            owner.resetPoseOffsets();
+
+            ai.changeState(
+              'idle',
+              ctx,
+            );
+          }
+        },
+      })
+
+      // PHASE 2: DROP CATCH
+      // Anti-air command grab. The arm winds low/back, predicts the airborne
+      // target, reaches upward, locks them to the hand, then whips them down.
+      .addState('dropCatchWindup', {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
+          const target =
+            owner.resolveGrabTarget(
+              ctx,
+            );
+
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.30,
+              world,
+            );
+
+          owner.dropCatchSide =
+            predicted.x <
+            owner.x
+              ? -1
+              : 1;
+
+          owner.attackArmSide =
+            owner.dropCatchSide > 0
+              ? 'right'
+              : 'left';
+
+          owner.dropCatchAimX =
+            predicted.x;
+
+          owner.dropCatchAimY =
+            predicted.y;
+
+          owner.dropCatchStartX =
+            owner.x;
+
+          owner.dropCatchStartY =
+            owner.y;
+
+          owner.dropCatchGrabbedTarget =
+            null;
+
+          owner.resetPoseOffsets();
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.50;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            easeInOutSine(t);
+
+          if (t < 0.66) {
+            const target =
+              owner.resolveGrabTarget(
+                ctx,
+              );
+
+            const predicted =
+              owner.predictTarget(
+                target,
+                0.26,
+                world,
+              );
+
+            owner.dropCatchAimX =
+              predicted.x;
+
+            owner.dropCatchAimY =
+              predicted.y;
+          }
+
+          owner.y =
+            owner.dropCatchStartY +
+            38 * eased;
+
+          const side =
+            owner.dropCatchSide;
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                154,
+                eased,
+              );
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -10,
+                eased,
+              );
+
+            owner.rightArmOffsetX =
+              -92 * eased;
+
+            owner.rightArmOffsetY =
+              72 * eased;
+
+            owner.leftArmOffsetX =
+              28 * eased;
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmNeutral,
+                -154,
+                eased,
+              );
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmNeutral,
+                10,
+                eased,
+              );
+
+            owner.leftArmOffsetX =
+              92 * eased;
+
+            owner.leftArmOffsetY =
+              72 * eased;
+
+            owner.rightArmOffsetX =
+              -28 * eased;
+          }
+
+          owner.headOffsetX =
+            -side *
+            18 *
+            eased;
+
+          owner.headOffsetY =
+            8 *
+            Math.sin(
+              t * Math.PI,
+            );
+
+          if (t >= 1) {
+            const target =
+              owner.resolveGrabTarget(
+                ctx,
+              );
+
+            const predicted =
+              owner.predictTarget(
+                target,
+                0.22,
+                world,
+              );
+
+            owner.dropCatchAimX =
+              predicted.x;
+
+            owner.dropCatchAimY =
+              predicted.y;
+
+            ai.changeState(
+              'dropCatchReach',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('dropCatchReach', {
+        enter: owner => {
+          const groupId =
+            owner.dropCatchSide > 0
+              ? 'group-4'
+              : 'group-3';
+
+          const start =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          owner.dropCatchHandX =
+            start.x;
+
+          owner.dropCatchHandY =
+            start.y + 72;
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.34;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const snap =
+            easeOutCubic(t);
+
+          const side =
+            owner.dropCatchSide;
+
+          const groupId =
+            side > 0
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          owner.dropCatchHandX =
+            lerpValue(
+              base.x -
+                side * 72,
+              owner.dropCatchAimX,
+              snap,
+            );
+
+          owner.dropCatchHandY =
+            lerpValue(
+              base.y + 92,
+              owner.dropCatchAimY,
+              snap,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.dropCatchHandX -
+                base.x
+              ) *
+              0.80,
+              -430,
+              430,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.dropCatchHandY -
+                base.y
+              ) *
+              0.80,
+              -420,
+              220,
+            );
+
+          const aimTarget = {
+            x:
+              owner.dropCatchHandX,
+            y:
+              owner.dropCatchHandY,
+          };
+
+          const aimAngle =
+            owner.desiredArmAngle(
+              groupId,
+              aimTarget,
+              side > 0
+                ? owner.rightArmNeutral
+                : owner.leftArmNeutral,
+            );
+
+          if (side > 0) {
+            owner.rightArmOverride =
+              lerpValue(
+                154,
+                aimAngle,
+                snap,
+              );
+
+            owner.rightArmOffsetX =
+              reachX;
+
+            owner.rightArmOffsetY =
+              reachY;
+
+            owner.leftArmOverride =
+              lerpValue(
+                -10,
+                -72,
+                snap,
+              );
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -154,
+                aimAngle,
+                snap,
+              );
+
+            owner.leftArmOffsetX =
+              reachX;
+
+            owner.leftArmOffsetY =
+              reachY;
+
+            owner.rightArmOverride =
+              lerpValue(
+                10,
+                72,
+                snap,
+              );
+          }
+
+          owner.headOffsetX =
+            lerpValue(
+              -side * 18,
+              side * 7,
+              snap,
+            );
+
+          const target =
+            owner.resolveGrabTarget(
+              ctx,
+            );
+
+          if (
+            target &&
+            !target.grounded &&
+            !(
+              target
+                .dashInvulnerabilityTimer >
+              0
+            ) &&
+            owner.circleHitsTarget(
+              owner.dropCatchHandX,
+              owner.dropCatchHandY,
+              78,
+              target,
+            )
+          ) {
+            owner.dropCatchGrabbedTarget =
+              target;
+
+            owner.dropCatchDashSerial =
+              target.dashSerial ?? 0;
+
+            owner.pinTargetAt(
+              target,
+              owner.dropCatchHandX,
+              owner.dropCatchHandY,
+              world,
+            );
+
+            target.takeDamage?.(4);
+            target.vx = 0;
+            target.vy = 0;
+            target.grounded = false;
+
+            ctx
+              ?.shakeCamera
+              ?.(3.8, 0.09);
+
+            ai.changeState(
+              'dropCatchLatch',
+              ctx,
+            );
+            return;
+          }
+
+          if (t >= 1) {
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('dropCatchLatch', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.dropCatchGrabbedTarget;
+
+          if (
+            !target ||
+            target.dead ||
+            target.health <= 0
+          ) {
+            owner.dropCatchGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.dropCatchDashSerial
+          ) {
+            target
+              .spawnGrabEscapeTrail
+              ?.(owner.dropCatchHandX, owner.dropCatchHandY);
+
+            owner.dropCatchGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const t =
+            clamp(
+              ai.stateTime /
+                0.16,
+              0,
+              1,
+            );
+
+          const pulse =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.pinTargetAt(
+            target,
+            owner.dropCatchHandX,
+            owner.dropCatchHandY,
+            world,
+          );
+
+          target.vx = 0;
+          target.vy = 0;
+
+          if (
+            owner.dropCatchSide > 0
+          ) {
+            owner.rightArmOverride -=
+              pulse * 14;
+          } else {
+            owner.leftArmOverride +=
+              pulse * 14;
+          }
+
+          owner.headOffsetY =
+            -pulse * 6;
+
+          if (t >= 1) {
+            owner.dropCatchHandPrevX =
+              owner.dropCatchHandX;
+
+            owner.dropCatchHandPrevY =
+              owner.dropCatchHandY;
+
+            ai.changeState(
+              'dropCatchThrow',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('dropCatchThrow', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.dropCatchGrabbedTarget;
+
+          if (!target) {
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.dropCatchDashSerial
+          ) {
+            target
+              .spawnGrabEscapeTrail
+              ?.(owner.dropCatchHandX, owner.dropCatchHandY);
+
+            owner.dropCatchGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const duration = 0.38;
+          const releaseAt = 0.78;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const swingT =
+            clamp(
+              t /
+                releaseAt,
+              0,
+              1,
+            );
+
+          const swing =
+            easeInCubic(
+              swingT,
+            );
+
+          const side =
+            owner.dropCatchSide;
+
+          const startX =
+            owner.dropCatchAimX;
+
+          const startY =
+            owner.dropCatchAimY;
+
+          const endX =
+            owner.x +
+            side * 165;
+
+          const endY =
+            owner.y + 330;
+
+          owner.dropCatchHandX =
+            lerpValue(
+              startX,
+              endX,
+              swing,
+            ) +
+            side *
+            Math.sin(
+              swingT * Math.PI,
+            ) *
+            74;
+
+          owner.dropCatchHandY =
+            lerpValue(
+              startY,
+              endY,
+              swing,
+            );
+
+          const handVX =
+            (
+              owner.dropCatchHandX -
+              owner.dropCatchHandPrevX
+            ) /
+            Math.max(
+              dt,
+              1 / 240,
+            );
+
+          const handVY =
+            (
+              owner.dropCatchHandY -
+              owner.dropCatchHandPrevY
+            ) /
+            Math.max(
+              dt,
+              1 / 240,
+            );
+
+          owner.dropCatchHandPrevX =
+            owner.dropCatchHandX;
+
+          owner.dropCatchHandPrevY =
+            owner.dropCatchHandY;
+
+          const groupId =
+            side > 0
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.dropCatchHandX -
+                base.x
+              ) *
+              0.76,
+              -390,
+              390,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.dropCatchHandY -
+                base.y
+              ) *
+              0.72,
+              -300,
+              330,
+            );
+
+          if (side > 0) {
+            owner.rightArmOffsetX =
+              reachX;
+
+            owner.rightArmOffsetY =
+              reachY;
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmAngle,
+                6,
+                swing,
+              );
+
+            owner.leftArmOverride =
+              -80;
+          } else {
+            owner.leftArmOffsetX =
+              reachX;
+
+            owner.leftArmOffsetY =
+              reachY;
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmAngle,
+                -6,
+                swing,
+              );
+
+            owner.rightArmOverride =
+              80;
+          }
+
+          owner.pinTargetAt(
+            target,
+            owner.dropCatchHandX,
+            owner.dropCatchHandY,
+            world,
+          );
+
+          target.vx = 0;
+          target.vy = 0;
+
+          if (swingT >= 1) {
+            owner.startGroundThrow(
+              target,
+              handVX,
+              handVY,
+            );
+
+            owner.dropCatchGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
       .addState('groundSweepWindup', {
         enter: (
           owner,
