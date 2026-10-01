@@ -4788,18 +4788,6 @@ export class MonolithBoss {
     target.grounded = false;
   }
 
-  draglineCatchPoint() {
-    return {
-      x:
-        this.x +
-        this.grabSide *
-          118,
-      y:
-        this.y +
-        188,
-    };
-  }
-
   resolveGrabTarget(context) {
     const target =
       context?.player ?? null;
@@ -4877,31 +4865,6 @@ export class MonolithBoss {
       dx <= 525 &&
       dy >= 35 &&
       dy <= 520
-    );
-  }
-
-  canDraglineGrab(target) {
-    if (!target) return false;
-
-    const dx =
-      Math.abs(
-        target.x -
-        this.x,
-      );
-
-    const dy =
-      Math.abs(
-        target.y -
-        (
-          this.y +
-          170
-        ),
-      );
-
-    return (
-      dx >= 455 &&
-      dx <= 1325 &&
-      dy <= 620
     );
   }
 
@@ -5301,16 +5264,6 @@ export class MonolithBoss {
     ) {
       this.throwState = null;
     }
-  }
-
-  clearDragline() {
-    this.draglineActive = false;
-    this.draglineAttached = false;
-    this.draglineTarget = null;
-    this.draglineLife = 0;
-    this.draglineSqueezeTimer = 0;
-    this.draglineSqueezeCount = 0;
-    this.draglineSqueezeFlash = 0;
   }
 
   reset(world) {
@@ -6254,7 +6207,6 @@ export class MonolithBoss {
         null;
       this.throwState = null;
       this.groundThrowState = null;
-      this.clearDragline();
     }
 
     return true;
