@@ -3327,7 +3327,7 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const duration = 0.50;
+          const duration = 0.40;
           const t =
             clamp(
               ai.stateTime /
@@ -3477,7 +3477,7 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const duration = 0.34;
+          const duration = 0.28;
           const t =
             clamp(
               ai.stateTime /
@@ -3620,7 +3620,7 @@ export class MonolithBoss {
             owner.circleHitsTarget(
               owner.dropCatchHandX,
               owner.dropCatchHandY,
-              78,
+              94,
               target,
             )
           ) {
