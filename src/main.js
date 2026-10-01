@@ -33,6 +33,9 @@ import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
 import { WeaponRuntime } from './WeaponRuntime.js?v=62';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
+  AttackTelegraphSystem,
+} from './AttackTelegraphSystem.js?v=68a';
+import {
   ExtraSystem,
 } from './ExtraSystem.js?v=63';
 import { Economy } from './Economy.js?v=63b';
@@ -41,9 +44,9 @@ import {
   getProgressEpochStatus,
 } from './ProgressEpoch.js?v=63';
 import { BossAI } from './bosses/BossAI.js?v=36';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=63';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=68a';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=68';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=68a';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -60,7 +63,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v68';
+const BUILD_VERSION = 'v68a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -440,6 +443,8 @@ const weaponRuntime =
   });
 
 const extraSystem = new ExtraSystem();
+const attackTelegraphSystem =
+  new AttackTelegraphSystem();
 const economy = new Economy();
 renderCurrencyBalances();
 const prologueBoss = new PrologueBoss(world);
@@ -2782,6 +2787,10 @@ function update(dt) {
 
   refreshExtraButtons();
 
+  attackTelegraphSystem.update(
+    dt,
+  );
+
   const guardedPlayer =
     guardSystem.getDamageTarget(
       player,
@@ -2862,6 +2871,16 @@ function update(dt) {
         world.width,
       shakeCamera:
         triggerCameraShake,
+      spawnAttackTelegraph:
+        options =>
+          attackTelegraphSystem
+            .spawn(options),
+      getAttackWarningLead:
+        baseSeconds =>
+          attackTelegraphSystem
+            .getLeadTime(
+              baseSeconds,
+            ),
       broken:
         bossStaggerSystem
           .isBroken,
@@ -3637,6 +3656,11 @@ function renderGame() {
 
   backfireAbility.draw(ctx, 0);
 
+  attackTelegraphSystem.draw(
+    ctx,
+    0,
+  );
+
   ctx.restore();
 
   drawBossBar();
@@ -3658,6 +3682,7 @@ function prepareEncounter(boss) {
   extraSystem.reset();
   refreshExtraButtons();
   particles.length = 0;
+  attackTelegraphSystem.clear();
   bossImpactFxCooldown = 0;
   playerImpactFxCooldown = 0;
 
