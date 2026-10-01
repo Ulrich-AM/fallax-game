@@ -794,6 +794,8 @@ export class MonolithBoss {
     this.grabHandY = this.y;
     this.grabWindStartX = this.x;
     this.grabWindStartY = this.y;
+    this.commandGrabWarningLead = 0.22;
+    this.commandGrabTelegraphSpawned = false;
     this.grabHoldLocalX = 150;
     this.grabHoldLocalY = 198;
     this.throwHandPrevX = this.x;
@@ -1768,6 +1770,15 @@ export class MonolithBoss {
           owner.grabbedTarget =
             null;
 
+          owner.commandGrabWarningLead =
+            ctx
+              .getAttackWarningLead
+              ?.(0.22) ??
+            0.22;
+
+          owner.commandGrabTelegraphSpawned =
+            false;
+
           owner.resetPoseOffsets();
         },
 
@@ -1777,8 +1788,18 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const totalDuration = 0.86;
-          const windDuration = 0.56;
+          const trackingDuration = 0.38;
+
+          const windDuration =
+            trackingDuration +
+            owner.commandGrabWarningLead;
+
+          const reachDuration = 0.30;
+
+          const totalDuration =
+            windDuration +
+            reachDuration;
+
           const time =
             Math.min(
               ai.stateTime,
@@ -1799,7 +1820,10 @@ export class MonolithBoss {
             const eased =
               easeInOutSine(t);
 
-            if (t < 0.68) {
+            if (
+              time <
+              trackingDuration
+            ) {
               const liveTarget =
                 owner.resolveGrabTarget(
                   ctx,
@@ -1817,6 +1841,44 @@ export class MonolithBoss {
 
               owner.grabAimY =
                 livePrediction.y;
+            } else if (
+              !owner
+                .commandGrabTelegraphSpawned
+            ) {
+              const liveTarget =
+                owner.resolveGrabTarget(
+                  ctx,
+                );
+
+              const lockedPrediction =
+                owner.predictTarget(
+                  liveTarget,
+                  0.16,
+                  world,
+                );
+
+              owner.grabAimX =
+                lockedPrediction.x;
+
+              owner.grabAimY =
+                lockedPrediction.y;
+
+              owner
+                .commandGrabTelegraphSpawned =
+                true;
+
+              ctx
+                .spawnAttackTelegraph
+                ?.({
+                  x:
+                    owner.grabAimX,
+                  y:
+                    owner.grabAimY,
+                  duration:
+                    owner
+                      .commandGrabWarningLead,
+                  scale: 1.02,
+                });
             }
 
             owner.y =
@@ -1877,9 +1939,14 @@ export class MonolithBoss {
             const warningHold =
               clamp(
                 (
-                  t - 0.72
+                  time -
+                  trackingDuration
                 ) /
-                0.28,
+                Math.max(
+                  0.001,
+                  owner
+                    .commandGrabWarningLead,
+                ),
                 0,
                 1,
               );
