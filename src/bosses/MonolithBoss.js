@@ -4638,6 +4638,22 @@ export class MonolithBoss {
     }
 
     if (
+      state.startsWith(
+        'piledriver',
+      )
+    ) {
+      return 'PILEDRIVER';
+    }
+
+    if (
+      state.startsWith(
+        'dropCatch',
+      )
+    ) {
+      return 'DROP CATCH';
+    }
+
+    if (
       state ===
         'groundSweepWindup' ||
       state ===
@@ -5014,6 +5030,105 @@ export class MonolithBoss {
     this.grabbedTarget = null;
   }
 
+  startGroundThrow(
+    target,
+    handVX = 0,
+    handVY = 0,
+  ) {
+    if (!target) return;
+
+    target.vx =
+      clamp(
+        handVX * 0.55,
+        -720,
+        720,
+      );
+
+    target.vy =
+      clamp(
+        Math.max(
+          handVY * 1.18,
+          980,
+        ),
+        980,
+        1480,
+      );
+
+    target.grounded = false;
+
+    this.groundThrowState = {
+      target,
+      dashSerial:
+        target.dashSerial ?? 0,
+      impactDamage: 24,
+      age: 0,
+    };
+  }
+
+  updateGroundThrownTarget(
+    dt,
+    context,
+  ) {
+    const state =
+      this.groundThrowState;
+
+    if (!state) return;
+
+    const target =
+      state.target;
+
+    if (
+      !target ||
+      target.dead ||
+      target.health <= 0
+    ) {
+      this.groundThrowState =
+        null;
+      return;
+    }
+
+    state.age += dt;
+
+    if (
+      (
+        target.dashSerial ?? 0
+      ) !==
+      state.dashSerial
+    ) {
+      target
+        .spawnGrabEscapeTrail
+        ?.(target.x, target.y);
+
+      this.groundThrowState =
+        null;
+      return;
+    }
+
+    if (
+      target.grounded &&
+      state.age > 0.06
+    ) {
+      target.takeDamage?.(
+        state.impactDamage,
+      );
+
+      target.vy = -330;
+
+      context
+        ?.shakeCamera
+        ?.(7.0, 0.13);
+
+      this.groundThrowState =
+        null;
+      return;
+    }
+
+    if (state.age > 1.8) {
+      this.groundThrowState =
+        null;
+    }
+  }
+
   startWallThrow(
     target,
     world,
@@ -5232,6 +5347,11 @@ export class MonolithBoss {
     this.lastAttack = null;
     this.grabbedTarget = null;
     this.throwState = null;
+    this.groundThrowState = null;
+    this.dropCatchGrabbedTarget =
+      null;
+    this.piledriverImpactDone =
+      false;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -5267,6 +5387,11 @@ export class MonolithBoss {
     }
 
     this.updateThrownTarget(
+      dt,
+      context,
+    );
+
+    this.updateGroundThrownTarget(
       dt,
       context,
     );
@@ -6125,7 +6250,10 @@ export class MonolithBoss {
     ) {
       this.dead = true;
       this.grabbedTarget = null;
+      this.dropCatchGrabbedTarget =
+        null;
       this.throwState = null;
+      this.groundThrowState = null;
       this.clearDragline();
     }
 
