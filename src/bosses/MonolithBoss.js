@@ -794,26 +794,32 @@ export class MonolithBoss {
     this.grabHandY = this.y;
     this.grabWindStartX = this.x;
     this.grabWindStartY = this.y;
+    this.grabHoldLocalX = 150;
+    this.grabHoldLocalY = 198;
     this.throwHandPrevX = this.x;
     this.throwHandPrevY = this.y;
 
     this.throwState = null;
 
-    this.draglineLockedX = this.x;
-    this.draglineLockedY = this.y;
-    this.draglineHookX = this.x;
-    this.draglineHookY = this.y;
-    this.draglineVX = 0;
-    this.draglineVY = 0;
-    this.draglineLife = 0;
-    this.draglineTarget = null;
-    this.draglineDashSerial = 0;
-    this.draglineActive = false;
-    this.draglineAttached = false;
-    this.draglineInitialDistance = 1;
-    this.draglineSqueezeTimer = 0;
-    this.draglineSqueezeCount = 0;
-    this.draglineSqueezeFlash = 0;
+    this.piledriverStartX = this.x;
+    this.piledriverStartY = this.y;
+    this.piledriverTargetX = this.x;
+    this.piledriverApexY = this.y;
+    this.piledriverImpactY = this.y;
+    this.piledriverImpactDone = false;
+
+    this.dropCatchSide = 1;
+    this.dropCatchAimX = this.x;
+    this.dropCatchAimY = this.y;
+    this.dropCatchHandX = this.x;
+    this.dropCatchHandY = this.y;
+    this.dropCatchGrabbedTarget = null;
+    this.dropCatchDashSerial = 0;
+    this.dropCatchStartX = this.x;
+    this.dropCatchStartY = this.y;
+    this.dropCatchHandPrevX = this.x;
+    this.dropCatchHandPrevY = this.y;
+    this.groundThrowState = null;
 
     this.recoverStartY = this.y;
     this.recoverHeadOffsetX = 0;
@@ -861,8 +867,6 @@ export class MonolithBoss {
         enter: (owner, ai) => {
           owner.clearAttackPose();
           owner.resetPoseOffsets();
-          owner.clearDragline();
-
           ai.setTimer(
             'attackDelay',
             1.0 +
@@ -927,38 +931,61 @@ export class MonolithBoss {
               owner.x,
             );
 
+          const phaseTwoOrLater =
+            ai.phaseId === 'phase2' ||
+            ai.phaseId === 'phase3';
+
+          const airborne =
+            !target.grounded &&
+            target.y <
+              world.floorY - 95;
+
           const options = [
             {
               value: 'lariatSwoop',
               weight:
                 distance > 260
-                  ? 1.55
-                  : 0.75,
+                  ? 1.48
+                  : 0.72,
             },
             {
               value: 'commandGrab',
               weight:
                 distance >= 220 &&
                 distance <= 520
-                  ? 1.72
-                  : 0,
-            },
-            {
-              value: 'draglineWindup',
-              weight:
-                distance >= 500 &&
-                distance <= 1250
                   ? 1.62
                   : 0,
             },
             {
               value: 'groundSweepWindup',
               weight:
-                distance < 720
-                  ? 0.72
-                  : 0.28,
+                distance < 760
+                  ? 0.82
+                  : 0.34,
             },
           ];
+
+          if (phaseTwoOrLater) {
+            options.push(
+              {
+                value:
+                  'piledriverClasp',
+                weight:
+                  airborne
+                    ? 0.55
+                    : 1.25,
+              },
+              {
+                value:
+                  'dropCatchWindup',
+                weight:
+                  airborne
+                    ? 1.75
+                    : 0,
+              },
+            );
+          }
+
 
           for (const option of options) {
             if (
@@ -2681,768 +2708,6 @@ export class MonolithBoss {
         },
       })
 
-      // DRAGLINE SQUEEZE
-      // This is now a long-range grab instead of a harmless reposition tool.
-      // The hand reaches out like Command Grab, drags the target inward, then
-      // visibly clenches in damage bursts that grow as the distance closes.
-      .addState('draglineWindup', {
-        enter: (
-          owner,
-          ai,
-          ctx,
-        ) => {
-          const target =
-            owner.resolveGrabTarget(
-              ctx,
-            );
-
-          const predicted =
-            owner.predictTarget(
-              target,
-              0.24,
-              world,
-            );
-
-          owner.attackArmSide =
-            predicted.x <
-            owner.x
-              ? 'left'
-              : 'right';
-
-          owner.grabSide =
-            owner.attackArmSide ===
-            'left'
-              ? -1
-              : 1;
-
-          owner.draglineLockedX =
-            predicted.x;
-
-          owner.draglineLockedY =
-            predicted.y;
-
-          owner.draglineActive =
-            false;
-
-          owner.draglineAttached =
-            false;
-
-          owner.draglineTarget =
-            null;
-
-          owner.resetPoseOffsets();
-        },
-
-        update: (
-          owner,
-          ai,
-          dt,
-          ctx,
-        ) => {
-          const duration = 0.50;
-          const t =
-            clamp(
-              ai.stateTime /
-                duration,
-              0,
-              1,
-            );
-
-          const eased =
-            easeInOutSine(t);
-
-          const side =
-            owner.grabSide;
-
-          if (side > 0) {
-            owner.rightArmOverride =
-              lerpValue(
-                owner.rightArmNeutral,
-                148,
-                eased,
-              );
-
-            owner.leftArmOverride =
-              lerpValue(
-                owner.leftArmNeutral,
-                -18,
-                eased,
-              );
-
-            owner.rightArmOffsetX =
-              -68 * eased;
-
-            owner.leftArmOffsetX =
-              28 * eased;
-          } else {
-            owner.leftArmOverride =
-              lerpValue(
-                owner.leftArmNeutral,
-                -148,
-                eased,
-              );
-
-            owner.rightArmOverride =
-              lerpValue(
-                owner.rightArmNeutral,
-                18,
-                eased,
-              );
-
-            owner.leftArmOffsetX =
-              68 * eased;
-
-            owner.rightArmOffsetX =
-              -28 * eased;
-          }
-
-          owner.leftArmOffsetY =
-            -22 * eased;
-
-          owner.rightArmOffsetY =
-            -22 * eased;
-
-          owner.headOffsetX =
-            -side *
-            18 *
-            eased;
-
-          owner.headOffsetY =
-            -8 *
-            Math.sin(
-              t * Math.PI,
-            );
-
-          if (t >= 1) {
-            ai.changeState(
-              'draglineCast',
-              ctx,
-            );
-          }
-        },
-      })
-
-      .addState('draglineCast', {
-        enter: owner => {
-          const groupId =
-            owner.attackArmSide ===
-            'left'
-              ? 'group-3'
-              : 'group-4';
-
-          const start =
-            owner.armPivotWorld(
-              groupId,
-            );
-
-          owner.draglineCastStartX =
-            start.x;
-
-          owner.draglineCastStartY =
-            start.y;
-
-          owner.draglineHookX =
-            start.x;
-
-          owner.draglineHookY =
-            start.y;
-
-          owner.draglineActive = true;
-          owner.draglineAttached = false;
-        },
-
-        update: (
-          owner,
-          ai,
-          dt,
-          ctx,
-        ) => {
-          const duration = 0.38;
-          const t =
-            clamp(
-              ai.stateTime /
-                duration,
-              0,
-              1,
-            );
-
-          const snap =
-            easeOutCubic(t);
-
-          const side =
-            owner.grabSide;
-
-          owner.draglineHookX =
-            lerpValue(
-              owner.draglineCastStartX,
-              owner.draglineLockedX,
-              snap,
-            );
-
-          owner.draglineHookY =
-            lerpValue(
-              owner.draglineCastStartY,
-              owner.draglineLockedY,
-              snap,
-            );
-
-          const basePivot =
-            owner.baseArmPivotWorld(
-              side > 0
-                ? 'group-4'
-                : 'group-3',
-            );
-
-          const reachX =
-            clamp(
-              (
-                owner.draglineHookX -
-                basePivot.x
-              ) *
-              0.78,
-              -560,
-              560,
-            );
-
-          const reachY =
-            clamp(
-              (
-                owner.draglineHookY -
-                basePivot.y
-              ) *
-              0.72,
-              -360,
-              360,
-            );
-
-          if (side > 0) {
-            owner.rightArmOverride =
-              lerpValue(
-                148,
-                8,
-                snap,
-              );
-
-            owner.leftArmOverride =
-              lerpValue(
-                -18,
-                -78,
-                snap,
-              );
-
-            owner.rightArmOffsetX =
-              lerpValue(
-                -68,
-                reachX,
-                snap,
-              );
-
-            owner.rightArmOffsetY =
-              lerpValue(
-                -22,
-                reachY,
-                snap,
-              );
-          } else {
-            owner.leftArmOverride =
-              lerpValue(
-                -148,
-                -8,
-                snap,
-              );
-
-            owner.rightArmOverride =
-              lerpValue(
-                18,
-                78,
-                snap,
-              );
-
-            owner.leftArmOffsetX =
-              lerpValue(
-                68,
-                reachX,
-                snap,
-              );
-
-            owner.leftArmOffsetY =
-              lerpValue(
-                -22,
-                reachY,
-                snap,
-              );
-          }
-
-          owner.headOffsetX =
-            lerpValue(
-              -side * 18,
-              side * 8,
-              snap,
-            );
-
-          const target =
-            owner.resolveGrabTarget(
-              ctx,
-            );
-
-          if (
-            target &&
-            owner.canDraglineGrab(
-              target,
-            ) &&
-            !(
-              target
-                .dashInvulnerabilityTimer >
-              0
-            ) &&
-            owner.circleHitsTarget(
-              owner.draglineHookX,
-              owner.draglineHookY,
-              76,
-              target,
-            )
-          ) {
-            owner.draglineTarget =
-              target;
-
-            owner.draglineDashSerial =
-              target.dashSerial ?? 0;
-
-            owner.draglineLatchX =
-              target.x;
-
-            owner.draglineLatchY =
-              target.y;
-
-            owner.draglineAttached =
-              true;
-
-            const catchPoint =
-              owner.draglineCatchPoint();
-
-            owner.draglineInitialDistance =
-              Math.max(
-                1,
-                Math.hypot(
-                  target.x -
-                    catchPoint.x,
-                  target.y -
-                    catchPoint.y,
-                ),
-              );
-
-            owner.draglineSqueezeTimer =
-              0.22;
-
-            owner.draglineSqueezeCount =
-              0;
-
-            owner.draglineSqueezeFlash =
-              1;
-
-            target.vx = 0;
-            target.vy = 0;
-            target.grounded = false;
-
-            ctx
-              .shakeCamera
-              ?.(3.2, 0.08);
-
-            ai.changeState(
-              'draglineLatch',
-              ctx,
-            );
-
-            return;
-          }
-
-          if (t >= 1) {
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-          }
-        },
-      })
-
-      .addState('draglineLatch', {
-        update: (
-          owner,
-          ai,
-          dt,
-          ctx,
-        ) => {
-          const target =
-            owner.draglineTarget;
-
-          if (
-            !target ||
-            target.dead ||
-            target.health <= 0
-          ) {
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-            return;
-          }
-
-          if (
-            (
-              target.dashSerial ?? 0
-            ) !==
-            owner.draglineDashSerial
-          ) {
-            target
-              .spawnGrabEscapeTrail
-              ?.(target.x, target.y);
-
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-            return;
-          }
-
-          const t =
-            clamp(
-              ai.stateTime /
-                0.18,
-              0,
-              1,
-            );
-
-          const clampPulse =
-            Math.sin(
-              t * Math.PI,
-            );
-
-          owner.draglineHookX =
-            owner.draglineLatchX;
-
-          owner.draglineHookY =
-            owner.draglineLatchY;
-
-          owner.pinTargetAt(
-            target,
-            owner.draglineLatchX,
-            owner.draglineLatchY,
-            world,
-          );
-
-          target.vx = 0;
-          target.vy = 0;
-          target.grounded = false;
-
-          if (
-            owner.grabSide > 0
-          ) {
-            owner.rightArmOverride =
-              8 -
-              clampPulse * 22;
-          } else {
-            owner.leftArmOverride =
-              -8 +
-              clampPulse * 22;
-          }
-
-          owner.headOffsetX =
-            -owner.grabSide *
-            clampPulse *
-            8;
-
-          if (t >= 1) {
-            ai.changeState(
-              'draglineSqueeze',
-              ctx,
-            );
-          }
-        },
-      })
-
-      .addState('draglineSqueeze', {
-        update: (
-          owner,
-          ai,
-          dt,
-          ctx,
-        ) => {
-          const target =
-            owner.draglineTarget;
-
-          if (
-            !target ||
-            target.dead ||
-            target.health <= 0
-          ) {
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-            return;
-          }
-
-          if (
-            (
-              target.dashSerial ?? 0
-            ) !==
-            owner.draglineDashSerial
-          ) {
-            target
-              .spawnGrabEscapeTrail
-              ?.(target.x, target.y);
-
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-            return;
-          }
-
-          const catchPoint =
-            owner.draglineCatchPoint();
-
-          const dx =
-            catchPoint.x -
-            target.x;
-
-          const dy =
-            catchPoint.y -
-            target.y;
-
-          const distance =
-            Math.hypot(
-              dx,
-              dy,
-            );
-
-          const progress =
-            1 -
-            clamp(
-              distance /
-                owner.draglineInitialDistance,
-              0,
-              1,
-            );
-
-          const pullSpeed =
-            235 +
-            progress * 190;
-
-          if (
-            distance >
-            0.001
-          ) {
-            const step =
-              Math.min(
-                distance,
-                pullSpeed * dt,
-              );
-
-            owner.pinTargetAt(
-              target,
-              target.x +
-                dx /
-                distance *
-                step,
-              target.y +
-                dy /
-                distance *
-                step,
-              world,
-            );
-
-            target.vx =
-              dx /
-              distance *
-              pullSpeed;
-
-            target.vy =
-              dy /
-              distance *
-              pullSpeed;
-
-            target.grounded = false;
-          }
-
-          owner.draglineHookX =
-            target.x;
-
-          owner.draglineHookY =
-            target.y;
-
-          owner.draglineSqueezeFlash =
-            Math.max(
-              0,
-              owner.draglineSqueezeFlash -
-              dt * 5.4,
-            );
-
-          owner.draglineSqueezeTimer -=
-            dt;
-
-          let squeezedThisFrame = false;
-
-          if (
-            owner.draglineSqueezeTimer <=
-            0
-          ) {
-            let damage = 4;
-
-            if (
-              distance <= 260 ||
-              progress >= 0.64
-            ) {
-              damage = 14;
-            } else if (
-              progress >= 0.44
-            ) {
-              damage = 10;
-            } else if (
-              progress >= 0.22
-            ) {
-              damage = 7;
-            }
-
-            target.takeDamage?.(
-              damage,
-            );
-
-            owner.draglineSqueezeCount++;
-            owner.draglineSqueezeFlash = 1;
-            owner.draglineSqueezeTimer =
-              0.43;
-
-            squeezedThisFrame = true;
-
-            ctx
-              .shakeCamera
-              ?.(2.1 + damage * 0.13, 0.07);
-          }
-
-          const side =
-            owner.grabSide;
-
-          const pulse =
-            Math.sin(
-              owner.draglineSqueezeFlash *
-              Math.PI,
-            );
-
-          const groupId =
-            owner.attackArmSide ===
-            'left'
-              ? 'group-3'
-              : 'group-4';
-
-          const pivot =
-            owner.baseArmPivotWorld(
-              groupId,
-            );
-
-          const stretchX =
-            clamp(
-              (
-                target.x -
-                pivot.x
-              ) *
-              0.72,
-              -540,
-              540,
-            );
-
-          const stretchY =
-            clamp(
-              (
-                target.y -
-                pivot.y
-              ) *
-              0.68,
-              -340,
-              340,
-            );
-
-          if (side > 0) {
-            owner.rightArmOverride =
-              12 -
-              pulse * 18;
-
-            owner.leftArmOverride =
-              -72 +
-              pulse * 12;
-
-            owner.rightArmOffsetX =
-              stretchX -
-              pulse * 20;
-
-            owner.rightArmOffsetY =
-              stretchY +
-              pulse * 9;
-          } else {
-            owner.leftArmOverride =
-              -12 +
-              pulse * 18;
-
-            owner.rightArmOverride =
-              72 -
-              pulse * 12;
-
-            owner.leftArmOffsetX =
-              stretchX +
-              pulse * 20;
-
-            owner.leftArmOffsetY =
-              stretchY +
-              pulse * 9;
-          }
-
-          owner.headOffsetX =
-            -side *
-            pulse *
-            7;
-
-          owner.headOffsetY =
-            pulse * 5;
-
-          const closeEnough =
-            distance <= 220 &&
-            owner.draglineSqueezeCount >= 3 &&
-            squeezedThisFrame;
-
-          const timedOut =
-            ai.stateTime >= 3.2 &&
-            owner.draglineSqueezeCount >= 2;
-
-          if (
-            closeEnough ||
-            timedOut
-          ) {
-            target.vx =
-              side * 145;
-
-            target.vy = 70;
-            target.grounded = false;
-
-            owner.clearDragline();
-
-            ai.changeState(
-              'recover',
-              ctx,
-            );
-          }
-        },
-      })
-
       .addState('groundSweepWindup', {
         enter: (
           owner,
@@ -4030,19 +3295,6 @@ export class MonolithBoss {
         'commandGrabRelease'
     ) {
       return 'WALL TOSS';
-    }
-
-    if (
-      state ===
-        'draglineWindup' ||
-      state ===
-        'draglineCast' ||
-      state ===
-        'draglineLatch' ||
-      state ===
-        'draglineSqueeze'
-    ) {
-      return 'DRAGLINE SQUEEZE';
     }
 
     if (
@@ -4638,7 +3890,6 @@ export class MonolithBoss {
     this.lastAttack = null;
     this.grabbedTarget = null;
     this.throwState = null;
-    this.clearDragline();
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
