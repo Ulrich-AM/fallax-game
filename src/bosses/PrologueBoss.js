@@ -1245,6 +1245,23 @@ export class PrologueBoss {
 
           const targetX = player?.x ?? owner.x;
           const targetY = player?.y ?? owner.y;
+
+          owner.satelliteWarningLead =
+            ctx
+              .getAttackWarningLead
+              ?.(0.24) ??
+            0.24;
+
+          ctx
+            .spawnAttackTelegraph
+            ?.({
+              x: targetX,
+              y: targetY,
+              duration:
+                owner.satelliteWarningLead,
+              scale: 0.95,
+            });
+
           let dx = targetX - home.x;
           let dy = targetY - home.y;
           const distance = Math.hypot(dx, dy) || 1;
@@ -1276,11 +1293,22 @@ export class PrologueBoss {
             0.74 * owner.actionSpeed,
           );
 
-          const anticipationEnd = 0.20;
-          const lungeEnd = 0.48;
-          const holdEnd = 0.58;
-          const returnEnd = 1.06;
-          const time = ai.stateTime * owner.actionSpeed;
+          const anticipationEnd =
+            owner.satelliteWarningLead *
+            owner.actionSpeed;
+
+          const lungeEnd =
+            anticipationEnd + 0.28;
+
+          const holdEnd =
+            lungeEnd + 0.10;
+
+          const returnEnd =
+            holdEnd + 0.48;
+
+          const time =
+            ai.stateTime *
+            owner.actionSpeed;
 
           if (time < anticipationEnd) {
             const t = smoothstep(time / anticipationEnd);
@@ -1872,6 +1900,7 @@ export class PrologueBoss {
     this.satelliteLocalRotation = 0;
     this.satelliteMode = 'orbit';
     this.satelliteAttackHit = false;
+    this.satelliteWarningLead = 0.24;
     this.wallRushHitPlayer = false;
     this.wallRushDraggingPlayer = false;
     this.wallRushEscaped = false;
