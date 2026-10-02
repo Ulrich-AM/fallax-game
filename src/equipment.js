@@ -64,7 +64,9 @@ export const ITEM_LIBRARY = {
       { label: 'wave damage', value: 'up to 15' },
       { label: 'fire interval', value: '0.16s' },
       { label: 'point-blank rate', value: '~93.8 dps' },
+      { label: 'fracture', value: '+5 / wave', effect: true },
       { label: 'screech', value: '3 x 42 / 16s' },
+      { label: 'screech fracture', value: '+22 / wave', effect: true },
     ],
   },
   relay: {
@@ -132,6 +134,7 @@ export const ITEM_LIBRARY = {
     appearance: 'ability module',
     stats: [
       { label: 'fan', value: '9 x 5 damage' },
+      { label: 'burn', value: 'up to +10 / pellet', effect: true },
       { label: 'spread', value: '100 deg' },
       { label: 'dash cooldown', value: '1.70x' },
     ],
