@@ -55,10 +55,12 @@ export class StatusController {
 
   setProfile(profile = {}) {
     this.profile = profile ?? {};
+    this.rebuildModifierCache();
   }
 
   setRole(role = 'boss') {
     this.role = role;
+    this.rebuildModifierCache();
   }
 
   getProfileEntry(effectId) {
@@ -143,6 +145,23 @@ export class StatusController {
         activationSerial: 0,
         lastSource: null,
         lastAdded: 0,
+        hudEntry: {
+          id:
+            definition.id,
+          label:
+            definition.label,
+          activeLabel:
+            definition.activeLabel ??
+            definition.label,
+          active: false,
+          activeTimer: 0,
+          activeDuration:
+            definition.activeDuration,
+          buildup: 0,
+          threshold:
+            definition.threshold,
+          buildupRatio: 0,
+        },
       };
 
       this.states.set(
@@ -717,31 +736,24 @@ export class StatusController {
         continue;
       }
 
-      entries.push({
-        id:
-          effectId,
-        label:
-          definition.label,
-        activeLabel:
-          definition.activeLabel ??
-          definition.label,
-        active,
-        activeTimer:
-          state.activeTimer,
-        activeDuration:
-          definition.activeDuration,
-        buildup:
-          state.buildup,
-        threshold:
-          definition.threshold,
-        buildupRatio:
-          clamp(
-            state.buildup /
-              definition.threshold,
-            0,
-            1,
-          ),
-      });
+      const entry =
+        state.hudEntry;
+
+      entry.active =
+        active;
+      entry.activeTimer =
+        state.activeTimer;
+      entry.buildup =
+        state.buildup;
+      entry.buildupRatio =
+        clamp(
+          state.buildup /
+            definition.threshold,
+          0,
+          1,
+        );
+
+      entries.push(entry);
     }
   }
 
