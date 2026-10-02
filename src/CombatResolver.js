@@ -60,6 +60,10 @@ export function resolveCombatHit(
 
   const buildupResults = {};
 
+  const attacker =
+    packet.attacker ??
+    null;
+
   for (
     const [
       effectId,
@@ -76,13 +80,35 @@ export function resolveCombatHit(
       break;
     }
 
+    const outgoingMultiplier =
+      Number(
+        attacker
+          ?.combatModifiers
+          ?.outgoingBuildup
+          ?.[effectId] ??
+        1,
+      );
+
+    const scaledAmount =
+      Math.max(
+        0,
+        Number(amount) *
+          (
+            Number.isFinite(
+              outgoingMultiplier,
+            )
+              ? outgoingMultiplier
+              : 1
+          ),
+      );
+
     buildupResults[
       effectId
     ] =
       target.status
         .addBuildup(
           effectId,
-          amount,
+          scaledAmount,
           {
             source:
               packet.source ??
