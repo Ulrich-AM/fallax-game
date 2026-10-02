@@ -19,23 +19,23 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=71a';
+} from './equipment.js?v=72';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=63a';
-import { MachWeapon } from './MachWeapon.js?v=63a';
+import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=71';
 import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
-import { BackfireAbility } from './BackfireAbility.js?v=63';
-import { GuardSystem } from './GuardSystem.js?v=62';
+import { BackfireAbility } from './BackfireAbility.js?v=72';
+import { GuardSystem } from './GuardSystem.js?v=72';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
-import { WeaponRuntime } from './WeaponRuntime.js?v=71';
+import { WeaponRuntime } from './WeaponRuntime.js?v=72';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
-} from './StatusController.js?v=71a';
+} from './StatusController.js?v=72';
 import {
   resolveCombatHit,
 } from './CombatResolver.js?v=71';
@@ -56,7 +56,7 @@ import {
 import { BossAI } from './bosses/BossAI.js?v=71';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=71';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=71';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=71';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=72';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -73,7 +73,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v71a';
+const BUILD_VERSION = 'v72';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
