@@ -3936,10 +3936,19 @@ function drawHUD() {
     [];
 
   for (
-    const entry
-    of playerStatusEntries
-      .slice(0, 3)
+    let statusIndex = 0;
+    statusIndex <
+      Math.min(
+        3,
+        playerStatusEntries.length,
+      );
+    statusIndex++
   ) {
+    const entry =
+      playerStatusEntries[
+        statusIndex
+      ];
+
     drawResourceBar(
       entry.active
         ? entry.activeLabel
@@ -4176,10 +4185,19 @@ function drawBossBar() {
     staggerY + 22;
 
   for (
-    const entry
-    of statusEntries
-      .slice(0, 3)
+    let statusIndex = 0;
+    statusIndex <
+      Math.min(
+        3,
+        statusEntries.length,
+      );
+    statusIndex++
   ) {
+    const entry =
+      statusEntries[
+        statusIndex
+      ];
+
     const statusHeight = 4;
 
     ctx.fillStyle =
