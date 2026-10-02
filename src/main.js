@@ -440,6 +440,37 @@ const guardSystem = new GuardSystem();
 const bossStaggerSystem =
   new BossStaggerSystem();
 
+function addBossStaggerFromHit(
+  amount,
+  source,
+) {
+  bossStaggerSystem.addStagger(
+    amount,
+    source,
+  );
+}
+
+const playerCombatHitOptions = {
+  addStagger:
+    addBossStaggerFromHit,
+};
+
+function resolvePlayerCombatHit(
+  target,
+  packet,
+) {
+  return resolveCombatHit(
+    target,
+    packet,
+    playerCombatHitOptions,
+  );
+}
+
+const playerCombatSource = {
+  resolveHit:
+    resolvePlayerCombatHit,
+};
+
 const weaponRuntime =
   new WeaponRuntime({
     vector: vectorWeapon,
@@ -3314,35 +3345,14 @@ function update(dt) {
     world,
     activeBoss,
     backfireEquipped,
+    playerCombatSource,
   );
 
   strikeAbility.update(
     player,
     activeBoss,
     strikeEquipped,
-    {
-      resolveHit:
-        (
-          target,
-          packet,
-        ) =>
-          resolveCombatHit(
-            target,
-            packet,
-            {
-              addStagger:
-                (
-                  amount,
-                  source,
-                ) =>
-                  bossStaggerSystem
-                    .addStagger(
-                      amount,
-                      source,
-                    ),
-            },
-          ),
-    },
+    playerCombatSource,
   );
 
   if (
@@ -3490,26 +3500,7 @@ function update(dt) {
     activeId:
       activeWeaponId,
     resolveHit:
-      (
-        target,
-        packet,
-      ) =>
-        resolveCombatHit(
-          target,
-          packet,
-          {
-            addStagger:
-              (
-                amount,
-                source,
-              ) =>
-                bossStaggerSystem
-                  .addStagger(
-                    amount,
-                    source,
-                  ),
-          },
-        ),
+      resolvePlayerCombatHit,
   });
 
   weaponRuntime.playShotAudio(
