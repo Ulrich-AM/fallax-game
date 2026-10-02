@@ -1,4 +1,4 @@
-import { BossAI } from './BossAI.js?v=36';
+import { BossAI } from './BossAI.js?v=71';
 import {
   compileSpriteAsset,
 } from '../SpriteAssets.js?v=55';
