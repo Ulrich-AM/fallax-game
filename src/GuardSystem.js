@@ -100,6 +100,14 @@ export class GuardSystem {
         return system.player?.dashSerial ?? 0;
       },
 
+      get dashInvulnerabilityTimer() {
+        return (
+          system.player
+            ?.dashInvulnerabilityTimer ??
+          0
+        );
+      },
+
       get health() {
         return system.player?.health ?? 0;
       },
