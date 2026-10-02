@@ -13,6 +13,7 @@ export class BackfireAbility {
     this.bulletSpeed = 840;
     this.bulletLife = 1.15;
     this.damage = 5;
+    this.burnBuildup = 10;
     this.bulletSize = 10;
 
     this.lastDashSerial = 0;
@@ -26,7 +27,16 @@ export class BackfireAbility {
     this.bullets.length = 0;
   }
 
-  update(dt, player, world, target, equipped) {
+  update(
+    dt,
+    player,
+    world,
+    target,
+    equipped,
+    {
+      resolveHit = null,
+    } = {},
+  ) {
     if (
       equipped &&
       player.dashSerial !== this.lastDashSerial &&
@@ -46,7 +56,11 @@ export class BackfireAbility {
     }
 
     if (target && !target.dead) {
-      this.applyHitsToTarget(target);
+      this.applyHitsToTarget(
+        target,
+        player,
+        resolveHit,
+      );
     }
 
     this.bullets = this.bullets.filter(bullet =>
@@ -95,7 +109,11 @@ export class BackfireAbility {
     }
   }
 
-  applyHitsToTarget(target) {
+  applyHitsToTarget(
+    target,
+    player,
+    resolveHit,
+  ) {
     const radius = this.bulletSize * 0.5;
 
     for (const bullet of this.bullets) {
@@ -120,7 +138,45 @@ export class BackfireAbility {
         continue;
       }
 
-      target.takeDamage?.(currentDamage);
+      const burn =
+        this.burnBuildup *
+        bullet.opacity;
+
+      if (
+        typeof resolveHit ===
+        'function'
+      ) {
+        resolveHit(
+          target,
+          {
+            damage:
+              currentDamage,
+            buildup: {
+              burn,
+            },
+            source:
+              'backfire',
+            attacker:
+              player,
+          },
+        );
+      } else {
+        target.takeDamage?.(
+          currentDamage,
+        );
+
+        target.status
+          ?.addBuildup
+          ?.(
+            'burn',
+            burn,
+            {
+              source:
+                'backfire',
+            },
+          );
+      }
+
       bullet.life = 0;
     }
   }
