@@ -4511,17 +4511,27 @@ export class MonolithBoss {
               slam,
             );
 
+          const leftStartTargetX =
+            owner.x +
+            owner.crawlDirection *
+            170;
+
+          const rightStartTargetX =
+            owner.x;
+
           owner.leftArmOffsetX =
             lerpValue(
               54,
-              -owner.crawlDirection * 108,
+              leftStartTargetX -
+                leftBase.x,
               slam,
             );
 
           owner.rightArmOffsetX =
             lerpValue(
               -54,
-              owner.crawlDirection * 265,
+              rightStartTargetX -
+                rightBase.x,
               slam,
             );
 
