@@ -1,6 +1,6 @@
 import {
   getStatusEffectDefinition,
-} from './StatusEffects.js?v=70';
+} from './StatusEffects.js?v=71';
 
 function clamp(value, min, max) {
   return Math.max(
@@ -9,19 +9,34 @@ function clamp(value, min, max) {
   );
 }
 
+function finiteMultiplier(
+  value,
+  fallback = 1,
+) {
+  const number =
+    Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : fallback;
+}
+
 export class StatusController {
   constructor(
     owner,
     {
       profile = {},
+      role = 'boss',
     } = {},
   ) {
     this.owner = owner ?? null;
     this.profile = profile ?? {};
+    this.role = role;
     this.states = new Map();
     this.activationSerial = 0;
     this.lastActivation = null;
     this.lastBuildup = null;
+    this.lastTick = null;
   }
 
   reset() {
@@ -29,10 +44,15 @@ export class StatusController {
     this.activationSerial = 0;
     this.lastActivation = null;
     this.lastBuildup = null;
+    this.lastTick = null;
   }
 
   setProfile(profile = {}) {
     this.profile = profile ?? {};
+  }
+
+  setRole(role = 'boss') {
+    this.role = role;
   }
 
   getProfileEntry(effectId) {
@@ -40,6 +60,18 @@ export class StatusController {
       this.profile?.[
         effectId
       ] ??
+      null
+    );
+  }
+
+  getRoleDefinition(
+    definition,
+  ) {
+    return (
+      definition
+        ?.roles?.[
+          this.role
+        ] ??
       null
     );
   }
@@ -56,16 +88,27 @@ export class StatusController {
       return 0;
     }
 
-    const value =
-      Number(
+    const base =
+      finiteMultiplier(
         entry
           ?.susceptibility ??
         1,
       );
 
-    return Number.isFinite(value)
-      ? Math.max(0, value)
-      : 1;
+    const equipment =
+      finiteMultiplier(
+        this.owner
+          ?.combatModifiers
+          ?.incomingBuildup
+          ?.[effectId] ??
+        1,
+      );
+
+    return Math.max(
+      0,
+      base *
+        equipment,
+    );
   }
 
   ensureState(effectId) {
@@ -90,6 +133,7 @@ export class StatusController {
         buildup: 0,
         decayDelay: 0,
         activeTimer: 0,
+        tickAccumulator: 0,
         activationSerial: 0,
         lastSource: null,
         lastAdded: 0,
@@ -199,6 +243,7 @@ export class StatusController {
       state.activeTimer =
         definition
           .activeDuration;
+      state.tickAccumulator = 0;
       state.activationSerial++;
       this.activationSerial++;
 
@@ -229,6 +274,158 @@ export class StatusController {
     };
   }
 
+  applyStatusDamage(
+    definition,
+    amount,
+  ) {
+    if (
+      !this.owner ||
+      this.owner.dead ||
+      amount <= 0
+    ) {
+      return false;
+    }
+
+    const multiplier =
+      finiteMultiplier(
+        this.owner
+          ?.combatModifiers
+          ?.statusDamageTaken
+          ?.[definition.id] ??
+        1,
+      );
+
+    const applied =
+      amount *
+      Math.max(
+        0,
+        multiplier,
+      );
+
+    if (applied <= 0) {
+      return false;
+    }
+
+    let accepted = false;
+
+    if (
+      typeof this.owner
+        .takeContinuousDamage ===
+      'function'
+    ) {
+      accepted =
+        this.owner
+          .takeContinuousDamage(
+            applied,
+          ) !== false;
+    } else if (
+      typeof this.owner
+        .takeDamage ===
+      'function'
+    ) {
+      accepted =
+        this.owner
+          .takeDamage(
+            applied,
+          ) !== false;
+    }
+
+    if (accepted) {
+      this.lastTick = {
+        effectId:
+          definition.id,
+        damage:
+          applied,
+      };
+    }
+
+    return accepted;
+  }
+
+  applyActiveTick(
+    definition,
+    interval,
+  ) {
+    const roleDefinition =
+      this.getRoleDefinition(
+        definition,
+      );
+
+    const dps =
+      Number(
+        roleDefinition
+          ?.damagePerSecond ??
+        0,
+      );
+
+    if (
+      !Number.isFinite(dps) ||
+      dps <= 0
+    ) {
+      return;
+    }
+
+    let multiplier = 1;
+
+    const movementMultiplier =
+      Number(
+        roleDefinition
+          ?.movementDamageMultiplier,
+      );
+
+    if (
+      Number.isFinite(
+        movementMultiplier,
+      ) &&
+      movementMultiplier > 1
+    ) {
+      const referenceSpeed =
+        Math.max(
+          1,
+          Number(
+            roleDefinition
+              ?.movementReferenceSpeed ??
+            600,
+          ) || 600,
+        );
+
+      const speed =
+        Math.hypot(
+          Number(
+            this.owner?.vx ??
+            0,
+          ) || 0,
+          Number(
+            this.owner?.vy ??
+            0,
+          ) || 0,
+        );
+
+      const movementRatio =
+        clamp(
+          speed /
+            referenceSpeed,
+          0,
+          1,
+        );
+
+      multiplier *=
+        1 +
+        (
+          movementMultiplier -
+          1
+        ) *
+        movementRatio;
+    }
+
+    this.applyStatusDamage(
+      definition,
+      dps *
+        interval *
+        multiplier,
+    );
+  }
+
   update(dt) {
     const step =
       Math.max(
@@ -256,12 +453,48 @@ export class StatusController {
         continue;
       }
 
+      const activeStep =
+        Math.min(
+          step,
+          state.activeTimer,
+        );
+
+      if (
+        activeStep > 0 &&
+        definition.tickInterval >
+          0
+      ) {
+        state.tickAccumulator +=
+          activeStep;
+
+        while (
+          state.tickAccumulator +
+            1e-9 >=
+          definition.tickInterval
+        ) {
+          state.tickAccumulator -=
+            definition.tickInterval;
+
+          this.applyActiveTick(
+            definition,
+            definition
+              .tickInterval,
+          );
+        }
+      }
+
       state.activeTimer =
         Math.max(
           0,
           state.activeTimer -
             step,
         );
+
+      if (
+        state.activeTimer <= 0
+      ) {
+        state.tickAccumulator = 0;
+      }
 
       state.decayDelay =
         Math.max(
@@ -329,6 +562,9 @@ export class StatusController {
         definition.id,
       label:
         definition.label,
+      activeLabel:
+        definition.activeLabel ??
+        definition.label,
       threshold:
         definition.threshold,
       buildup,
@@ -363,13 +599,9 @@ export class StatusController {
     fallback = 1,
   ) {
     let value =
-      Number(fallback);
-
-    if (
-      !Number.isFinite(value)
-    ) {
-      value = 1;
-    }
+      finiteMultiplier(
+        fallback,
+      );
 
     for (
       const [
@@ -385,20 +617,30 @@ export class StatusController {
         continue;
       }
 
-      const modifier =
+      const definition =
         getStatusEffectDefinition(
           effectId,
+        );
+
+      const modifier =
+        this.getRoleDefinition(
+          definition,
         )
+          ?.modifiers?.[
+            modifierName
+          ] ??
+        definition
           ?.modifiers?.[
             modifierName
           ];
 
       if (
         Number.isFinite(
-          modifier,
+          Number(modifier),
         )
       ) {
-        value *= modifier;
+        value *=
+          Number(modifier);
       }
     }
 
