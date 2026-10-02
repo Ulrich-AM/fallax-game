@@ -3884,6 +3884,91 @@ function drawResourceBar(
   ctx.restore();
 }
 
+function drawCompactStatusBar(
+  entry,
+  x,
+  y,
+  width,
+) {
+  const barHeight = 3;
+  const ratio =
+    entry.active
+      ? (
+          entry.activeDuration > 0
+            ? entry.activeTimer /
+              entry.activeDuration
+            : 0
+        )
+      : entry.buildupRatio;
+
+  ctx.save();
+
+  ctx.textBaseline = 'bottom';
+  ctx.font =
+    "bold 7px 'Pixel Arial 11', Arial, sans-serif";
+
+  ctx.fillStyle =
+    entry.color ??
+    COLORS.dim;
+
+  ctx.textAlign = 'left';
+  ctx.fillText(
+    entry.active
+      ? entry.activeLabel
+      : entry.label,
+    x,
+    y - 2,
+  );
+
+  ctx.font =
+    "7px 'Pixel Arial 11', Arial, sans-serif";
+
+  ctx.textAlign = 'right';
+  ctx.fillText(
+    entry.active
+      ? `${entry.activeTimer.toFixed(1)}s`
+      : `${Math.ceil(entry.buildup)}`,
+    x + width,
+    y - 2,
+  );
+
+  ctx.fillStyle = '#17191f';
+  ctx.fillRect(
+    x,
+    y,
+    width,
+    barHeight,
+  );
+
+  ctx.fillStyle =
+    entry.color ??
+    '#858b94';
+
+  ctx.fillRect(
+    x,
+    y,
+    width *
+      Math.max(
+        0,
+        Math.min(
+          1,
+          ratio,
+        ),
+      ),
+    barHeight,
+  );
+
+  ctx.strokeStyle = '#343a46';
+  ctx.strokeRect(
+    x + 0.5,
+    y + 0.5,
+    width,
+    barHeight,
+  );
+
+  ctx.restore();
+}
+
 function drawHUD() {
   const bx = 16;
   const bw = 150;
@@ -3957,45 +4042,35 @@ function drawHUD() {
       ?.() ??
     [];
 
+  const playerStatusX =
+    bx + bw + 10;
+
+  const playerStatusWidth =
+    Math.round(
+      bw * 0.5,
+    );
+
+  let playerStatusY = 30;
+
   for (
     let statusIndex = 0;
     statusIndex <
       Math.min(
-        3,
+        4,
         playerStatusEntries.length,
       );
     statusIndex++
   ) {
-    const entry =
+    drawCompactStatusBar(
       playerStatusEntries[
         statusIndex
-      ];
-
-    drawResourceBar(
-      entry.active
-        ? entry.activeLabel
-        : entry.label,
-      entry.active
-        ? entry.activeTimer
-        : entry.buildup,
-      entry.active
-        ? entry.activeDuration
-        : entry.threshold,
-      bx,
-      rowY,
-      bw,
-      entry.color ??
-        (
-          entry.active
-            ? '#d7dbe2'
-            : '#858b94'
-        ),
-      entry.active
-        ? `${entry.activeTimer.toFixed(1)}s`
-        : `${Math.ceil(entry.buildup)}/${entry.threshold}`,
+      ],
+      playerStatusX,
+      playerStatusY,
+      playerStatusWidth,
     );
 
-    rowY += rowStep;
+    playerStatusY += 15;
   }
 
   const activeWeapon =
@@ -4131,6 +4206,64 @@ function drawBossBar() {
     height,
   );
 
+  const phaseThresholds =
+    activeBoss
+      ?.ai
+      ?.phases
+      ?.map(
+        phase =>
+          phase.atOrBelow,
+      )
+      .filter(
+        threshold =>
+          threshold > 0 &&
+          threshold < 0.999,
+      ) ??
+    [];
+
+  for (
+    const threshold
+    of phaseThresholds
+  ) {
+    const markerX =
+      Math.round(
+        x +
+        width *
+          threshold,
+      ) +
+      0.5;
+
+    ctx.strokeStyle =
+      'rgba(0, 0, 0, 0.72)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(
+      markerX,
+      y - 1,
+    );
+    ctx.lineTo(
+      markerX,
+      y + height + 1,
+    );
+    ctx.stroke();
+
+    ctx.strokeStyle =
+      'rgba(235, 238, 243, 0.92)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(
+      markerX,
+      y - 1,
+    );
+    ctx.lineTo(
+      markerX,
+      y + height + 1,
+    );
+    ctx.stroke();
+  }
+
+  ctx.lineWidth = 1;
+
   const staggerY =
     y + height + 5;
 
@@ -4203,101 +4336,36 @@ function drawBossBar() {
       ?.() ??
     [];
 
-  let statusY =
-    staggerY + 22;
+  const bossStatusWidth =
+    Math.round(
+      width * 0.5,
+    );
+
+  const bossStatusX =
+    x + width + 12;
+
+  let bossStatusY =
+    y + 7;
 
   for (
     let statusIndex = 0;
     statusIndex <
       Math.min(
-        3,
+        4,
         statusEntries.length,
       );
     statusIndex++
   ) {
-    const entry =
+    drawCompactStatusBar(
       statusEntries[
         statusIndex
-      ];
-
-    const statusHeight = 4;
-
-    ctx.fillStyle =
-      '#17191f';
-
-    ctx.fillRect(
-      x,
-      statusY,
-      width,
-      statusHeight,
+      ],
+      bossStatusX,
+      bossStatusY,
+      bossStatusWidth,
     );
 
-    ctx.fillStyle =
-      entry.color ??
-      (
-        entry.active
-          ? '#d7dbe2'
-          : '#858b94'
-      );
-
-    ctx.fillRect(
-      x,
-      statusY,
-      width *
-        (
-          entry.active
-            ? (
-                entry.activeDuration > 0
-                  ? entry.activeTimer /
-                    entry.activeDuration
-                  : 0
-              )
-            : entry
-                .buildupRatio
-        ),
-      statusHeight,
-    );
-
-    ctx.strokeStyle =
-      '#343a46';
-
-    ctx.strokeRect(
-      x + 0.5,
-      statusY + 0.5,
-      width,
-      statusHeight,
-    );
-
-    ctx.font =
-      "9px 'Pixel Arial 11', Arial, sans-serif";
-
-    ctx.fillStyle =
-      entry.color ??
-      (
-        entry.active
-          ? COLORS.text
-          : COLORS.dim
-      );
-
-    ctx.textAlign =
-      'right';
-
-    ctx.textBaseline =
-      'top';
-
-    ctx.fillText(
-      entry.active
-        ? (
-            `${entry.activeLabel} ${entry.activeTimer.toFixed(1)}s`
-          )
-        : (
-            `${entry.label} ${Math.ceil(entry.buildup)}/${entry.threshold}`
-          ),
-      x + width,
-      statusY + 7,
-    );
-
-    statusY += 17;
+    bossStatusY += 15;
   }
 
   ctx.restore();
