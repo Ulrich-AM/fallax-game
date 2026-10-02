@@ -3998,7 +3998,7 @@ function drawBossBar() {
     ctx.fillText(
       entry.active
         ? (
-            `FRACTURED ${entry.activeTimer.toFixed(1)}s`
+            `${entry.activeLabel} ${entry.activeTimer.toFixed(1)}s`
           )
         : (
             `${entry.label} ${Math.ceil(entry.buildup)}/${entry.threshold}`
