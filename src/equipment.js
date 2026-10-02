@@ -105,7 +105,7 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'impact', value: '8 damage' },
       { label: 'tether', value: 'up to 28 dps' },
-      { label: 'barbed hit', value: '18 + 100 Bleed buildup' },
+      { label: 'barbed hit', value: '18 + 100 Bleed buildup', effect: true },
       { label: 'special cooldown', value: '12s' },
     ],
   },
@@ -151,8 +151,8 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'damage', value: '55' },
       { label: 'stagger', value: '+24' },
-      { label: 'fracture', value: '+28 buildup' },
-      { label: 'fracture buildup', value: '+5%' },
+      { label: 'fracture', value: '+28 buildup', effect: true },
+      { label: 'fracture buildup', value: '+5%', effect: true },
       { label: 'trigger', value: 'dash through target' },
     ],
   },
@@ -198,8 +198,8 @@ export const ITEM_LIBRARY = {
       },
     },
     stats: [
-      { label: 'fracture susceptibility', value: '-25%' },
-      { label: 'poison susceptibility', value: '+10%' },
+      { label: 'fracture susceptibility', value: '-25%', effect: true },
+      { label: 'poison susceptibility', value: '+10%', effect: true },
     ],
   },
 };
