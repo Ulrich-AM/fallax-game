@@ -120,7 +120,31 @@ export class BossAI {
   }
 
   setTimer(name, seconds) {
-    this.timers.set(name, Math.max(0, seconds));
+    const statusMultiplier =
+      name === 'attackDelay'
+        ? (
+            this.owner
+              ?.status
+              ?.getModifier
+              ?.(
+                'attackDelayMultiplier',
+                1,
+              ) ??
+            1
+          )
+        : 1;
+
+    this.timers.set(
+      name,
+      Math.max(
+        0,
+        seconds *
+          Math.max(
+            0,
+            statusMultiplier,
+          ),
+      ),
+    );
   }
 
   timerDone(name) {
