@@ -797,6 +797,9 @@ export class MonolithBoss {
     this.grabWindStartY = this.y;
     this.commandGrabWarningLead = 0.36;
     this.commandGrabTelegraphSpawned = false;
+    this.commandGrabReachStarted = false;
+    this.grabReachStartHandX = this.x;
+    this.grabReachStartHandY = this.y;
     this.grabHoldLocalX = 150;
     this.grabHoldLocalY = 198;
     this.throwHandPrevX = this.x;
@@ -817,6 +820,8 @@ export class MonolithBoss {
     this.dropCatchAimY = this.y;
     this.dropCatchHandX = this.x;
     this.dropCatchHandY = this.y;
+    this.dropCatchHandStartX = this.x;
+    this.dropCatchHandStartY = this.y;
     this.dropCatchGrabbedTarget = null;
     this.dropCatchDashSerial = 0;
     this.dropCatchStartX = this.x;
@@ -1849,6 +1854,9 @@ export class MonolithBoss {
           owner.commandGrabTelegraphSpawned =
             false;
 
+          owner.commandGrabReachStarted =
+            false;
+
           owner.resetPoseOffsets();
         },
 
@@ -2079,32 +2087,49 @@ export class MonolithBoss {
                 snap * 0.32,
             );
 
-          const handStartX =
-            owner.grabWindStartX +
-            side * 105;
+          const groupId =
+            side > 0
+              ? 'group-4'
+              : 'group-3';
 
-          const handStartY =
-            owner.grabWindStartY +
-            175;
+          if (
+            !owner
+              .commandGrabReachStarted
+          ) {
+            const currentHand =
+              owner.armPivotWorld(
+                groupId,
+              );
+
+            owner.grabReachStartHandX =
+              currentHand.x;
+
+            owner.grabReachStartHandY =
+              currentHand.y;
+
+            owner.grabHandX =
+              currentHand.x;
+
+            owner.grabHandY =
+              currentHand.y;
+
+            owner.commandGrabReachStarted =
+              true;
+          }
 
           owner.grabHandX =
             lerpValue(
-              handStartX,
+              owner.grabReachStartHandX,
               owner.grabAimX,
               snap,
             );
 
           owner.grabHandY =
             lerpValue(
-              handStartY,
+              owner.grabReachStartHandY,
               owner.grabAimY,
               snap,
             );
-
-          const groupId =
-            side > 0
-              ? 'group-4'
-              : 'group-3';
 
           const base =
             owner.baseArmPivotWorld(
@@ -2158,18 +2183,10 @@ export class MonolithBoss {
               );
 
             owner.rightArmOffsetX =
-              lerpValue(
-                -104,
-                reachX,
-                snap,
-              );
+              reachX;
 
             owner.rightArmOffsetY =
-              lerpValue(
-                -18,
-                reachY,
-                snap,
-              );
+              reachY;
           } else {
             owner.leftArmOverride =
               lerpValue(
@@ -2186,18 +2203,10 @@ export class MonolithBoss {
               );
 
             owner.leftArmOffsetX =
-              lerpValue(
-                104,
-                reachX,
-                snap,
-              );
+              reachX;
 
             owner.leftArmOffsetY =
-              lerpValue(
-                -18,
-                reachY,
-                snap,
-              );
+              reachY;
           }
 
           owner.headOffsetX =
@@ -3699,16 +3708,22 @@ export class MonolithBoss {
               ? 'group-4'
               : 'group-3';
 
-          const start =
-            owner.baseArmPivotWorld(
+          const currentHand =
+            owner.armPivotWorld(
               groupId,
             );
 
+          owner.dropCatchHandStartX =
+            currentHand.x;
+
+          owner.dropCatchHandStartY =
+            currentHand.y;
+
           owner.dropCatchHandX =
-            start.x;
+            currentHand.x;
 
           owner.dropCatchHandY =
-            start.y + 72;
+            currentHand.y;
         },
 
         update: (
@@ -3744,15 +3759,14 @@ export class MonolithBoss {
 
           owner.dropCatchHandX =
             lerpValue(
-              base.x -
-                side * 72,
+              owner.dropCatchHandStartX,
               owner.dropCatchAimX,
               snap,
             );
 
           owner.dropCatchHandY =
             lerpValue(
-              base.y + 92,
+              owner.dropCatchHandStartY,
               owner.dropCatchAimY,
               snap,
             );
