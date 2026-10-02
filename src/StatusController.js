@@ -153,6 +153,9 @@ export class StatusController {
           activeLabel:
             definition.activeLabel ??
             definition.label,
+          color:
+            definition.color ??
+            '#858b94',
           active: false,
           activeTimer: 0,
           activeDuration:
