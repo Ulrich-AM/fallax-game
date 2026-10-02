@@ -679,6 +679,19 @@ const MONOLITH_GROUP_ASSETS =
     ),
   );
 
+const MONOLITH_GROUP_PIVOTS =
+  new Map(
+    (
+      MONOLITH_SPRITE.groups ??
+      []
+    ).map(
+      group => [
+        group.id,
+        group.pivot ?? [0, 0],
+      ],
+    ),
+  );
+
 export class MonolithBoss {
   constructor(world) {
     this.name = 'monolith';
@@ -752,6 +765,7 @@ export class MonolithBoss {
     this.animationDuration = 2.4;
     this.animationFrameRate = 12;
     this.armRasterAngleStep = 8;
+    this.armAnimationFrameStride = 2;
 
     // Monolith used to cache the entire combined pose. A single arm angle
     // change therefore invalidated and rebuilt the head plus both arms.
@@ -7242,15 +7256,10 @@ export class MonolithBoss {
   }
 
   baseArmPivotWorld(groupId) {
-    const group =
-      MONOLITH_SPRITE.groups
-        .find(
-          entry =>
-            entry.id === groupId,
-        );
-
     const pivot =
-      group?.pivot ?? [0, 0];
+      MONOLITH_GROUP_PIVOTS
+        .get(groupId) ??
+      [0, 0];
 
     const scale =
       MONOLITH_SPRITE.scale *
@@ -7748,6 +7757,22 @@ export class MonolithBoss {
         frameIndex,
       );
 
+    const armFrameIndex =
+      frameIndex -
+      (
+        frameIndex %
+        this.armAnimationFrameStride
+      );
+
+    const armEvaluation =
+      armFrameIndex ===
+      frameIndex
+        ? evaluation
+        : this
+            .getAnimationEvaluation(
+              armFrameIndex,
+            );
+
     const head =
       this.getCachedGroupFrame(
         this.headRasterCache,
@@ -7761,7 +7786,7 @@ export class MonolithBoss {
       );
 
     const leftKey =
-      frameIndex +
+      armFrameIndex +
       ':' +
       leftAimKey;
 
@@ -7773,14 +7798,14 @@ export class MonolithBoss {
         () =>
           this.compileGroupFrame(
             'group-3',
-            evaluation,
+            armEvaluation,
             leftAimKey,
             this.leftArmNeutral,
           ),
       );
 
     const rightKey =
-      frameIndex +
+      armFrameIndex +
       ':' +
       rightAimKey;
 
@@ -7792,71 +7817,16 @@ export class MonolithBoss {
         () =>
           this.compileGroupFrame(
             'group-4',
-            evaluation,
+            armEvaluation,
             rightAimKey,
             this.rightArmNeutral,
           ),
       );
 
     return {
-      layers: [
-        {
-          id: 'head',
-          raster:
-            head.raster,
-          offsetX:
-            this.headOffsetX,
-          offsetY:
-            this.headOffsetY,
-        },
-        {
-          id: 'left-arm',
-          raster:
-            leftArm.raster,
-          offsetX:
-            this.leftArmOffsetX,
-          offsetY:
-            this.leftArmOffsetY,
-        },
-        {
-          id: 'right-arm',
-          raster:
-            rightArm.raster,
-          offsetX:
-            this.rightArmOffsetX,
-          offsetY:
-            this.rightArmOffsetY,
-        },
-      ],
-      glows: [
-        ...head.glows.map(
-          glow => ({
-            ...glow,
-            offsetX:
-              this.headOffsetX,
-            offsetY:
-              this.headOffsetY,
-          }),
-        ),
-        ...leftArm.glows.map(
-          glow => ({
-            ...glow,
-            offsetX:
-              this.leftArmOffsetX,
-            offsetY:
-              this.leftArmOffsetY,
-          }),
-        ),
-        ...rightArm.glows.map(
-          glow => ({
-            ...glow,
-            offsetX:
-              this.rightArmOffsetX,
-            offsetY:
-              this.rightArmOffsetY,
-          }),
-        ),
-      ],
+      head,
+      leftArm,
+      rightArm,
     };
   }
 
@@ -8095,16 +8065,14 @@ export class MonolithBoss {
     ctx.restore();
   }
 
-  draw(
+  drawGroupGlows(
     ctx,
+    frame,
     cameraX,
-    artPixelSize = 4,
+    artPixelSize,
+    offsetX,
+    offsetY,
   ) {
-    if (this.dead) return;
-
-    const frame =
-      this.animationFrame();
-
     for (
       const glow
       of frame.glows
@@ -8122,27 +8090,80 @@ export class MonolithBoss {
         cameraX,
         artPixelSize,
         0.76,
-        glow.offsetX ?? 0,
-        glow.offsetY ?? 0,
+        offsetX,
+        offsetY,
       );
 
       ctx.restore();
     }
+  }
 
-    for (
-      const layer
-      of frame.layers
-    ) {
-      this.drawRasterAtPivot(
-        ctx,
-        layer.raster,
-        cameraX,
-        artPixelSize,
-        1,
-        layer.offsetX ?? 0,
-        layer.offsetY ?? 0,
-      );
-    }
+  draw(
+    ctx,
+    cameraX,
+    artPixelSize = 4,
+  ) {
+    if (this.dead) return;
+
+    const frame =
+      this.animationFrame();
+
+    this.drawGroupGlows(
+      ctx,
+      frame.head,
+      cameraX,
+      artPixelSize,
+      this.headOffsetX,
+      this.headOffsetY,
+    );
+
+    this.drawGroupGlows(
+      ctx,
+      frame.leftArm,
+      cameraX,
+      artPixelSize,
+      this.leftArmOffsetX,
+      this.leftArmOffsetY,
+    );
+
+    this.drawGroupGlows(
+      ctx,
+      frame.rightArm,
+      cameraX,
+      artPixelSize,
+      this.rightArmOffsetX,
+      this.rightArmOffsetY,
+    );
+
+    this.drawRasterAtPivot(
+      ctx,
+      frame.head.raster,
+      cameraX,
+      artPixelSize,
+      1,
+      this.headOffsetX,
+      this.headOffsetY,
+    );
+
+    this.drawRasterAtPivot(
+      ctx,
+      frame.leftArm.raster,
+      cameraX,
+      artPixelSize,
+      1,
+      this.leftArmOffsetX,
+      this.leftArmOffsetY,
+    );
+
+    this.drawRasterAtPivot(
+      ctx,
+      frame.rightArm.raster,
+      cameraX,
+      artPixelSize,
+      1,
+      this.rightArmOffsetX,
+      this.rightArmOffsetY,
+    );
 
     this.drawAttackFx(
       ctx,
@@ -8156,24 +8177,15 @@ export class MonolithBoss {
       ctx.globalCompositeOperation =
         'screen';
 
-      const head =
-        frame.layers.find(
-          layer =>
-            layer.id ===
-            'head',
-        );
-
-      if (head) {
-        this.drawRasterAtPivot(
-          ctx,
-          head.raster,
-          cameraX,
-          artPixelSize,
-          this.hurtFlash * 0.78,
-          head.offsetX ?? 0,
-          head.offsetY ?? 0,
-        );
-      }
+      this.drawRasterAtPivot(
+        ctx,
+        frame.head.raster,
+        cameraX,
+        artPixelSize,
+        this.hurtFlash * 0.78,
+        this.headOffsetX,
+        this.headOffsetY,
+      );
 
       ctx.restore();
     }
