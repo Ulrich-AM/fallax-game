@@ -379,7 +379,16 @@ export class PlayerController {
   }
 
   updateStamina(dt, input, move) {
-    if (this.sprintExhausted && this.stamina >= CFG.sprintRecoverThreshold) {
+    const maxStamina =
+      this.effectiveMaxStamina;
+
+    this.stamina =
+      Math.min(
+        this.stamina,
+        maxStamina,
+      );
+
+    if (this.sprintExhausted && this.stamina >= Math.min(CFG.sprintRecoverThreshold, maxStamina)) {
       this.sprintExhausted = false;
     }
 
@@ -397,9 +406,24 @@ export class PlayerController {
         this.isSprinting = false;
       }
     } else if (this.staminaRegenDelayTimer <= 0) {
+      const regenMultiplier =
+        this.status
+          ?.getModifier
+          ?.(
+            'staminaRegenMultiplier',
+            1,
+          ) ??
+        1;
+
       this.stamina = Math.min(
-        CFG.staminaMax,
-        this.stamina + CFG.staminaRegenPerSecond * dt,
+        maxStamina,
+        this.stamina +
+          CFG.staminaRegenPerSecond *
+          Math.max(
+            0,
+            regenMultiplier,
+          ) *
+          dt,
       );
     }
   }
@@ -627,8 +651,31 @@ export class PlayerController {
     );
   }
 
+  get effectiveMaxStamina() {
+    const multiplier =
+      this.status
+        ?.getModifier
+        ?.(
+          'maxStaminaMultiplier',
+          1,
+        ) ??
+      1;
+
+    return Math.max(
+      1,
+      CFG.staminaMax *
+        Math.max(
+          0,
+          multiplier,
+        ),
+    );
+  }
+
   get staminaRatio() {
-    return this.stamina / CFG.staminaMax;
+    return (
+      this.stamina /
+      this.effectiveMaxStamina
+    );
   }
 
   get visualScale() {
