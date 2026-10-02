@@ -784,6 +784,7 @@ export class MonolithBoss {
     this.lariatPredictedY = this.y;
     this.lariatAimRotation = 0;
     this.lariatHit = false;
+    this.lariatWarningLead = 0.46;
 
     this.grabbedTarget = null;
     this.grabDashSerial = 0;
@@ -845,6 +846,22 @@ export class MonolithBoss {
     this.sweepDropStartOffsetX = 0;
     this.sweepDropStartOffsetY = 0;
 
+    this.crawlDirection = 1;
+    this.crawlStartX = this.x;
+    this.crawlStartY = this.y;
+    this.crawlGroundY = this.y;
+    this.crawlStepClock = 0;
+    this.crawlStepIndex = 0;
+    this.crawlSpeed = 520;
+    this.crawlGrabbedTarget = null;
+    this.crawlGrabDashSerial = 0;
+    this.crawlHandX = this.x;
+    this.crawlHandY = this.y;
+    this.crawlCatchSide = 'right';
+    this.crawlWallImpactX = this.x;
+    this.crawlWallImpactY = this.y;
+    this.crawlShockwaves = [];
+
     this.ai = new BossAI(this, {
       initialState: 'idle',
       phases: [
@@ -872,11 +889,22 @@ export class MonolithBoss {
         enter: (owner, ai) => {
           owner.clearAttackPose();
           owner.resetPoseOffsets();
+          const phase3 =
+            ai.phaseId === 'phase3';
+
           ai.setTimer(
             'attackDelay',
-            1.0 +
-              Math.random() *
-                0.72,
+            phase3
+              ? (
+                  0.48 +
+                  Math.random() *
+                    0.38
+                )
+              : (
+                  1.0 +
+                  Math.random() *
+                    0.72
+                ),
           );
         },
 
@@ -940,6 +968,9 @@ export class MonolithBoss {
             ai.phaseId === 'phase2' ||
             ai.phaseId === 'phase3';
 
+          const phaseThree =
+            ai.phaseId === 'phase3';
+
           const airborne =
             !target.grounded &&
             target.y <
@@ -989,6 +1020,16 @@ export class MonolithBoss {
                     : 0,
               },
             );
+          }
+
+          if (phaseThree) {
+            options.push({
+              value: 'crawlLift',
+              weight:
+                distance > 220
+                  ? 1.85
+                  : 1.25,
+            });
           }
 
 
@@ -1277,19 +1318,42 @@ export class MonolithBoss {
       })
 
       .addState('lariatWindup', {
-        enter: owner => {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
           owner.lariatStartX =
             owner.x;
 
           owner.lariatStartY =
             owner.y;
+
+          owner.lariatWarningLead =
+            ctx
+              .getAttackWarningLead
+              ?.(0.46) ??
+            0.46;
+
+          ctx
+            .spawnAttackTelegraph
+            ?.({
+              x:
+                owner.lariatPredictedX,
+              y:
+                owner.lariatPredictedY,
+              duration:
+                owner.lariatWarningLead,
+              scale: 1.05,
+            });
         },
 
         update: (
           owner,
           ai,
         ) => {
-          const duration = 0.46;
+          const duration =
+            owner.lariatWarningLead;
           const t =
             clamp(
               ai.stateTime /
