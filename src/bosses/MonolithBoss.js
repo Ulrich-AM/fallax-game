@@ -4504,7 +4504,7 @@ export class MonolithBoss {
           owner.leftArmOffsetX =
             lerpValue(
               54,
-              -owner.crawlDirection * 112,
+              -owner.crawlDirection * 114,
               slam,
             );
 
@@ -4576,7 +4576,7 @@ export class MonolithBoss {
           // then recoils behind the torso. The two hands are almost, but not
           // perfectly, half a cycle apart so the rhythm reads as frantic rather
           // than like a mirrored walking animation.
-          const cyclePeriod = 0.48;
+          const cyclePeriod = 0.52;
 
           const basePhase =
             (
@@ -4606,10 +4606,10 @@ export class MonolithBoss {
                 wrapPhase(phase);
 
               // Fast desperate throw forward.
-              if (p < 0.28) {
+              if (p < 0.36) {
                 const t =
-                  easeOutCubic(
-                    p / 0.28,
+                  smoothStep01(
+                    p / 0.36,
                   );
 
                 return {
@@ -4629,11 +4629,11 @@ export class MonolithBoss {
               }
 
               // Palm slaps down hard.
-              if (p < 0.38) {
+              if (p < 0.46) {
                 const t =
                   smoothStep01(
                     (
-                      p - 0.28
+                      p - 0.36
                     ) /
                     0.10,
                   );
@@ -4659,13 +4659,13 @@ export class MonolithBoss {
               }
 
               // Hand stays planted while Monolith drags himself past it.
-              if (p < 0.77) {
+              if (p < 0.82) {
                 const t =
                   smoothStep01(
                     (
-                      p - 0.38
+                      p - 0.46
                     ) /
-                    0.39,
+                    0.36,
                   );
 
                 return {
@@ -4688,9 +4688,9 @@ export class MonolithBoss {
               const t =
                 smoothStep01(
                   (
-                    p - 0.77
+                    p - 0.82
                   ) /
-                  0.23,
+                  0.18,
                 );
 
               return {
@@ -4713,14 +4713,14 @@ export class MonolithBoss {
           const rightPose =
             handPose(
               basePhase +
-              0.30 +
+              0.37 +
               timingWobble,
             );
 
           const leftPose =
             handPose(
               basePhase +
-              0.80 -
+              0.87 -
               timingWobble *
                 0.72,
             );
@@ -5074,18 +5074,23 @@ export class MonolithBoss {
               snap,
             );
 
+          const reach =
+            owner.armOffsetToWorldPoint(
+              groupId,
+              owner.crawlHandX,
+              owner.crawlHandY,
+            );
+
           const reachX =
             clamp(
-              owner.crawlHandX -
-                base.x,
+              reach.x,
               -520,
               520,
             );
 
           const reachY =
             clamp(
-              owner.crawlHandY -
-                base.y,
+              reach.y,
               -500,
               500,
             );
@@ -5172,23 +5177,23 @@ export class MonolithBoss {
                   ? 'group-4'
                   : 'group-3';
 
-              const base =
-                owner.baseArmPivotWorld(
+              const reach =
+                owner.armOffsetToWorldPoint(
                   groupId,
+                  owner.crawlHandX,
+                  owner.crawlHandY,
                 );
 
               const reachX =
                 clamp(
-                  owner.crawlHandX -
-                    base.x,
+                  reach.x,
                   -520,
                   520,
                 );
 
               const reachY =
                 clamp(
-                  owner.crawlHandY -
-                    base.y,
+                  reach.y,
                   -500,
                   500,
                 );
@@ -5438,18 +5443,23 @@ export class MonolithBoss {
               groupId,
             );
 
+          const reach =
+            owner.armOffsetToWorldPoint(
+              groupId,
+              owner.crawlHandX,
+              owner.crawlHandY,
+            );
+
           const reachX =
             clamp(
-              owner.crawlHandX -
-                base.x,
+              reach.x,
               -500,
               500,
             );
 
           const reachY =
             clamp(
-              owner.crawlHandY -
-                base.y,
+              reach.y,
               -460,
               460,
             );
@@ -7283,6 +7293,32 @@ export class MonolithBoss {
       deviation *
       this.armAimStrength
     );
+  }
+
+  armOffsetToWorldPoint(
+    groupId,
+    x,
+    y,
+  ) {
+    const base =
+      this.baseArmPivotWorld(
+        groupId,
+      );
+
+    const [
+      localX,
+      localY,
+    ] =
+      rotateLocalPoint(
+        x - base.x,
+        y - base.y,
+        -this.bodyRotation,
+      );
+
+    return {
+      x: localX,
+      y: localY,
+    };
   }
 
   desiredArmAngleFromBase(
