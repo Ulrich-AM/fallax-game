@@ -857,7 +857,7 @@ export class MonolithBoss {
     this.crawlGroundY = this.y;
     this.crawlStepClock = 0;
     this.crawlStepIndex = -1;
-    this.crawlStrokeDuration = 0.30;
+    this.crawlStrokeDuration = 0.34;
     this.crawlStrokeSide = 'right';
     this.crawlStrokeStartX = this.x;
     this.crawlStrokeStartY = this.y;
@@ -4670,10 +4670,10 @@ export class MonolithBoss {
 
             const stridePattern =
               [
+                164,
                 182,
-                205,
-                176,
-                194,
+                158,
+                174,
               ][
                 strokeIndex % 4
               ];
@@ -4881,14 +4881,14 @@ export class MonolithBoss {
               offsetX:
                 clamp(
                   local.x,
-                  -560,
-                  560,
+                  -680,
+                  680,
                 ),
               offsetY:
                 clamp(
                   local.y,
-                  -520,
-                  520,
+                  -620,
+                  620,
                 ),
               angle:
                 owner
