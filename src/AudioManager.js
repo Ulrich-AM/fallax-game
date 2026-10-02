@@ -448,9 +448,13 @@ export class GameAudio {
           serial !==
             this.themeStartSerial ||
           this.themeKey !==
-            key ||
-          this.suspended
+            key
         ) {
+          return;
+        }
+
+        if (this.suspended) {
+          this.pendingThemeKey = null;
           return;
         }
 
