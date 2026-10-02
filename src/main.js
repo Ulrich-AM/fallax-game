@@ -69,7 +69,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v69ac';
+const BUILD_VERSION = 'v70';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
