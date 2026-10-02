@@ -529,6 +529,28 @@ attachStatusController(
 
 attachStatusController(
   prologueBoss,
+  {
+    fracture: {
+      susceptibility:
+        0.90,
+    },
+    bleed: {
+      susceptibility:
+        1.20,
+    },
+    poison: {
+      susceptibility:
+        1.10,
+    },
+    burn: {
+      susceptibility:
+        0.90,
+    },
+    fatigue: {
+      susceptibility:
+        1.00,
+    },
+  },
 );
 
 attachStatusController(
