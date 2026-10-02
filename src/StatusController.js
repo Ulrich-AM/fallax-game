@@ -441,6 +441,9 @@ export class StatusController {
           effectId,
         label:
           definition.label,
+        activeLabel:
+          definition.activeLabel ??
+          definition.label,
         active,
         activeTimer:
           state.activeTimer,
