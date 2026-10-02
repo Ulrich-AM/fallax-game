@@ -176,6 +176,9 @@ export class WeaponRuntime {
           firing,
         target,
         active('mach'),
+        {
+          resolveHit,
+        },
       );
 
     for (
