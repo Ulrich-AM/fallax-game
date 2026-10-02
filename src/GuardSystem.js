@@ -108,6 +108,10 @@ export class GuardSystem {
         return (system.player?.health ?? 0) <= 0;
       },
 
+      get status() {
+        return system.player?.status ?? null;
+      },
+
       takeDamage:
         amount =>
           system.handleDirectDamage(
