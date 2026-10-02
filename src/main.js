@@ -29,9 +29,15 @@ import { AnchorWeapon } from './AnchorWeapon.js?v=63a';
 import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=63';
 import { GuardSystem } from './GuardSystem.js?v=62';
-import { BossStaggerSystem } from './BossStaggerSystem.js?v=62';
+import { BossStaggerSystem } from './BossStaggerSystem.js?v=70';
 import { WeaponRuntime } from './WeaponRuntime.js?v=62';
-import { StrikeAbility } from './StrikeAbility.js?v=55';
+import { StrikeAbility } from './StrikeAbility.js?v=70';
+import {
+  StatusController,
+} from './StatusController.js?v=70';
+import {
+  resolveCombatHit,
+} from './CombatResolver.js?v=70';
 import {
   AttackTelegraphSystem,
 } from './AttackTelegraphSystem.js?v=69aa';
@@ -450,6 +456,47 @@ renderCurrencyBalances();
 const prologueBoss = new PrologueBoss(world);
 const matrixBoss = new MatrixBoss(world);
 const monolithBoss = new MonolithBoss(world);
+
+function attachStatusController(
+  actor,
+  profile = {},
+) {
+  const controller =
+    new StatusController(
+      actor,
+      {
+        profile,
+      },
+    );
+
+  actor.status =
+    controller;
+
+  return controller;
+}
+
+attachStatusController(
+  player,
+);
+
+attachStatusController(
+  prologueBoss,
+);
+
+attachStatusController(
+  matrixBoss,
+);
+
+attachStatusController(
+  monolithBoss,
+  {
+    fracture: {
+      susceptibility:
+        1.35,
+    },
+  },
+);
+
 const audio = new GameAudio();
 let activeBoss = null;
 
@@ -2858,8 +2905,10 @@ function update(dt) {
   if (pressed.has(controlBindings.restart)) {
     encounterElapsed = 0;
     player.reset();
+    player.status?.reset?.();
     weaponRuntime.resetAll();
     backfireAbility.reset(player);
+    strikeAbility.reset(player);
     guardSystem.reset(player);
     bossStaggerSystem.reset(
       activeBoss,
@@ -2867,6 +2916,10 @@ function update(dt) {
     extraSystem.reset();
     refreshExtraButtons();
     activeBoss?.reset?.(world);
+    activeBoss
+      ?.status
+      ?.reset
+      ?.();
 
     applyForcedBossPhase(
       activeBoss,
@@ -2937,6 +2990,7 @@ function update(dt) {
   }
 
   player.update(dt, playerInput, world);
+  player.status?.update?.(dt);
 
   guardSystem.update(
     dt,
@@ -3038,6 +3092,11 @@ function update(dt) {
   const combatPointerWorld =
     getPointerWorld();
 
+  activeBoss
+    ?.status
+    ?.update
+    ?.(dt);
+
   bossStaggerSystem.update(
     dt,
     activeBoss,
@@ -3094,6 +3153,29 @@ function update(dt) {
     player,
     activeBoss,
     strikeEquipped,
+    {
+      resolveHit:
+        (
+          target,
+          packet,
+        ) =>
+          resolveCombatHit(
+            target,
+            packet,
+            {
+              addStagger:
+                (
+                  amount,
+                  source,
+                ) =>
+                  bossStaggerSystem
+                    .addStagger(
+                      amount,
+                      source,
+                    ),
+            },
+          ),
+    },
   );
 
   if (
@@ -3107,11 +3189,6 @@ function update(dt) {
       12,
       260,
       '#ffffff',
-    );
-
-    bossStaggerSystem.addStagger(
-      24,
-      'strike',
     );
 
     if (fxSettings.impactCamera) {
@@ -3849,6 +3926,90 @@ function drawBossBar() {
     staggerY + 7,
   );
 
+  const statusEntries =
+    activeBoss
+      .status
+      ?.getHudEntries
+      ?.() ??
+    [];
+
+  let statusY =
+    staggerY + 22;
+
+  for (
+    const entry
+    of statusEntries
+      .slice(0, 3)
+  ) {
+    const statusHeight = 4;
+
+    ctx.fillStyle =
+      '#17191f';
+
+    ctx.fillRect(
+      x,
+      statusY,
+      width,
+      statusHeight,
+    );
+
+    ctx.fillStyle =
+      entry.active
+        ? '#d7dbe2'
+        : '#858b94';
+
+    ctx.fillRect(
+      x,
+      statusY,
+      width *
+        (
+          entry.active
+            ? 1
+            : entry
+                .buildupRatio
+        ),
+      statusHeight,
+    );
+
+    ctx.strokeStyle =
+      '#343a46';
+
+    ctx.strokeRect(
+      x + 0.5,
+      statusY + 0.5,
+      width,
+      statusHeight,
+    );
+
+    ctx.font =
+      "9px 'Pixel Arial 11', Arial, sans-serif";
+
+    ctx.fillStyle =
+      entry.active
+        ? COLORS.text
+        : COLORS.dim;
+
+    ctx.textAlign =
+      'right';
+
+    ctx.textBaseline =
+      'top';
+
+    ctx.fillText(
+      entry.active
+        ? (
+            `FRACTURED ${entry.activeTimer.toFixed(1)}s`
+          )
+        : (
+            `${entry.label} ${Math.ceil(entry.buildup)}/${entry.threshold}`
+          ),
+      x + width,
+      statusY + 7,
+    );
+
+    statusY += 17;
+  }
+
   ctx.restore();
 }
 
@@ -3944,6 +4105,7 @@ function prepareEncounter(boss) {
   setDeathMenuVisible(false, 'defeated');
 
   player.reset();
+  player.status?.reset?.();
   weaponRuntime.resetAll();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
@@ -3958,6 +4120,7 @@ function prepareEncounter(boss) {
   playerImpactFxCooldown = 0;
 
   boss.reset(world);
+  boss.status?.reset?.();
   applyForcedBossPhase(
     boss,
   );
