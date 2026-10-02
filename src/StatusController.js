@@ -37,6 +37,9 @@ export class StatusController {
     this.lastActivation = null;
     this.lastBuildup = null;
     this.lastTick = null;
+    this.modifierCache =
+      Object.create(null);
+    this.hudEntries = [];
   }
 
   reset() {
@@ -45,6 +48,9 @@ export class StatusController {
     this.lastActivation = null;
     this.lastBuildup = null;
     this.lastTick = null;
+    this.modifierCache =
+      Object.create(null);
+    this.hudEntries.length = 0;
   }
 
   setProfile(profile = {}) {
@@ -256,6 +262,8 @@ export class StatusController {
         duration:
           state.activeTimer,
       };
+
+      this.rebuildModifierCache();
 
       triggered = true;
     }
@@ -483,6 +491,10 @@ export class StatusController {
         }
       }
 
+      const wasActive =
+        state.activeTimer >
+        0;
+
       state.activeTimer =
         Math.max(
           0,
@@ -494,6 +506,10 @@ export class StatusController {
         state.activeTimer <= 0
       ) {
         state.tickAccumulator = 0;
+
+        if (wasActive) {
+          this.rebuildModifierCache();
+        }
       }
 
       state.decayDelay =
@@ -594,14 +610,9 @@ export class StatusController {
     };
   }
 
-  getModifier(
-    modifierName,
-    fallback = 1,
-  ) {
-    let value =
-      finiteMultiplier(
-        fallback,
-      );
+  rebuildModifierCache() {
+    const cache =
+      Object.create(null);
 
     for (
       const [
@@ -622,33 +633,61 @@ export class StatusController {
           effectId,
         );
 
-      const modifier =
+      const modifiers =
         this.getRoleDefinition(
           definition,
         )
-          ?.modifiers?.[
-            modifierName
-          ] ??
+          ?.modifiers ??
         definition
-          ?.modifiers?.[
-            modifierName
-          ];
+          ?.modifiers ??
+        null;
 
-      if (
-        Number.isFinite(
-          Number(modifier),
+      if (!modifiers) {
+        continue;
+      }
+
+      for (
+        const [
+          modifierName,
+          rawValue,
+        ]
+        of Object.entries(
+          modifiers,
         )
       ) {
-        value *=
-          Number(modifier);
+        const value =
+          Number(rawValue);
+
+        if (
+          !Number.isFinite(
+            value,
+          )
+        ) {
+          continue;
+        }
+
+        cache[
+          modifierName
+        ] =
+          (
+            cache[
+              modifierName
+            ] ??
+            1
+          ) *
+          value;
       }
     }
 
-    return value;
+    this.modifierCache =
+      cache;
   }
 
-  getHudEntries() {
-    const entries = [];
+  rebuildHudEntries() {
+    const entries =
+      this.hudEntries;
+
+    entries.length = 0;
 
     for (
       const [
@@ -704,7 +743,29 @@ export class StatusController {
           ),
       });
     }
+  }
 
-    return entries;
+  getModifier(
+    modifierName,
+    fallback = 1,
+  ) {
+    const base =
+      finiteMultiplier(
+        fallback,
+      );
+
+    return (
+      this.modifierCache[
+        modifierName
+      ] ??
+      1
+    ) *
+      base;
+  }
+
+  getHudEntries() {
+    this.rebuildHudEntries();
+
+    return this.hudEntries;
   }
 }
