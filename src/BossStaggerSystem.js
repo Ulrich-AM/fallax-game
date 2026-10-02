@@ -207,11 +207,25 @@ export class BossStaggerSystem {
       this.decayTimer <= 0 &&
       this.stagger > 0
     ) {
+      const decayMultiplier =
+        this.boss
+          ?.status
+          ?.getModifier
+          ?.(
+            'staggerDecayMultiplier',
+            1,
+          ) ??
+        1;
+
       this.stagger =
         Math.max(
           0,
           this.stagger -
             this.decayPerSecond *
+            Math.max(
+              0,
+              decayMultiplier,
+            ) *
             dt,
         );
     }
