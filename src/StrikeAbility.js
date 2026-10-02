@@ -9,6 +9,8 @@ export class StrikeAbility {
   constructor() {
     this.name = 'Strike';
     this.damage = 55;
+    this.stagger = 24;
+    this.fractureBuildup = 28;
 
     this.lastDashSerial = 0;
     this.hitSerial = 0;
@@ -82,6 +84,9 @@ export class StrikeAbility {
     player,
     target,
     equipped,
+    {
+      resolveHit = null,
+    } = {},
   ) {
     if (!player) return false;
 
@@ -126,12 +131,34 @@ export class StrikeAbility {
       return false;
     }
 
-    const hit =
-      target.takeDamage?.(
-        this.damage,
-      );
+    const result =
+      typeof resolveHit ===
+        'function'
+        ? resolveHit(
+            target,
+            {
+              damage:
+                this.damage,
+              stagger:
+                this.stagger,
+              buildup: {
+                fracture:
+                  this.fractureBuildup,
+              },
+              source:
+                'strike',
+            },
+          )
+        : {
+            hit:
+              target.takeDamage?.(
+                this.damage,
+              ) !== false,
+          };
 
-    if (hit === false) {
+    if (
+      result?.hit === false
+    ) {
       return false;
     }
 
@@ -142,6 +169,8 @@ export class StrikeAbility {
       y: point.y,
       serial:
         this.hitSerial,
+      combatResult:
+        result ?? null,
     };
 
     return true;
