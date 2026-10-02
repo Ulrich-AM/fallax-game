@@ -3384,9 +3384,22 @@ export class MonolithBoss {
                 target,
               )
             ) {
-              target.takeDamage?.(
-                32,
-              );
+              const damaged =
+                target.takeDamage?.(
+                  32,
+                );
+
+              if (
+                damaged !== false
+              ) {
+                owner
+                  .applyStatusBuildup(
+                    target,
+                    'fracture',
+                    34,
+                    'monolith-piledriver',
+                  );
+              }
 
               const direction =
                 target.x <
@@ -5572,7 +5585,22 @@ export class MonolithBoss {
           target.vy = 0;
 
           if (swingT >= 1) {
-            target.takeDamage?.(18);
+            const damaged =
+              target.takeDamage?.(
+                18,
+              );
+
+            if (
+              damaged !== false
+            ) {
+              owner
+                .applyStatusBuildup(
+                  target,
+                  'fatigue',
+                  28,
+                  'monolith-crawl-throw',
+                );
+            }
 
             target.vx =
               -owner.crawlDirection *
@@ -6185,6 +6213,18 @@ export class MonolithBoss {
               result !== 'miss';
 
             if (
+              result === 'hit'
+            ) {
+              owner
+                .applyStatusBuildup(
+                  target,
+                  'fracture',
+                  18,
+                  'monolith-ground-sweep',
+                );
+            }
+
+            if (
               result ===
               'parried'
             ) {
@@ -6625,6 +6665,25 @@ export class MonolithBoss {
     );
   }
 
+  applyStatusBuildup(
+    target,
+    effectId,
+    amount,
+    source,
+  ) {
+    return target
+      ?.status
+      ?.addBuildup
+      ?.(
+        effectId,
+        amount,
+        {
+          source,
+        },
+      ) ??
+      null;
+  }
+
   tryRushHit(
     target,
     attacker,
@@ -6828,9 +6887,21 @@ export class MonolithBoss {
       target.grounded &&
       state.age > 0.06
     ) {
-      target.takeDamage?.(
-        state.impactDamage,
-      );
+      const damaged =
+        target.takeDamage?.(
+          state.impactDamage,
+        );
+
+      if (
+        damaged !== false
+      ) {
+        this.applyStatusBuildup(
+          target,
+          'fatigue',
+          24,
+          'monolith-drop-catch',
+        );
+      }
 
       target.vy = -330;
 
@@ -6984,9 +7055,21 @@ export class MonolithBoss {
       state.age > 0.05 &&
       hitWall
     ) {
-      target.takeDamage?.(
-        state.impactDamage,
-      );
+      const damaged =
+        target.takeDamage?.(
+          state.impactDamage,
+        );
+
+      if (
+        damaged !== false
+      ) {
+        this.applyStatusBuildup(
+          target,
+          'fatigue',
+          28,
+          'monolith-wall-toss',
+        );
+      }
 
       target.vx =
         -state.direction *
