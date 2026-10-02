@@ -867,7 +867,7 @@ export class MonolithBoss {
     this.crawlLeftHandY = this.y;
     this.crawlRightHandX = this.x;
     this.crawlRightHandY = this.y;
-    this.crawlSpeed = 520;
+    this.crawlSpeed = 680;
     this.crawlGrabbedTarget = null;
     this.crawlGrabDashSerial = 0;
     this.crawlHandX = this.x;
@@ -4803,8 +4803,8 @@ export class MonolithBoss {
             192;
 
           const followRate =
-            2.4 +
-            plantT * 13.5;
+            3.0 +
+            plantT * 16.0;
 
           const follow =
             1 -
