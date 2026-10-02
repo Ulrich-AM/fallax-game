@@ -100,12 +100,12 @@ export const ITEM_LIBRARY = {
     price: 480,
     name: 'Anchor',
     category: 'weapons',
-    description: 'Fires its neon anchor tip. Click again to recall it; Q enlarges the next anchor into a barbed shot that makes bosses bleed.',
+    description: 'Fires its neon anchor tip. Click again to recall it; Q enlarges the next anchor into a barbed shot that inflicts heavy Bleed buildup.',
     appearance: 'red-glowing tether weapon',
     stats: [
       { label: 'impact', value: '8 damage' },
       { label: 'tether', value: 'up to 28 dps' },
-      { label: 'barbed hit', value: '18 + 7 dps bleed x 6s' },
+      { label: 'barbed hit', value: '18 + 80 Bleed buildup' },
       { label: 'special cooldown', value: '12s' },
     ],
   },
@@ -143,9 +143,16 @@ export const ITEM_LIBRARY = {
     category: 'abilities',
     description: 'A dash through an enemy becomes a powerful melee strike.',
     appearance: 'ability module',
+    combatModifiers: {
+      outgoingBuildup: {
+        fracture: 1.05,
+      },
+    },
     stats: [
       { label: 'damage', value: '55' },
       { label: 'stagger', value: '+24' },
+      { label: 'fracture', value: '+28 buildup' },
+      { label: 'fracture buildup', value: '+5%' },
       { label: 'trigger', value: 'dash through target' },
     ],
   },
@@ -175,6 +182,24 @@ export const ITEM_LIBRARY = {
       { label: 'lifetime', value: '10s' },
       { label: 'cooldown', value: '16s' },
       { label: 'effect', value: 'boss priority target' },
+    ],
+  },
+  carapace: {
+    id: 'carapace',
+    price: 430,
+    name: 'Carapace',
+    category: 'armor',
+    description: 'Rigid structural armor that resists fracture at the cost of poorer chemical protection.',
+    appearance: 'heavy segmented armor',
+    combatModifiers: {
+      incomingBuildup: {
+        fracture: 0.75,
+        poison: 1.10,
+      },
+    },
+    stats: [
+      { label: 'fracture susceptibility', value: '-25%' },
+      { label: 'poison susceptibility', value: '+10%' },
     ],
   },
 };
@@ -369,6 +394,31 @@ export function getWeaponSlotId(index) {
 
 export function getExtraSlotId(index) {
   return loadout.extra[index] ?? null;
+}
+
+export function getEquippedItems() {
+  const items = [];
+
+  for (
+    const category
+    of EQUIPMENT_CATEGORIES
+  ) {
+    for (
+      const itemId
+      of loadout[
+        category.id
+      ]
+    ) {
+      const item =
+        getItem(itemId);
+
+      if (item) {
+        items.push(item);
+      }
+    }
+  }
+
+  return items;
 }
 
 
