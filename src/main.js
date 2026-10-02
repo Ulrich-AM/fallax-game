@@ -54,9 +54,9 @@ import {
   getProgressEpochStatus,
 } from './ProgressEpoch.js?v=63';
 import { BossAI } from './bosses/BossAI.js?v=71';
-import { PrologueBoss } from './bosses/PrologueBoss.js?v=68b';
-import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=69ac';
+import { PrologueBoss } from './bosses/PrologueBoss.js?v=71';
+import { MatrixBoss } from './bosses/MatrixBoss.js?v=71';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=71';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -73,7 +73,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v70';
+const BUILD_VERSION = 'v71';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
