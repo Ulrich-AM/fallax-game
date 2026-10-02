@@ -1,6 +1,6 @@
 import { loadPixelArial } from './FontLoader.js?v=53';
 import { rectangle, group, rasterize } from './pixelShapes.js?v=36';
-import { PlayerController } from './PlayerController.js?v=60c';
+import { PlayerController } from './PlayerController.js?v=71';
 import { MOVEMENT } from './movementConfig.js?v=36';
 import {
   EQUIPMENT_CATEGORIES,
@@ -18,26 +18,30 @@ import {
   purchaseItem,
   grantItem,
   resetEquipmentState,
-} from './equipment.js?v=63';
+  getEquippedItems,
+} from './equipment.js?v=71';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=63a';
 import { MachWeapon } from './MachWeapon.js?v=63a';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
-import { AnchorWeapon } from './AnchorWeapon.js?v=63a';
+import { AnchorWeapon } from './AnchorWeapon.js?v=71';
 import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=63';
 import { GuardSystem } from './GuardSystem.js?v=62';
-import { BossStaggerSystem } from './BossStaggerSystem.js?v=70';
-import { WeaponRuntime } from './WeaponRuntime.js?v=62';
-import { StrikeAbility } from './StrikeAbility.js?v=70';
+import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
+import { WeaponRuntime } from './WeaponRuntime.js?v=71';
+import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
-} from './StatusController.js?v=70';
+} from './StatusController.js?v=71';
 import {
   resolveCombatHit,
-} from './CombatResolver.js?v=70';
+} from './CombatResolver.js?v=71';
+import {
+  buildCombatModifiers,
+} from './CombatModifiers.js?v=71';
 import {
   AttackTelegraphSystem,
 } from './AttackTelegraphSystem.js?v=69aa';
@@ -460,12 +464,14 @@ const monolithBoss = new MonolithBoss(world);
 function attachStatusController(
   actor,
   profile = {},
+  role = 'boss',
 ) {
   const controller =
     new StatusController(
       actor,
       {
         profile,
+        role,
       },
     );
 
@@ -475,8 +481,19 @@ function attachStatusController(
   return controller;
 }
 
+function refreshPlayerCombatModifiers() {
+  player.combatModifiers =
+    buildCombatModifiers(
+      getEquippedItems(),
+    );
+}
+
+refreshPlayerCombatModifiers();
+
 attachStatusController(
   player,
+  {},
+  'player',
 );
 
 attachStatusController(
@@ -493,6 +510,20 @@ attachStatusController(
     fracture: {
       susceptibility:
         1.35,
+    },
+    bleed: {
+      immune: true,
+    },
+    poison: {
+      immune: true,
+    },
+    burn: {
+      susceptibility:
+        0.75,
+    },
+    fatigue: {
+      susceptibility:
+        0.65,
     },
   },
 );
@@ -2906,6 +2937,7 @@ function update(dt) {
     encounterElapsed = 0;
     player.reset();
     player.status?.reset?.();
+    refreshPlayerCombatModifiers();
     weaponRuntime.resetAll();
     backfireAbility.reset(player);
     strikeAbility.reset(player);
@@ -3322,6 +3354,27 @@ function update(dt) {
       ART_PIXEL,
     activeId:
       activeWeaponId,
+    resolveHit:
+      (
+        target,
+        packet,
+      ) =>
+        resolveCombatHit(
+          target,
+          packet,
+          {
+            addStagger:
+              (
+                amount,
+                source,
+              ) =>
+                bossStaggerSystem
+                  .addStagger(
+                    amount,
+                    source,
+                  ),
+          },
+        ),
   });
 
   weaponRuntime.playShotAudio(
@@ -4106,6 +4159,7 @@ function prepareEncounter(boss) {
 
   player.reset();
   player.status?.reset?.();
+  refreshPlayerCombatModifiers();
   weaponRuntime.resetAll();
   backfireAbility.reset(player);
   strikeAbility.reset(player);
