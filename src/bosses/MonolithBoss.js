@@ -4504,14 +4504,14 @@ export class MonolithBoss {
           owner.leftArmOffsetX =
             lerpValue(
               54,
-              owner.crawlDirection * 82,
+              owner.crawlDirection * 238,
               slam,
             );
 
           owner.rightArmOffsetX =
             lerpValue(
               -54,
-              -owner.crawlDirection * 82,
+              -owner.crawlDirection * 118,
               slam,
             );
 
@@ -4580,98 +4580,51 @@ export class MonolithBoss {
             ) /
             cyclePeriod;
 
-          const handPose =
-            phase => {
-              const p =
-                (
-                  phase + 1
-                ) % 1;
+          const phaseRadians =
+            cyclePhase *
+            Math.PI *
+            2;
 
-              if (p < 0.42) {
-                const t =
-                  smoothStep01(
-                    p / 0.42,
-                  );
+          const rightX =
+            60 -
+            Math.cos(
+              phaseRadians,
+            ) *
+            178;
 
-                return {
-                  x:
-                    lerpValue(
-                      -118,
-                      238,
-                      t,
-                    ),
-                  lift:
-                    Math.sin(
-                      t * Math.PI,
-                    ),
-                  forward:
-                    t,
-                };
-              }
+          const leftX =
+            60 +
+            Math.cos(
+              phaseRadians,
+            ) *
+            178;
 
-              if (p < 0.58) {
-                const t =
-                  smoothStep01(
-                    (
-                      p - 0.42
-                    ) /
-                    0.16,
-                  );
-
-                return {
-                  x: 238,
-                  lift:
-                    1 - t,
-                  forward: 1,
-                };
-              }
-
-              const t =
-                smoothStep01(
-                  (
-                    p - 0.58
-                  ) /
-                  0.42,
-                );
-
-              return {
-                x:
-                  lerpValue(
-                    238,
-                    -118,
-                    t,
-                  ),
-                lift: 0,
-                forward:
-                  1 - t,
-              };
-            };
-
-          const rightPose =
-            handPose(
-              cyclePhase,
+          const rightLift =
+            Math.max(
+              0,
+              Math.sin(
+                phaseRadians,
+              ),
             );
 
-          const leftPose =
-            handPose(
-              cyclePhase + 0.5,
+          const leftLift =
+            Math.max(
+              0,
+              -Math.sin(
+                phaseRadians,
+              ),
             );
 
           owner.crawlCatchSide =
-            rightPose.x >=
-            leftPose.x
+            rightX >=
+            leftX
               ? 'right'
               : 'left';
 
           const pullPulse =
-            Math.max(
-              Math.sin(
-                cyclePhase *
-                Math.PI *
-                2,
-              ) ** 2,
-              0,
-            );
+            Math.sin(
+              phaseRadians,
+            ) ** 2;
 
           owner.x +=
             owner.crawlDirection *
@@ -4685,9 +4638,8 @@ export class MonolithBoss {
           owner.y =
             owner.crawlGroundY +
             Math.sin(
-              cyclePhase *
-              Math.PI *
-              4,
+              phaseRadians *
+              2,
             ) *
             4;
 
@@ -4714,7 +4666,7 @@ export class MonolithBoss {
           const rightForward =
             clamp(
               (
-                rightPose.x +
+                rightX +
                 118
               ) /
               356,
@@ -4725,7 +4677,7 @@ export class MonolithBoss {
           const leftForward =
             clamp(
               (
-                leftPose.x +
+                leftX +
                 118
               ) /
               356,
@@ -4742,11 +4694,11 @@ export class MonolithBoss {
 
           owner.rightArmOffsetX =
             owner.crawlDirection *
-            rightPose.x;
+            rightX;
 
           owner.rightArmOffsetY =
             rightFloor -
-            rightPose.lift * 88;
+            rightLift * 88;
 
           owner.leftArmOverride =
             lerpValue(
@@ -4757,18 +4709,16 @@ export class MonolithBoss {
 
           owner.leftArmOffsetX =
             owner.crawlDirection *
-            leftPose.x;
+            leftX;
 
           owner.leftArmOffsetY =
             leftFloor -
-            leftPose.lift * 88;
+            leftLift * 88;
 
           owner.headOffsetX =
             -owner.crawlDirection *
             Math.sin(
-              cyclePhase *
-              Math.PI *
-              2,
+              phaseRadians,
             ) *
             8;
 
