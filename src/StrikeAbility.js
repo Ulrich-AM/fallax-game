@@ -147,6 +147,8 @@ export class StrikeAbility {
               },
               source:
                 'strike',
+              attacker:
+                player,
             },
           )
         : {
