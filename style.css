@@ -1491,6 +1491,15 @@ canvas {
   text-align: right;
 }
 
+.item-tooltip-copy
+  .item-tooltip-stat-effect
+  .item-tooltip-stat-label,
+.item-tooltip-copy
+  .item-tooltip-stat-effect
+  .item-tooltip-stat-value {
+  color: #e4bf4f;
+}
+
 #item-tooltip-canvas.hidden + .item-tooltip-copy {
   border-top: 0;
 }
