@@ -34,7 +34,7 @@ import { WeaponRuntime } from './WeaponRuntime.js?v=62';
 import { StrikeAbility } from './StrikeAbility.js?v=55';
 import {
   AttackTelegraphSystem,
-} from './AttackTelegraphSystem.js?v=69a';
+} from './AttackTelegraphSystem.js?v=69aa';
 import {
   ExtraSystem,
 } from './ExtraSystem.js?v=63';
@@ -46,7 +46,7 @@ import {
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=68b';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=69a';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=69aa';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -63,7 +63,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v69a';
+const BUILD_VERSION = 'v69aa';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
