@@ -3884,11 +3884,14 @@ function drawResourceBar(
   ctx.restore();
 }
 
+const COMPACT_STATUS_BAR_WIDTH =
+  75;
+
 function drawCompactStatusBar(
   entry,
   x,
   y,
-  width,
+  width = COMPACT_STATUS_BAR_WIDTH,
 ) {
   const barHeight = 3;
   const ratio =
@@ -4046,9 +4049,7 @@ function drawHUD() {
     bx + bw + 10;
 
   const playerStatusWidth =
-    Math.round(
-      bw * 0.5,
-    );
+    COMPACT_STATUS_BAR_WIDTH;
 
   let playerStatusY = 30;
 
@@ -4337,9 +4338,7 @@ function drawBossBar() {
     [];
 
   const bossStatusWidth =
-    Math.round(
-      width * 0.5,
-    );
+    COMPACT_STATUS_BAR_WIDTH;
 
   const bossStatusX =
     x + width + 12;
