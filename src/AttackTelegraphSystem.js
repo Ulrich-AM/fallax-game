@@ -294,35 +294,6 @@ export class AttackTelegraphSystem {
       pop *
       fade;
 
-    // Draw the dark backing concentrically, not offset. The old offset
-    // became visible as a second translucent exclamation mark.
-    ctx.fillStyle =
-      '#4a0909';
-
-    fillPolygon(
-      ctx,
-      EXCLAMATION_BODY,
-      x,
-      iconY,
-      pixel * 1.10,
-    );
-
-    fillPolygon(
-      ctx,
-      EXCLAMATION_DOT,
-      x,
-      iconY,
-      pixel * 1.10,
-    );
-
-    fillPolygon(
-      ctx,
-      EXCLAMATION_POINTER,
-      x,
-      iconY,
-      pixel * 1.10,
-    );
-
     ctx.fillStyle =
       '#ff3b3b';
 
