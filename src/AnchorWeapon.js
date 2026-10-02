@@ -254,7 +254,7 @@ export class AnchorWeapon {
     this.barbedReadyTimer = 0;
     this.barbedTipScale = 1.65;
     this.barbedProjectileDamage = 18;
-    this.barbedBleedBuildup = 80;
+    this.barbedBleedBuildup = 100;
     this.barbedTensionMultiplier = 1.35;
     this.barbedVisualTime = 0;
 
