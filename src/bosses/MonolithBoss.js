@@ -4457,66 +4457,125 @@ export class MonolithBoss {
                 dt,
             );
 
-          const stepPeriod = 0.30;
-          const rawStep =
-            owner.crawlElapsed /
-            stepPeriod;
+          const cyclePeriod = 0.60;
 
-          const stepIndex =
-            Math.floor(
-              rawStep,
+          const cyclePhase =
+            (
+              owner.crawlElapsed %
+              cyclePeriod
+            ) /
+            cyclePeriod;
+
+          const handPose =
+            phase => {
+              const p =
+                (
+                  phase + 1
+                ) % 1;
+
+              if (p < 0.42) {
+                const t =
+                  smoothStep01(
+                    p / 0.42,
+                  );
+
+                return {
+                  x:
+                    lerpValue(
+                      -118,
+                      238,
+                      t,
+                    ),
+                  lift:
+                    Math.sin(
+                      t * Math.PI,
+                    ),
+                  forward:
+                    t,
+                };
+              }
+
+              if (p < 0.58) {
+                const t =
+                  smoothStep01(
+                    (
+                      p - 0.42
+                    ) /
+                    0.16,
+                  );
+
+                return {
+                  x: 238,
+                  lift:
+                    1 - t,
+                  forward: 1,
+                };
+              }
+
+              const t =
+                smoothStep01(
+                  (
+                    p - 0.58
+                  ) /
+                  0.42,
+                );
+
+              return {
+                x:
+                  lerpValue(
+                    238,
+                    -118,
+                    t,
+                  ),
+                lift: 0,
+                forward:
+                  1 - t,
+              };
+            };
+
+          const rightPose =
+            handPose(
+              cyclePhase,
             );
 
-          const stepT =
-            rawStep -
-            stepIndex;
-
-          owner.crawlStepIndex =
-            stepIndex;
-
-          const rightLeading =
-            stepIndex % 2 === 0;
+          const leftPose =
+            handPose(
+              cyclePhase + 0.5,
+            );
 
           owner.crawlCatchSide =
-            rightLeading
+            rightPose.x >=
+            leftPose.x
               ? 'right'
               : 'left';
 
-          const plant =
-            smoothStep01(
-              stepT,
-            );
-
-          const lift =
-            Math.sin(
-              stepT *
-              Math.PI,
-            );
-
           const pullPulse =
-            Math.sin(
-              stepT *
-              Math.PI,
+            Math.max(
+              Math.sin(
+                cyclePhase *
+                Math.PI *
+                2,
+              ) ** 2,
+              0,
             );
 
           owner.x +=
             owner.crawlDirection *
             owner.crawlSpeed *
             (
-              0.72 +
-              pullPulse * 0.42
+              0.76 +
+              pullPulse * 0.34
             ) *
             dt;
 
           owner.y =
             owner.crawlGroundY +
             Math.sin(
-              owner.crawlElapsed *
+              cyclePhase *
               Math.PI *
-              2 /
-              stepPeriod,
+              4,
             ) *
-            5;
+            4;
 
           const leftBase =
             owner.baseArmPivotWorld(
@@ -4538,83 +4597,69 @@ export class MonolithBoss {
             66 -
             rightBase.y;
 
-          if (rightLeading) {
-            owner.rightArmOverride =
-              lerpValue(
-                34,
-                2,
-                plant,
-              );
+          const rightForward =
+            clamp(
+              (
+                rightPose.x +
+                118
+              ) /
+              356,
+              0,
+              1,
+            );
 
-            owner.rightArmOffsetX =
-              owner.crawlDirection *
-              lerpValue(
-                82,
-                238,
-                plant,
-              );
+          const leftForward =
+            clamp(
+              (
+                leftPose.x +
+                118
+              ) /
+              356,
+              0,
+              1,
+            );
 
-            owner.rightArmOffsetY =
-              rightFloor -
-              lift * 78;
+          owner.rightArmOverride =
+            lerpValue(
+              34,
+              2,
+              rightForward,
+            );
 
-            owner.leftArmOverride =
-              -6;
+          owner.rightArmOffsetX =
+            owner.crawlDirection *
+            rightPose.x;
 
-            owner.leftArmOffsetX =
-              -owner.crawlDirection *
-              lerpValue(
-                78,
-                126,
-                1 - plant,
-              );
+          owner.rightArmOffsetY =
+            rightFloor -
+            rightPose.lift * 88;
 
-            owner.leftArmOffsetY =
-              leftFloor +
-              lift * 12;
-          } else {
-            owner.leftArmOverride =
-              lerpValue(
-                -34,
-                -2,
-                plant,
-              );
+          owner.leftArmOverride =
+            lerpValue(
+              -34,
+              -2,
+              leftForward,
+            );
 
-            owner.leftArmOffsetX =
-              owner.crawlDirection *
-              lerpValue(
-                82,
-                238,
-                plant,
-              );
+          owner.leftArmOffsetX =
+            owner.crawlDirection *
+            leftPose.x;
 
-            owner.leftArmOffsetY =
-              leftFloor -
-              lift * 78;
-
-            owner.rightArmOverride =
-              6;
-
-            owner.rightArmOffsetX =
-              -owner.crawlDirection *
-              lerpValue(
-                78,
-                126,
-                1 - plant,
-              );
-
-            owner.rightArmOffsetY =
-              rightFloor +
-              lift * 12;
-          }
+          owner.leftArmOffsetY =
+            leftFloor -
+            leftPose.lift * 88;
 
           owner.headOffsetX =
             -owner.crawlDirection *
-            pullPulse *
-            9;
+            Math.sin(
+              cyclePhase *
+              Math.PI *
+              2,
+            ) *
+            8;
 
           owner.headOffsetY =
-            pullPulse * 8;
+            pullPulse * 7;
 
           if (
             target &&
