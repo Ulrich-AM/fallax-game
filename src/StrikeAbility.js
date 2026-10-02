@@ -151,9 +151,14 @@ export class StrikeAbility {
           )
         : {
             hit:
-              target.takeDamage?.(
-                this.damage,
-              ) !== false,
+              typeof target.takeDamage ===
+                'function'
+                ? (
+                    target.takeDamage(
+                      this.damage,
+                    ) !== false
+                  )
+                : false,
           };
 
     if (
