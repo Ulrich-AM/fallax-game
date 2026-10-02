@@ -1,6 +1,6 @@
 import {
   getStatusEffectDefinition,
-} from './StatusEffects.js?v=71';
+} from './StatusEffects.js?v=72';
 
 function clamp(value, min, max) {
   return Math.max(
