@@ -1165,6 +1165,141 @@ function registerDeveloperCommands() {
     },
   );
 
+  devConsole.register(
+    'status.add',
+    {
+      description:
+        'add status buildup to the player or active boss',
+      usage:
+        'status.add <player|boss> <fracture|bleed|burn|poison|fatigue> <amount>',
+      execute: ({ args }) => {
+        const targetName =
+          args[0]
+            ?.toLowerCase();
+
+        const target =
+          targetName === 'player'
+            ? player
+            : (
+                targetName === 'boss'
+                  ? activeBoss
+                  : null
+              );
+
+        if (!target?.status) {
+          throw new Error(
+            'target must be player or an active boss.',
+          );
+        }
+
+        const effectId =
+          args[1]
+            ?.toLowerCase();
+
+        const amount =
+          Number(
+            args[2] ??
+            100,
+          );
+
+        if (
+          ![
+            'fracture',
+            'bleed',
+            'burn',
+            'poison',
+            'fatigue',
+          ].includes(
+            effectId,
+          ) ||
+          !Number.isFinite(
+            amount,
+          ) ||
+          amount <= 0
+        ) {
+          throw new Error(
+            'usage: status.add <player|boss> <fracture|bleed|burn|poison|fatigue> <amount>',
+          );
+        }
+
+        const result =
+          target.status
+            .addBuildup(
+              effectId,
+              amount,
+              {
+                source:
+                  'dev-console',
+              },
+            );
+
+        if (result.immune) {
+          return (
+            targetName +
+            ' is immune to ' +
+            effectId +
+            '.'
+          );
+        }
+
+        return result.triggered
+          ? (
+              effectId +
+              ' triggered on ' +
+              targetName +
+              '.'
+            )
+          : (
+              '+' +
+              result.added.toFixed(1) +
+              ' ' +
+              effectId +
+              ' buildup on ' +
+              targetName +
+              '.'
+            );
+      },
+    },
+  );
+
+  devConsole.register(
+    'status.clear',
+    {
+      description:
+        'clear all statuses from the player or active boss',
+      usage:
+        'status.clear <player|boss>',
+      execute: ({ args }) => {
+        const targetName =
+          args[0]
+            ?.toLowerCase();
+
+        const target =
+          targetName === 'player'
+            ? player
+            : (
+                targetName === 'boss'
+                  ? activeBoss
+                  : null
+              );
+
+        if (!target?.status) {
+          throw new Error(
+            'target must be player or an active boss.',
+          );
+        }
+
+        target.status.reset();
+
+        return (
+          'cleared statuses from ' +
+          targetName +
+          '.'
+        );
+      },
+    },
+  );
+
   devConsole.register('give', {
     description:
       'grant an item without paying its shop price',
