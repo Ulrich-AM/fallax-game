@@ -456,6 +456,163 @@ let activeBoss = null;
 const DEBUG_ATTACK_NAMES_KEY =
   'fallax.debug.attackNames';
 
+const forcedBossPhases =
+  new Map();
+
+function getDeveloperBoss(
+  reference,
+) {
+  const name =
+    String(
+      reference ?? '',
+    )
+      .trim()
+      .toLowerCase();
+
+  if (name === 'prologue') {
+    return prologueBoss;
+  }
+
+  if (name === 'matrix') {
+    return matrixBoss;
+  }
+
+  if (name === 'monolith') {
+    return monolithBoss;
+  }
+
+  return null;
+}
+
+function normalizePhaseReference(
+  reference,
+) {
+  const value =
+    String(
+      reference ?? '',
+    )
+      .trim()
+      .toLowerCase();
+
+  const aliases = {
+    p1: 'phase1',
+    p2: 'phase2',
+    p3: 'phase3',
+    '1': 'phase1',
+    '2': 'phase2',
+    '3': 'phase3',
+    phase1: 'phase1',
+    phase2: 'phase2',
+    phase3: 'phase3',
+  };
+
+  return aliases[value] ?? null;
+}
+
+function getForcedPhaseHealthRatio(
+  boss,
+  phaseId,
+) {
+  const phases =
+    boss?.ai?.phases ?? [];
+
+  const index =
+    phases.findIndex(
+      phase =>
+        phase.id === phaseId,
+    );
+
+  if (index < 0) {
+    return null;
+  }
+
+  const upper =
+    phases[index]
+      .atOrBelow;
+
+  const lower =
+    phases[index + 1]
+      ?.atOrBelow ??
+    0;
+
+  // Spawn comfortably inside the requested phase rather than exactly on a
+  // boundary. This leaves enough health to repeatedly test that phase.
+  return (
+    lower +
+    (
+      upper - lower
+    ) *
+    0.84
+  );
+}
+
+function applyForcedBossPhase(
+  boss,
+) {
+  if (!boss) {
+    return false;
+  }
+
+  const phaseId =
+    forcedBossPhases.get(
+      boss.name,
+    );
+
+  if (!phaseId) {
+    return false;
+  }
+
+  const ratio =
+    getForcedPhaseHealthRatio(
+      boss,
+      phaseId,
+    );
+
+  if (
+    ratio == null ||
+    !boss.maxHealth
+  ) {
+    return false;
+  }
+
+  boss.health =
+    Math.max(
+      1,
+      boss.maxHealth *
+        ratio,
+    );
+
+  if (boss.ai) {
+    boss.ai.phaseId = null;
+
+    boss.ai.updatePhase({
+      world,
+      player,
+    });
+
+    // Re-enter idle after the phase is known so phase-dependent attack-delay
+    // setup (such as Monolith's fast Phase 3 cadence) is correct immediately.
+    if (
+      boss.ai.states?.has(
+        'idle',
+      )
+    ) {
+      boss.ai.stateName = null;
+      boss.ai.stateTime = 0;
+
+      boss.ai.changeState(
+        'idle',
+        {
+          world,
+          player,
+        },
+      );
+    }
+  }
+
+  return true;
+}
+
 let debugAttackNames = (() => {
   try {
     return (
@@ -822,6 +979,109 @@ function registerDeveloperCommands() {
               ? 'on'
               : 'off'
           )
+        );
+      },
+    },
+  );
+
+  devConsole.register(
+    'setphase',
+    {
+      description:
+        'force a boss to spawn in a chosen phase for debugging',
+      usage:
+        'setphase <boss> <p1|p2|p3|off>',
+      execute: ({ args }) => {
+        const boss =
+          getDeveloperBoss(
+            args[0],
+          );
+
+        if (!boss) {
+          throw new Error(
+            'usage: setphase <prologue|matrix|monolith> <p1|p2|p3|off>',
+          );
+        }
+
+        const requested =
+          args[1]
+            ?.toLowerCase();
+
+        if (!requested) {
+          const current =
+            forcedBossPhases.get(
+              boss.name,
+            );
+
+          return current
+            ? `${boss.name} forced to ${current}.`
+            : `${boss.name} phase override: off.`;
+        }
+
+        if (
+          requested === 'off' ||
+          requested === 'normal' ||
+          requested === 'none'
+        ) {
+          forcedBossPhases.delete(
+            boss.name,
+          );
+
+          prepareEncounter(
+            boss,
+          );
+
+          return (
+            `${boss.name} phase override disabled; ` +
+            'encounter restarted normally.'
+          );
+        }
+
+        const phaseId =
+          normalizePhaseReference(
+            requested,
+          );
+
+        const valid =
+          phaseId &&
+          boss.ai?.phases
+            ?.some(
+              phase =>
+                phase.id === phaseId,
+            );
+
+        if (!valid) {
+          const available =
+            (
+              boss.ai?.phases ??
+              []
+            )
+              .map(
+                phase =>
+                  phase.id.replace(
+                    'phase',
+                    'p',
+                  ),
+              )
+              .join('|');
+
+          throw new Error(
+            `available phases for ${boss.name}: ${available || 'none'}`,
+          );
+        }
+
+        forcedBossPhases.set(
+          boss.name,
+          phaseId,
+        );
+
+        prepareEncounter(
+          boss,
+        );
+
+        return (
+          `${boss.name} forced to ${phaseId}; ` +
+          'encounter restarted.'
         );
       },
     },
@@ -2607,6 +2867,10 @@ function update(dt) {
     extraSystem.reset();
     refreshExtraButtons();
     activeBoss?.reset?.(world);
+
+    applyForcedBossPhase(
+      activeBoss,
+    );
   }
 
   const activeWeaponId =
@@ -3694,6 +3958,9 @@ function prepareEncounter(boss) {
   playerImpactFxCooldown = 0;
 
   boss.reset(world);
+  applyForcedBossPhase(
+    boss,
+  );
   activeBoss = boss;
   bossStaggerSystem.reset(
     boss,
