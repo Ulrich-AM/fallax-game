@@ -103,6 +103,8 @@ export class MachWeapon {
     this.name = 'Mach';
 
     this.baseDamage = 15;
+    this.fractureBuildup = 5;
+    this.specialFractureBuildup = 22;
     this.minDamageMultiplier = 0.24;
     this.fireCooldown = 0.16;
     this.cooldownTimer = 0;
@@ -200,6 +202,9 @@ export class MachWeapon {
     firing,
     target,
     active = true,
+    {
+      resolveHit = null,
+    } = {},
   ) {
     this.cooldownTimer = Math.max(
       0,
@@ -250,7 +255,12 @@ export class MachWeapon {
       wave.radius += wave.speed * dt;
 
       if (!wave.hitTarget && target && !target.dead) {
-        this.tryHitTarget(wave, target);
+        this.tryHitTarget(
+          wave,
+          target,
+          player,
+          resolveHit,
+        );
       }
     }
 
@@ -317,7 +327,12 @@ export class MachWeapon {
     });
   }
 
-  tryHitTarget(wave, target) {
+  tryHitTarget(
+    wave,
+    target,
+    player,
+    resolveHit,
+  ) {
     const dx = target.x - wave.x;
     const dy = target.y - wave.y;
     const distance = Math.hypot(dx, dy);
@@ -357,9 +372,57 @@ export class MachWeapon {
       (1 - this.minDamageMultiplier) *
         travelRatio;
 
-    target.takeDamage?.(
-      wave.damage * multiplier,
-    );
+    const damage =
+      wave.damage *
+      multiplier;
+
+    const fracture =
+      (
+        wave.special
+          ? this
+              .specialFractureBuildup
+          : this
+              .fractureBuildup
+      ) *
+      multiplier;
+
+    if (
+      typeof resolveHit ===
+      'function'
+    ) {
+      resolveHit(
+        target,
+        {
+          damage,
+          buildup: {
+            fracture,
+          },
+          source:
+            wave.special
+              ? 'mach-screech'
+              : 'mach-wave',
+          attacker:
+            player,
+        },
+      );
+    } else {
+      target.takeDamage?.(
+        damage,
+      );
+
+      target.status
+        ?.addBuildup
+        ?.(
+          'fracture',
+          fracture,
+          {
+            source:
+              wave.special
+                ? 'mach-screech'
+                : 'mach-wave',
+          },
+        );
+    }
 
     wave.hitTarget = true;
   }
