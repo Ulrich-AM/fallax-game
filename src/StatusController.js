@@ -689,6 +689,8 @@ export class StatusController {
         active,
         activeTimer:
           state.activeTimer,
+        activeDuration:
+          definition.activeDuration,
         buildup:
           state.buildup,
         threshold:
