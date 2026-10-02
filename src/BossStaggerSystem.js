@@ -81,10 +81,21 @@ export class BossStaggerSystem {
       return false;
     }
 
+    const statusMultiplier =
+      this.boss
+        ?.status
+        ?.getModifier
+        ?.(
+          'staggerTakenMultiplier',
+          1,
+        ) ??
+      1;
+
     const added =
       Math.max(
         0,
-        amount,
+        amount *
+          statusMultiplier,
       );
 
     this.stagger =
