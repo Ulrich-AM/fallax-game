@@ -5207,6 +5207,7 @@ export class MonolithBoss {
 
           owner.spawnCrawlShockwave(
             -owner.crawlDirection,
+            world.floorY - 22,
           );
 
           owner.takeDamage(18);
@@ -5987,6 +5988,14 @@ export class MonolithBoss {
 
     if (
       state.startsWith(
+        'crawl',
+      )
+    ) {
+      return 'CRAWL';
+    }
+
+    if (
+      state.startsWith(
         'piledriver',
       )
     ) {
@@ -6614,6 +6623,134 @@ export class MonolithBoss {
     }
   }
 
+  spawnCrawlShockwave(
+    direction,
+    y,
+  ) {
+    this.crawlShockwaves.push({
+      x:
+        this.crawlWallImpactX,
+      y,
+      direction:
+        direction >= 0
+          ? 1
+          : -1,
+      radius: 18,
+      previousRadius: 18,
+      speed: 820,
+      maxRadius: 1180,
+      thickness: 34,
+      hitPlayer: false,
+    });
+  }
+
+  updateCrawlShockwaves(
+    dt,
+    context,
+  ) {
+    const target =
+      context?.player;
+
+    for (
+      const wave
+      of this.crawlShockwaves
+    ) {
+      wave.previousRadius =
+        wave.radius;
+
+      wave.radius +=
+        wave.speed * dt;
+
+      if (
+        wave.hitPlayer ||
+        !target ||
+        target.dead
+      ) {
+        continue;
+      }
+
+      const forwardDistance =
+        (
+          target.x -
+          wave.x
+        ) *
+        wave.direction;
+
+      if (
+        forwardDistance < 0
+      ) {
+        continue;
+      }
+
+      const halfH =
+        (target.h ?? 56) / 2;
+
+      // The wall pulse hugs the floor and can be jumped cleanly.
+      if (
+        target.y +
+        halfH <
+        wave.y - 112
+      ) {
+        continue;
+      }
+
+      const targetRadius =
+        Math.max(
+          18,
+          (target.w ?? 32) *
+            0.55,
+        );
+
+      const inner =
+        Math.max(
+          0,
+          wave.previousRadius -
+          wave.thickness -
+          targetRadius,
+        );
+
+      const outer =
+        wave.radius +
+        wave.thickness +
+        targetRadius;
+
+      if (
+        forwardDistance <
+          inner ||
+        forwardDistance >
+          outer
+      ) {
+        continue;
+      }
+
+      const damaged =
+        target.takeDamage?.(
+          20,
+        );
+
+      if (damaged !== false) {
+        target.vx =
+          wave.direction * 560;
+
+        target.vy = -300;
+        target.grounded = false;
+
+        wave.hitPlayer = true;
+
+        context
+          ?.shakeCamera
+          ?.(4.8, 0.09);
+      }
+    }
+
+    this.crawlShockwaves =
+      this.crawlShockwaves.filter(
+        wave =>
+          wave.radius <
+          wave.maxRadius,
+      );
+  }
+
   reset(world) {
     this.health = this.maxHealth;
     this.dead = false;
@@ -6653,6 +6790,13 @@ export class MonolithBoss {
       null;
     this.piledriverImpactDone =
       false;
+    this.crawlActive = false;
+    this.crawlElapsed = 0;
+    this.crawlReachCooldown = 0;
+    this.crawlGrabbedTarget =
+      null;
+    this.crawlShockwaves.length =
+      0;
 
     this.ai.stateName = null;
     this.ai.stateTime = 0;
@@ -6693,6 +6837,11 @@ export class MonolithBoss {
     );
 
     this.updateGroundThrownTarget(
+      dt,
+      context,
+    );
+
+    this.updateCrawlShockwaves(
       dt,
       context,
     );
@@ -7400,9 +7549,99 @@ export class MonolithBoss {
     ctx,
     cameraX,
   ) {
-    // Grappler attacks are represented by Monolith's actual animated arms.
-    // Keep this hook for future dust/impact effects, but avoid surrogate
-    // tether lines or floor guide rectangles that disconnect visuals from hitboxes.
+    if (
+      !this.crawlShockwaves.length
+    ) {
+      return;
+    }
+
+    ctx.save();
+    ctx.lineCap = 'square';
+
+    for (
+      const wave
+      of this.crawlShockwaves
+    ) {
+      const ratio =
+        clamp(
+          wave.radius /
+          wave.maxRadius,
+          0,
+          1,
+        );
+
+      const alpha =
+        0.62 *
+        (
+          1 -
+          ratio * 0.78
+        );
+
+      const angle =
+        wave.direction > 0
+          ? 0
+          : Math.PI;
+
+      const halfAngle =
+        Math.PI * 0.22;
+
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth =
+        Math.max(
+          4,
+          13 -
+          ratio * 7,
+        );
+
+      ctx.beginPath();
+      ctx.arc(
+        Math.round(
+          wave.x -
+          cameraX,
+        ),
+        Math.round(
+          wave.y,
+        ),
+        wave.radius,
+        angle -
+          halfAngle,
+        angle +
+          halfAngle,
+      );
+      ctx.stroke();
+
+      if (
+        wave.radius > 28
+      ) {
+        ctx.globalAlpha =
+          alpha * 0.34;
+
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(
+          Math.round(
+            wave.x -
+            cameraX,
+          ),
+          Math.round(
+            wave.y,
+          ),
+          Math.max(
+            0,
+            wave.radius - 18,
+          ),
+          angle -
+            halfAngle,
+          angle +
+            halfAngle,
+        );
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
   }
 
   draw(
@@ -7553,6 +7792,10 @@ export class MonolithBoss {
       this.grabbedTarget = null;
       this.dropCatchGrabbedTarget =
         null;
+      this.crawlGrabbedTarget =
+        null;
+      this.crawlShockwaves.length =
+        0;
       this.throwState = null;
       this.groundThrowState = null;
     }
