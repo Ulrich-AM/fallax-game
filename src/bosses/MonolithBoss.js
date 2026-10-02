@@ -765,7 +765,9 @@ export class MonolithBoss {
     this.animationDuration = 2.4;
     this.animationFrameRate = 12;
     this.armRasterAngleStep = 8;
-    this.armAnimationFrameStride = 2;
+    // Arms are already driven procedurally. Keep their authored idle raster at
+    // one reference frame so aim changes do not multiply against 29 idle frames.
+    this.armAnimationFrameIndex = 0;
 
     // Monolith used to cache the entire combined pose. A single arm angle
     // change therefore invalidated and rebuilt the head plus both arms.
@@ -7841,20 +7843,12 @@ export class MonolithBoss {
       );
 
     const armFrameIndex =
-      frameIndex -
-      (
-        frameIndex %
-        this.armAnimationFrameStride
-      );
+      this.armAnimationFrameIndex;
 
     const armEvaluation =
-      armFrameIndex ===
-      frameIndex
-        ? evaluation
-        : this
-            .getAnimationEvaluation(
-              armFrameIndex,
-            );
+      this.getAnimationEvaluation(
+        armFrameIndex,
+      );
 
     const head =
       this.getCachedGroupFrame(
