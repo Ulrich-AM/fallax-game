@@ -254,13 +254,8 @@ export class AnchorWeapon {
     this.barbedReadyTimer = 0;
     this.barbedTipScale = 1.65;
     this.barbedProjectileDamage = 18;
+    this.barbedBleedBuildup = 80;
     this.barbedTensionMultiplier = 1.35;
-
-    this.bleedDuration = 6;
-    this.bleedDps = 7;
-    this.bleedTimer = 0;
-    this.bleedTarget = null;
-    this.bleedVisualTime = 0;
 
     this.wasFiring = false;
 
@@ -292,9 +287,6 @@ export class AnchorWeapon {
       this.specialCooldown;
 
     this.barbedReadyTimer = 0;
-    this.bleedTimer = 0;
-    this.bleedTarget = null;
-    this.bleedVisualTime = 0;
     this.wasFiring = false;
 
     this.projectile = null;
@@ -589,13 +581,6 @@ export class AnchorWeapon {
 
     this.projectile = null;
 
-    if (barbed) {
-      this.bleedTarget =
-        target;
-
-      this.bleedTimer =
-        this.bleedDuration;
-    }
   }
 
   attachSurface(
@@ -843,6 +828,9 @@ export class AnchorWeapon {
     target,
     artPixelSize,
     active = true,
+    {
+      resolveHit = null,
+    } = {},
   ) {
     this.fireTimer =
       Math.max(
@@ -866,30 +854,6 @@ export class AnchorWeapon {
         this.barbedReadyTimer -
           dt,
       );
-
-    this.bleedTimer =
-      Math.max(
-        0,
-        this.bleedTimer -
-          dt,
-      );
-
-    this.bleedVisualTime += dt;
-
-    if (
-      this.bleedTimer <= 0 ||
-      !this.bleedTarget ||
-      this.bleedTarget.dead
-    ) {
-      this.bleedTarget =
-        null;
-    } else {
-      this.bleedTarget
-        .takeDamage?.(
-          this.bleedDps *
-          dt,
-        );
-    }
 
     const firePressed =
       active &&
@@ -960,11 +924,54 @@ export class AnchorWeapon {
           6,
         )
       ) {
-        target.takeDamage?.(
+        const damage =
           projectile.barbed
             ? this.barbedProjectileDamage
-            : this.projectileDamage,
-        );
+            : this.projectileDamage;
+
+        if (
+          typeof resolveHit ===
+          'function'
+        ) {
+          resolveHit(
+            target,
+            {
+              damage,
+              buildup:
+                projectile.barbed
+                  ? {
+                      bleed:
+                        this.barbedBleedBuildup,
+                    }
+                  : {},
+              source:
+                projectile.barbed
+                  ? 'anchor-barbed'
+                  : 'anchor',
+              attacker:
+                player,
+            },
+          );
+        } else {
+          target.takeDamage?.(
+            damage,
+          );
+
+          if (
+            projectile.barbed
+          ) {
+            target.status
+              ?.addBuildup
+              ?.(
+                'bleed',
+                this.barbedBleedBuildup,
+                {
+                  source:
+                    'anchor-barbed',
+                },
+              );
+          }
+        }
 
         this.attachBoss(
           target,
@@ -1257,108 +1264,6 @@ export class AnchorWeapon {
           ? this.barbedTipScale
           : 1,
       );
-    }
-
-    if (
-      this.bleedTarget &&
-      this.bleedTimer > 0
-    ) {
-      const target =
-        this.bleedTarget;
-
-      const pulse =
-        0.5 +
-        0.5 *
-        Math.sin(
-          this.bleedVisualTime *
-          14,
-        );
-
-      const radius =
-        (
-          target.hitRadius ??
-          Math.max(
-            target.w ?? 40,
-            target.h ?? 40,
-          ) * 0.5
-        ) +
-        18 +
-        pulse * 10;
-
-      ctx.save();
-
-      ctx.globalAlpha =
-        0.35 +
-        pulse * 0.35;
-
-      ctx.strokeStyle =
-        '#ff4655';
-
-      ctx.lineWidth =
-        3 +
-        pulse * 2;
-
-      ctx.strokeRect(
-        target.x -
-          cameraX -
-          radius,
-        target.y -
-          radius,
-        radius * 2,
-        radius * 2,
-      );
-
-      ctx.fillStyle =
-        '#ff4655';
-
-      for (
-        let i = 0;
-        i < 4;
-        i++
-      ) {
-        const angle =
-          this.bleedVisualTime *
-            2.2 +
-          i *
-            Math.PI *
-            0.5;
-
-        const distance =
-          radius *
-          (
-            0.55 +
-            0.25 *
-            Math.sin(
-              this.bleedVisualTime *
-                5 +
-              i,
-            )
-          );
-
-        const size =
-          4 +
-          (i % 2) * 2;
-
-        ctx.fillRect(
-          Math.round(
-            target.x -
-            cameraX +
-            Math.cos(angle) *
-              distance -
-            size / 2,
-          ),
-          Math.round(
-            target.y +
-            Math.sin(angle) *
-              distance -
-            size / 2,
-          ),
-          size,
-          size,
-        );
-      }
-
-      ctx.restore();
     }
 
     if (!active) {
