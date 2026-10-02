@@ -4504,14 +4504,14 @@ export class MonolithBoss {
           owner.leftArmOffsetX =
             lerpValue(
               54,
-              owner.crawlDirection * 238,
+              -owner.crawlDirection * 112,
               slam,
             );
 
           owner.rightArmOffsetX =
             lerpValue(
               -54,
-              -owner.crawlDirection * 118,
+              owner.crawlDirection * 268,
               slam,
             );
 
@@ -4571,75 +4571,201 @@ export class MonolithBoss {
                 dt,
             );
 
-          const cyclePeriod = 0.60;
+          // The crawl is intentionally uneven. Each hand gets thrown far
+          // forward, slaps down, stays planted while the body is hauled past it,
+          // then recoils behind the torso. The two hands are almost, but not
+          // perfectly, half a cycle apart so the rhythm reads as frantic rather
+          // than like a mirrored walking animation.
+          const cyclePeriod = 0.48;
 
-          const cyclePhase =
+          const basePhase =
             (
-              owner.crawlElapsed %
+              owner.crawlElapsed /
               cyclePeriod
-            ) /
-            cyclePeriod;
+            ) % 1;
 
-          const phaseRadians =
-            cyclePhase *
-            Math.PI *
-            2;
-
-          const rightX =
-            60 -
-            Math.cos(
-              phaseRadians,
+          const timingWobble =
+            Math.sin(
+              owner.crawlElapsed *
+              10.7,
             ) *
-            178;
+            0.018;
 
-          const leftX =
-            60 +
-            Math.cos(
-              phaseRadians,
-            ) *
-            178;
+          const wrapPhase =
+            value =>
+              (
+                (
+                  value % 1
+                ) +
+                1
+              ) % 1;
 
-          const rightLift =
-            Math.max(
-              0,
-              Math.sin(
-                phaseRadians,
-              ),
+          const handPose =
+            phase => {
+              const p =
+                wrapPhase(phase);
+
+              // Fast desperate throw forward.
+              if (p < 0.28) {
+                const t =
+                  easeOutCubic(
+                    p / 0.28,
+                  );
+
+                return {
+                  x:
+                    lerpValue(
+                      -125,
+                      270,
+                      t,
+                    ),
+                  lift:
+                    Math.sin(
+                      t * Math.PI,
+                    ),
+                  grip: 0,
+                  impact: 0,
+                };
+              }
+
+              // Palm slaps down hard.
+              if (p < 0.38) {
+                const t =
+                  smoothStep01(
+                    (
+                      p - 0.28
+                    ) /
+                    0.10,
+                  );
+
+                return {
+                  x:
+                    lerpValue(
+                      270,
+                      258,
+                      t,
+                    ),
+                  lift:
+                    (
+                      1 - t
+                    ) *
+                    0.18,
+                  grip: t,
+                  impact:
+                    Math.sin(
+                      t * Math.PI,
+                    ),
+                };
+              }
+
+              // Hand stays planted while Monolith drags himself past it.
+              if (p < 0.77) {
+                const t =
+                  smoothStep01(
+                    (
+                      p - 0.38
+                    ) /
+                    0.39,
+                  );
+
+                return {
+                  x:
+                    lerpValue(
+                      258,
+                      -108,
+                      t,
+                    ),
+                  lift: 0,
+                  grip:
+                    Math.sin(
+                      t * Math.PI,
+                    ),
+                  impact: 0,
+                };
+              }
+
+              // Quick recoil behind the body before immediately throwing again.
+              const t =
+                smoothStep01(
+                  (
+                    p - 0.77
+                  ) /
+                  0.23,
+                );
+
+              return {
+                x:
+                  lerpValue(
+                    -108,
+                    -125,
+                    t,
+                  ),
+                lift:
+                  Math.sin(
+                    t * Math.PI,
+                  ) *
+                  0.30,
+                grip: 0,
+                impact: 0,
+              };
+            };
+
+          const rightPose =
+            handPose(
+              basePhase +
+              0.30 +
+              timingWobble,
             );
 
-          const leftLift =
-            Math.max(
-              0,
-              -Math.sin(
-                phaseRadians,
-              ),
+          const leftPose =
+            handPose(
+              basePhase +
+              0.80 -
+              timingWobble *
+                0.72,
             );
 
           owner.crawlCatchSide =
-            rightX >=
-            leftX
+            rightPose.x >=
+            leftPose.x
               ? 'right'
               : 'left';
 
-          const pullPulse =
-            Math.sin(
-              phaseRadians,
-            ) ** 2;
+          const dominantPull =
+            Math.max(
+              rightPose.grip,
+              leftPose.grip,
+            );
 
+          const pullImbalance =
+            rightPose.grip -
+            leftPose.grip;
+
+          const impactPulse =
+            Math.max(
+              rightPose.impact,
+              leftPose.impact,
+            );
+
+          // Most forward motion happens during a planted-hand yank. This gives
+          // the body a lurching, almost falling-forward quality.
           owner.x +=
             owner.crawlDirection *
             owner.crawlSpeed *
             (
-              0.76 +
-              pullPulse * 0.34
+              0.54 +
+              dominantPull * 0.92 +
+              impactPulse * 0.12
             ) *
             dt;
 
           owner.y =
             owner.crawlGroundY +
-            Math.sin(
-              phaseRadians *
-              2,
+            dominantPull * 9 +
+            impactPulse * 5 -
+            (
+              rightPose.lift +
+              leftPose.lift
             ) *
             4;
 
@@ -4666,10 +4792,10 @@ export class MonolithBoss {
           const rightForward =
             clamp(
               (
-                rightX +
-                118
+                rightPose.x +
+                125
               ) /
-              356,
+              395,
               0,
               1,
             );
@@ -4677,53 +4803,104 @@ export class MonolithBoss {
           const leftForward =
             clamp(
               (
-                leftX +
-                118
+                leftPose.x +
+                125
               ) /
-              356,
+              395,
               0,
               1,
             );
 
+          const handJitter =
+            Math.sin(
+              owner.crawlElapsed *
+              24.0,
+            ) *
+            4;
+
           owner.rightArmOverride =
             lerpValue(
-              34,
-              2,
+              48,
+              -7,
               rightForward,
-            );
+            ) -
+            rightPose.impact * 10;
 
           owner.rightArmOffsetX =
             owner.crawlDirection *
-            rightX;
+            (
+              rightPose.x +
+              handJitter *
+              rightPose.lift
+            );
 
           owner.rightArmOffsetY =
             rightFloor -
-            rightLift * 88;
+            rightPose.lift * 118 +
+            rightPose.impact * 12;
 
           owner.leftArmOverride =
             lerpValue(
-              -34,
-              -2,
+              -48,
+              7,
               leftForward,
-            );
+            ) +
+            leftPose.impact * 10;
 
           owner.leftArmOffsetX =
             owner.crawlDirection *
-            leftX;
+            (
+              leftPose.x -
+              handJitter *
+              leftPose.lift
+            );
 
           owner.leftArmOffsetY =
             leftFloor -
-            leftLift * 88;
+            leftPose.lift * 118 +
+            leftPose.impact * 12;
+
+          // Torso and head lag behind whichever planted arm is doing the pull.
+          owner.bodyRotation =
+            clamp(
+              owner.crawlDirection *
+              (
+                pullImbalance * 8.5 +
+                Math.sin(
+                  owner.crawlElapsed *
+                  15.5,
+                ) *
+                1.5
+              ),
+              -11,
+              11,
+            );
 
           owner.headOffsetX =
             -owner.crawlDirection *
-            Math.sin(
-              phaseRadians,
-            ) *
-            8;
+            (
+              pullImbalance * 17 +
+              Math.sin(
+                owner.crawlElapsed *
+                19.0,
+              ) *
+              3
+            );
 
           owner.headOffsetY =
-            pullPulse * 7;
+            dominantPull * 10 -
+            (
+              rightPose.lift +
+              leftPose.lift
+            ) *
+            5 +
+            Math.abs(
+              Math.sin(
+                owner.crawlElapsed *
+                21.0,
+              )
+            ) *
+            2;
 
           if (
             target &&
