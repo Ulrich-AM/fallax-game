@@ -118,6 +118,7 @@ export class WeaponRuntime {
     target,
     artPixel,
     activeId,
+    resolveHit = null,
   }) {
     const active =
       id =>
@@ -196,6 +197,9 @@ export class WeaponRuntime {
           target,
           artPixel,
           active(id),
+          {
+            resolveHit,
+          },
         );
     }
 
