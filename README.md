@@ -1,36 +1,40 @@
-# fallax
+# Fallax
 
-**Fallax** is a browser-based pixel-art boss rush game built with vanilla JavaScript and the HTML Canvas API.
+**Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-The project is actively in development. The current build includes movement-focused combat, multiple weapons and abilities, equipment and shop scaffolding, music and sound effects, two playable bosses, and internal tools for building and testing sprite assets.
+Current reference build: **v72ca**
 
-## Play locally
+The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
+
+For a deeper development handoff and current architecture notes, see **PROJECT_CONTEXT.md**.
+
+## Running the game
 
 Fallax has no build step and no package dependencies.
 
-From the repository folder, start a local HTTP server:
+From the repository folder:
 
-```powershell
+~~~powershell
 py -m http.server 8000
-```
+~~~
 
-If `py` is unavailable:
+or:
 
-```powershell
+~~~powershell
 python -m http.server 8000
-```
+~~~
 
 Then open:
 
-```text
+~~~text
 http://localhost:8000
-```
+~~~
 
-The `main` branch is also deployed automatically with GitHub Pages.
+The **main** branch is also deployed automatically through GitHub Pages.
 
 ## Controls
 
-Default controls can be rebound from the in-game settings menu.
+Controls can be rebound in the in-game settings menu.
 
 | Action | Default |
 | --- | --- |
@@ -38,198 +42,380 @@ Default controls can be rebound from the in-game settings menu.
 | Jump | Space |
 | Sprint | Left Shift |
 | Dash | F |
-| Fire | Left Mouse Button |
+| Fire | Left Mouse |
+| Guard / parry | Right Mouse |
 | Weapon special | Q |
-| Weapon slot 1 | 1 |
-| Weapon slot 2 | 2 |
+| Weapon slots | 1 / 2 |
+| Extra slots | 3 / 4 |
 | Restart encounter | R |
 | Menu / back | Esc |
 | Developer console | ~ |
 
-The dash aims toward the mouse rather than only moving horizontally.
+The dash aims toward the mouse and grants a short invulnerability window.
 
-## Movement
+## Simulation and rendering
 
-Player movement uses a fixed 120 Hz simulation and currently includes:
+Gameplay runs on a fixed:
 
+~~~text
+120 Hz simulation
+~~~
+
+Rendering is tied to the browser animation frame rate.
+
+The game uses Canvas 2D with image smoothing disabled. Pixel-art sprites are built from procedural geometry and rasterized/cached for performance.
+
+Movement tuning is centralized in **src/movementConfig.js**.
+
+## Combat systems
+
+### Movement
+
+The player currently has:
 - acceleration-based ground and air movement
-- stamina-limited sprinting
-- mouse-directed blink dash
-- coyote time
-- jump buffering
+- sprinting and stamina
+- jump buffering and coyote time
 - variable jump height
-- softer gravity near the jump apex
-- stronger fall gravity
-- momentum retention
+- softer apex gravity / stronger fall gravity
+- mouse-directed dash
 - dash invulnerability
+- momentum retention
 - landing squash and dash afterimages
 
-Movement tuning values are centralized in `src/movementConfig.js`.
+### Guard / parry
 
-## Weapons
+**src/GuardSystem.js** handles right-mouse guarding, parry timing, stability, guard breaks, and incoming rush interception.
 
-Four weapons are currently implemented:
+Bosses may receive a guarded proxy instead of the raw player object, so boss code should respect the combat context instead of assuming every target is a plain PlayerController.
 
-### Vector
-A compact burst-fire projectile weapon with a rapid volley special.
+### Boss stagger
 
-### Euclid
-A sustained precision beam. Its special greatly increases damage and beam width while limiting turn speed.
+**src/BossStaggerSystem.js** tracks stagger buildup, decay, break windows, and status modifiers.
 
-### Horizon
-A heavy precision weapon with strong recoil. Its special launches a large homing projectile.
+Stagger and Fracture are separate systems:
+- **Stagger** is an immediate combat resource.
+- **Fracture** is a status buildup that can make later stagger more effective.
 
-### Mach
-A pressure-wave weapon whose attacks push the player through recoil. Its special emits powerful radial waves.
+## Status effects
 
-Weapons can also damage or destroy certain boss projectiles.
+The shared status architecture is implemented through:
 
-## Abilities
+~~~text
+src/StatusEffects.js
+src/StatusController.js
+src/CombatResolver.js
+src/CombatModifiers.js
+~~~
 
-Two movement-linked abilities currently exist:
+Current effects:
+- **Fracture**
+- **Bleed**
+- **Burn**
+- **Poison**
+- **Fatigue**
 
-### Backfire
-Dashing fires a spread of bullets behind the player in exchange for a longer dash cooldown.
+Effects use buildup, thresholds, active durations, susceptibility/resistance, and reusable modifiers instead of weapon-specific timers.
 
-### Strike
-A nearly vertical upward dash that intersects a boss becomes a high-damage melee strike.
+Current normal-game examples:
+- Strike -> Fracture
+- Anchor barbed special -> Bleed
+- Mach -> Fracture
+- Backfire -> Burn
+- Monolith heavy slams -> Fracture on the player
+- Monolith throws/grabs -> Fatigue on the player
+
+Poison is implemented and testable, but is intentionally waiting for a fitting weapon/source instead of being assigned arbitrarily.
+
+Status-related item stats are colored yellow in tooltips.
+
+## Equipment
+
+Current weapons:
+- Vector
+- Euclid
+- Horizon
+- Mach
+- Relay
+- Parallax
+- Anchor
+- Kepler
+
+Abilities:
+- Backfire
+- Strike
+
+Extras:
+- Turret
+- Decoy
+
+Armor:
+- Carapace
+
+The equipment architecture supports outgoing status buildup modifiers and incoming status susceptibility modifiers.
+
+Example:
+
+~~~text
+Carapace
+-25% Fracture susceptibility
++10% Poison susceptibility
+~~~
 
 ## Bosses
 
-The first chapter, **Genesis**, currently contains two playable encounters.
+Boss behavior is built on the reusable state machine in **src/bosses/BossAI.js**.
 
 ### Prologue
-A multi-phase boss built around movement, smashing attacks, satellites, projectile barrages, pursuit attacks, and wall impacts.
+
+A multi-phase movement/pursuit boss with:
+- smashing attacks
+- satellites
+- projectile barrages
+- pursuit/rush attacks
+- wall interactions
+
+Status profile:
+- slightly resistant to Fracture
+- vulnerable to Bleed and Poison
+- mildly resistant to Burn
+- neutral to Fatigue
 
 ### Matrix
-A projectile-focused boss with shell movement, bullet swirls, orbiting shots, burst patterns, bouncing projectiles, and compression attacks.
 
-Boss behavior is built on the reusable state-machine helpers in `src/bosses/BossAI.js`.
+A projectile-focused boss with:
+- shell movement
+- orbiting projectiles
+- bullet swirls
+- bursts
+- bouncing projectiles
+- compression attacks
 
-## Equipment, shop, and economy
+Status profile:
+- resistant to Fracture
+- immune to Bleed
+- immune to Poison
+- vulnerable to Burn
+- resistant to Fatigue
 
-The current equipment system has slots for:
+### Monolith
 
-- weapons
-- abilities
-- extra items
-- armor
+The introductory **grappler archetype**.
 
-Winning an encounter awards **denarius**. Currency is saved locally in the browser.
+Important rules:
+- 1500 max HP
+- only the **head** is damageable
+- three phases
+- phase separators are visible on the boss HP bar
 
-The shop is still prototype functionality and all items are currently free. Owned items and equipped loadouts are not yet persisted between page reloads.
+Phase 1:
+- Lariat
+- Command Grab -> Wall Toss
+- Ground Sweep
+
+Phase 2 adds:
+- Piledriver
+- Drop Catch
+
+Phase 3:
+- faster attack-decision cadence
+- all earlier attacks
+- Crawl
+
+#### Crawl
+
+Crawl uses endpoint-IK-like planted hand targets:
+- hands target real floor points
+- one hand plants while the other reaches forward
+- Monolith's body trails low behind the hands
+- the body is dragged toward the planted point
+- Crawl can threaten grounded and airborne players
+- dash invulnerability can evade the reach
+- a dash/failed catch enters a whiff recovery
+- a full miss ends in a wall crash and shockwave
+- the wall crash deals small self-damage and self-stagger
+
+As of v72ca, Crawl is faster and its wall-impact animation blends smoothly from the collision pose into normal recovery.
+
+## Telegraphs
+
+**src/AttackTelegraphSystem.js** draws translucent red polygon warning marks and target indicators.
+
+Telegraphs are used for sudden/committed attacks such as:
+- Prologue satellite punch
+- Monolith Command Grab
+- Piledriver
+- Lariat
+
+The warning system is designed so future upgrades can increase warning lead time without rewriting attacks.
+
+## HUD
+
+The HUD currently includes:
+- player health
+- stamina
+- guard stability
+- weapon special information
+- compact player status bars
+- boss HP
+- boss stagger
+- boss phase label
+- boss phase separator lines
+- compact boss status bars
+
+Player and boss compact status bars use the same size and are placed to the right of their main bar groups to reduce clutter.
 
 ## Audio
 
-Fallax currently includes:
-
-- main-menu music
+**src/AudioManager.js** handles:
+- menu music
 - boss themes
 - weapon sounds
 - impact sounds
-- button hover sounds
+- UI audio
 
-Rapid one-shot effects use fixed audio pools and minimum playback intervals to avoid creating a new audio element for every projectile.
+Music looping uses decoded Web Audio buffers and sample-accurate loops to avoid the audible gaps caused by ordinary HTML-audio looping.
 
-## Visual effects and accessibility settings
+Rapid one-shot effects use reusable playback pools / throttling instead of continuously creating new audio elements.
 
-The settings menu can independently disable:
+## Developer console
 
-- screen shake
-- particles
-- boss hit flashes
-- impact camera feedback
+Press **~** to open the console.
 
-Control bindings and visual-effect preferences are saved with `localStorage`.
+Useful commands include:
+
+~~~text
+help
+debug.attacks on
+debug.attacks off
+
+setphase monolith p1
+setphase monolith p2
+setphase monolith p3
+setphase monolith off
+
+status.add player bleed 100
+status.add boss fracture 100
+status.clear player
+status.clear boss
+
+items
+give.denarii
+set.denarii
+give.telos
+set.telos
+~~~
+
+**setphase** can be used with bosses that expose the requested phase. Phase overrides persist across encounter restarts until disabled.
 
 ## Internal development tools
 
-Fallax contains several tools used during development.
-
-### Developer console
-Press `~` to open the console. It provides registered debugging and development commands.
-
 ### Sprite editor
-The in-game sprite editor supports:
 
-- polygon-based sprite construction
+The in-game sprite editor supports:
+- polygon-based construction
 - materials
-- layers and grouping
+- layers/groups
 - snapping and symmetry
 - undo / redo
-- weapon pivot and muzzle markers
-- JSON import / export
+- weapon markers
+- JSON import/export
 - animation clips and keyframes
 - glow and rotation previews
 
-Sprite drafts are stored locally in the browser.
+Sprite-editor JSON is treated as a first-class authoring format.
 
 ### Weapon test room
-Weapon sprite assets can be opened in a blank test room with normal movement and mouse aiming for quick iteration.
 
-## Project structure
+Weapon sprite assets can be opened in a blank movement/aiming room for iteration without running a full boss encounter.
 
-```text
+## Project architecture
+
+~~~text
 index.html
 style.css
 audio/
 assets/
-└── fonts/
 
 src/
 ├── main.js
 ├── PlayerController.js
 ├── movementConfig.js
+├── GuardSystem.js
+├── BossStaggerSystem.js
+│
+├── StatusEffects.js
+├── StatusController.js
+├── CombatResolver.js
+├── CombatModifiers.js
+│
 ├── equipment.js
 ├── Economy.js
-├── AudioManager.js
-├── pixelShapes.js
+├── ExtraSystem.js
+│
+├── WeaponRuntime.js
 ├── VectorWeapon.js
 ├── EuclidWeapon.js
 ├── HorizonWeapon.js
 ├── MachWeapon.js
+├── RelayWeapon.js
+├── ParallaxWeapon.js
+├── AnchorWeapon.js
+├── KeplerWeapon.js
 ├── BackfireAbility.js
 ├── StrikeAbility.js
+│
+├── AttackTelegraphSystem.js
+├── AudioManager.js
 ├── DeveloperConsole.js
+│
+├── pixelShapes.js
 ├── SpriteAssets.js
 ├── SpriteAnimation.js
 ├── SpriteEditor.js
+├── WeaponSpriteRenderer.js
 ├── WeaponTestRoom.js
+│
 └── bosses/
     ├── BossAI.js
     ├── PrologueBoss.js
-    └── MatrixBoss.js
-```
+    ├── MatrixBoss.js
+    └── MonolithBoss.js
+~~~
 
-## Rendering and simulation
+### Architectural guidance
 
-Fallax uses the Canvas 2D API with image smoothing disabled for pixel-art rendering.
+- Keep the fixed 120 Hz simulation.
+- Prefer focused modules over making **main.js** larger.
+- Use CombatResolver / StatusController for status-aware attacks.
+- Do not reintroduce bespoke per-weapon Bleed/Burn/etc. timers.
+- Preserve Monolith's head-only damage rule.
+- Preserve dash escape behavior for grabs.
+- Preserve Monolith raster caches and recent render-performance work.
+- Test successful grab, whiff, dash escape, and wall-miss paths separately.
+- Keep telegraphs readable when tuning attack speed.
 
-Gameplay updates run on a fixed timestep:
+## Recent development milestones
 
-```text
-120 simulation updates per second
-```
+### v70
+Introduced the generic status architecture and Fracture vertical slice.
 
-Rendering remains tied to the browser's animation frame rate.
+### v71 / v71a
+Added Bleed, Burn, Poison, Fatigue, equipment modifiers, Anchor's real shared Bleed, status HUD, and status-system performance cleanup.
 
-Procedural pixel geometry is handled by `src/pixelShapes.js`, which provides reusable rectangle, polygon, grouping, outline, rotation, and rasterization helpers.
+### v72 / v72a
+Integrated effects into more weapons/boss attacks, added Genesis resistance profiles, and optimized Monolith rendering/combat hot paths.
 
-## Persistence
+### v72b
+Added compact status HUD layouts, boss HP phase separators, and sample-accurate Web Audio music loops.
 
-Currently persisted in the browser:
+### v72c
+Fixed Crawl wall-lock recovery and made Crawl grabs dash-evadable with whiff recovery.
 
-- denarius
-- control bindings
-- visual-effect settings
-- sprite-editor drafts
-
-Not yet persisted:
-
-- owned equipment
-- equipped loadouts
-- encounter progression
+### v72ca
+Increased Crawl speed again, smoothed the Crawl wall-impact recovery transition, and standardized boss/player compact status bar sizing.
 
 ## Development status
 
-Fallax is an active prototype. Systems, balance, content, UI, and internal architecture are still being expanded and revised.
+Fallax is still actively evolving, but it is no longer only a bare boss prototype. The current focus is on making combat systems interact meaningfully: boss archetypes, statuses, equipment tradeoffs, movement, parries, stagger, and telegraph timing.
+
+Before implementing a brainstormed feature, verify whether it already exists in the repository. Many older plans have changed during iteration.
