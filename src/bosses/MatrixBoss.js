@@ -1,4 +1,4 @@
-import { BossAI } from './BossAI.js?v=36';
+import { BossAI } from './BossAI.js?v=71';
 import { polygon, group, rasterize } from '../pixelShapes.js?v=36';
 
 function clamp(value, min, max) {
