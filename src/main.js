@@ -19,7 +19,7 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=71';
+} from './equipment.js?v=71a';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=63a';
@@ -35,7 +35,7 @@ import { WeaponRuntime } from './WeaponRuntime.js?v=71';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
-} from './StatusController.js?v=71';
+} from './StatusController.js?v=71a';
 import {
   resolveCombatHit,
 } from './CombatResolver.js?v=71';
@@ -73,7 +73,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v71';
+const BUILD_VERSION = 'v71a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
