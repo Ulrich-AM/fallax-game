@@ -256,6 +256,7 @@ export class AnchorWeapon {
     this.barbedProjectileDamage = 18;
     this.barbedBleedBuildup = 80;
     this.barbedTensionMultiplier = 1.35;
+    this.barbedVisualTime = 0;
 
     this.wasFiring = false;
 
@@ -287,6 +288,7 @@ export class AnchorWeapon {
       this.specialCooldown;
 
     this.barbedReadyTimer = 0;
+    this.barbedVisualTime = 0;
     this.wasFiring = false;
 
     this.projectile = null;
@@ -855,6 +857,9 @@ export class AnchorWeapon {
           dt,
       );
 
+    this.barbedVisualTime +=
+      dt;
+
     const firePressed =
       active &&
       firing &&
@@ -1309,7 +1314,7 @@ export class AnchorWeapon {
         1 +
         0.08 *
         Math.sin(
-          this.bleedVisualTime *
+          this.barbedVisualTime *
           10,
         );
 
