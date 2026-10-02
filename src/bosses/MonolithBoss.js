@@ -873,7 +873,7 @@ export class MonolithBoss {
     this.crawlGroundY = this.y;
     this.crawlStepClock = 0;
     this.crawlStepIndex = -1;
-    this.crawlStrokeDuration = 0.34;
+    this.crawlStrokeDuration = 0.29;
     this.crawlStrokeSide = 'right';
     this.crawlStrokeStartX = this.x;
     this.crawlStrokeStartY = this.y;
@@ -883,7 +883,7 @@ export class MonolithBoss {
     this.crawlLeftHandY = this.y;
     this.crawlRightHandX = this.x;
     this.crawlRightHandY = this.y;
-    this.crawlSpeed = 680;
+    this.crawlSpeed = 820;
     this.crawlGrabbedTarget = null;
     this.crawlGrabDashSerial = 0;
     this.crawlReachStartDashSerial = 0;
@@ -898,6 +898,17 @@ export class MonolithBoss {
     this.crawlCatchSide = 'right';
     this.crawlWallImpactX = this.x;
     this.crawlWallImpactY = this.y;
+    this.crawlWallStartX = this.x;
+    this.crawlWallStartY = this.y;
+    this.crawlWallStartBodyRotation = 0;
+    this.crawlWallStartHeadOffsetX = 0;
+    this.crawlWallStartHeadOffsetY = 0;
+    this.crawlWallStartLeftArmOffsetX = 0;
+    this.crawlWallStartLeftArmOffsetY = 0;
+    this.crawlWallStartRightArmOffsetX = 0;
+    this.crawlWallStartRightArmOffsetY = 0;
+    this.crawlWallStartLeftArmOverride = this.leftArmNeutral;
+    this.crawlWallStartRightArmOverride = this.rightArmNeutral;
     this.crawlWallRecovering = false;
     this.crawlShockwaves = [];
 
@@ -4864,8 +4875,8 @@ export class MonolithBoss {
             192;
 
           const followRate =
-            3.0 +
-            plantT * 16.0;
+            3.4 +
+            plantT * 18.0;
 
           const follow =
             1 -
@@ -5903,6 +5914,31 @@ export class MonolithBoss {
           owner.crawlWallRecovering =
             true;
 
+          owner.crawlWallStartX =
+            owner.x;
+          owner.crawlWallStartY =
+            owner.y;
+          owner.crawlWallStartBodyRotation =
+            owner.bodyRotation;
+          owner.crawlWallStartHeadOffsetX =
+            owner.headOffsetX;
+          owner.crawlWallStartHeadOffsetY =
+            owner.headOffsetY;
+          owner.crawlWallStartLeftArmOffsetX =
+            owner.leftArmOffsetX;
+          owner.crawlWallStartLeftArmOffsetY =
+            owner.leftArmOffsetY;
+          owner.crawlWallStartRightArmOffsetX =
+            owner.rightArmOffsetX;
+          owner.crawlWallStartRightArmOffsetY =
+            owner.rightArmOffsetY;
+          owner.crawlWallStartLeftArmOverride =
+            owner.leftArmOverride ??
+            owner.leftArmNeutral;
+          owner.crawlWallStartRightArmOverride =
+            owner.rightArmOverride ??
+            owner.rightArmNeutral;
+
           owner.spawnCrawlShockwave(
             -owner.crawlDirection,
             world.floorY - 22,
@@ -5925,7 +5961,7 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const duration = 0.72;
+          const duration = 0.82;
           const t =
             clamp(
               ai.stateTime /
@@ -5934,43 +5970,111 @@ export class MonolithBoss {
               1,
             );
 
+          const settle =
+            easeInOutSine(t);
+
+          const impactBlend =
+            easeOutCubic(
+              clamp(
+                t / 0.34,
+                0,
+                1,
+              ),
+            );
+
           const recoil =
             Math.sin(
               t * Math.PI,
             ) *
             Math.exp(
-              -2.4 * t,
+              -2.0 * t,
             );
 
+          const wallX =
+            owner.crawlDirection > 0
+              ? world.width - 155
+              : 155;
+
           owner.x =
-            (
-              owner.crawlDirection > 0
-                ? world.width - 155
-                : 155
+            lerpValue(
+              owner.crawlWallStartX,
+              wallX,
+              impactBlend,
             ) -
             owner.crawlDirection *
-            recoil * 74;
+            recoil * 68;
 
           owner.y =
-            owner.crawlGroundY -
-            recoil * 28;
+            lerpValue(
+              owner.crawlWallStartY,
+              owner.crawlGroundY,
+              settle,
+            ) -
+            recoil * 24;
 
           owner.bodyRotation =
-            -owner.crawlDirection *
-            recoil * 13;
+            lerpValue(
+              owner.crawlWallStartBodyRotation,
+              -owner.crawlDirection * 3,
+              settle,
+            ) -
+            owner.crawlDirection *
+            recoil * 9;
+
+          owner.headOffsetX =
+            lerpValue(
+              owner.crawlWallStartHeadOffsetX,
+              -owner.crawlDirection * 6,
+              settle,
+            );
+
+          owner.headOffsetY =
+            lerpValue(
+              owner.crawlWallStartHeadOffsetY,
+              4,
+              settle,
+            );
+
+          owner.leftArmOffsetX =
+            lerpValue(
+              owner.crawlWallStartLeftArmOffsetX,
+              0,
+              settle,
+            );
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              owner.crawlWallStartLeftArmOffsetY,
+              8,
+              settle,
+            );
+
+          owner.rightArmOffsetX =
+            lerpValue(
+              owner.crawlWallStartRightArmOffsetX,
+              0,
+              settle,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              owner.crawlWallStartRightArmOffsetY,
+              8,
+              settle,
+            );
 
           owner.leftArmOverride =
             lerpValue(
-              -4,
+              owner.crawlWallStartLeftArmOverride,
               owner.leftArmNeutral,
-              smoothStep01(t),
+              settle,
             );
 
           owner.rightArmOverride =
             lerpValue(
-              4,
+              owner.crawlWallStartRightArmOverride,
               owner.rightArmNeutral,
-              smoothStep01(t),
+              settle,
             );
 
           if (t >= 1) {
