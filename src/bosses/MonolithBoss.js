@@ -886,6 +886,13 @@ export class MonolithBoss {
     this.crawlSpeed = 680;
     this.crawlGrabbedTarget = null;
     this.crawlGrabDashSerial = 0;
+    this.crawlReachStartDashSerial = 0;
+    this.crawlDashGraceTimer = 0;
+    this.crawlWhiffSide = 'right';
+    this.crawlWhiffStartX = this.x;
+    this.crawlWhiffStartY = this.y;
+    this.crawlWhiffTargetX = this.x;
+    this.crawlWhiffTargetY = this.y;
     this.crawlHandX = this.x;
     this.crawlHandY = this.y;
     this.crawlCatchSide = 'right';
@@ -4404,6 +4411,7 @@ export class MonolithBoss {
           owner.crawlGrabbedTarget =
             null;
           owner.crawlReachCooldown = 0;
+          owner.crawlDashGraceTimer = 0;
           owner.crawlElapsed = 0;
 
           owner.resetPoseOffsets();
@@ -4641,6 +4649,25 @@ export class MonolithBoss {
               owner.crawlReachCooldown -
                 dt,
             );
+
+          owner.crawlDashGraceTimer =
+            Math.max(
+              0,
+              owner.crawlDashGraceTimer -
+                dt,
+            );
+
+          if (
+            target
+              ?.dashInvulnerabilityTimer >
+            0
+          ) {
+            owner.crawlDashGraceTimer =
+              Math.max(
+                owner.crawlDashGraceTimer,
+                0.42,
+              );
+          }
 
           const strokeDuration =
             owner.crawlStrokeDuration;
@@ -4976,7 +5003,14 @@ export class MonolithBoss {
           if (
             target &&
             owner.crawlReachCooldown <=
+              0 &&
+            owner.crawlDashGraceTimer <=
+              0 &&
+            !(
+              target
+                .dashInvulnerabilityTimer >
               0
+            )
           ) {
             const signedDx =
               (
@@ -5018,8 +5052,21 @@ export class MonolithBoss {
           }
 
           const wallPadding = 155;
+          const wallHandPadding = 92;
 
-          const hitWall =
+          const leadingHandAtWall =
+            owner.crawlDirection > 0
+              ? (
+                  frontHandX >=
+                  world.width -
+                    wallHandPadding
+                )
+              : (
+                  frontHandX <=
+                  wallHandPadding
+                );
+
+          const bodyAtWall =
             owner.crawlDirection > 0
               ? (
                   owner.x >=
@@ -5030,6 +5077,13 @@ export class MonolithBoss {
                   owner.x <=
                   wallPadding
                 );
+
+          const hitWall =
+            bodyAtWall ||
+            (
+              strokeT >= 0.52 &&
+              leadingHandAtWall
+            );
 
           if (hitWall) {
             owner.x =
@@ -5104,6 +5158,9 @@ export class MonolithBoss {
 
           owner.crawlHandY =
             currentHand.y;
+
+          owner.crawlReachStartDashSerial =
+            target?.dashSerial ?? 0;
         },
 
         update: (
@@ -5219,6 +5276,67 @@ export class MonolithBoss {
               ctx,
             );
 
+          const dashEvaded =
+            target &&
+            (
+              (
+                target.dashSerial ??
+                0
+              ) !==
+                owner
+                  .crawlReachStartDashSerial ||
+              target
+                .dashInvulnerabilityTimer >
+                0
+            );
+
+          if (dashEvaded) {
+            owner.crawlDashGraceTimer =
+              0.55;
+
+            owner.crawlReachCooldown =
+              0.55;
+
+            owner.crawlWhiffSide =
+              owner.crawlCatchSide;
+
+            owner.crawlWhiffStartX =
+              owner.crawlHandX;
+
+            owner.crawlWhiffStartY =
+              owner.crawlHandY;
+
+            owner.crawlWhiffTargetX =
+              owner.crawlCatchSide ===
+              'right'
+                ? owner
+                    .crawlRightHandX
+                : owner
+                    .crawlLeftHandX;
+
+            owner.crawlWhiffTargetY =
+              owner.crawlCatchSide ===
+              'right'
+                ? owner
+                    .crawlRightHandY
+                : owner
+                    .crawlLeftHandY;
+
+            target
+              .spawnGrabEscapeTrail
+              ?.(
+                owner.crawlHandX,
+                owner.crawlHandY,
+              );
+
+            ai.changeState(
+              'crawlWhiff',
+              ctx,
+            );
+
+            return;
+          }
+
           if (
             target &&
             !(
@@ -5318,7 +5436,150 @@ export class MonolithBoss {
 
           if (t >= 1) {
             owner.crawlReachCooldown =
-              0.22;
+              0.24;
+
+            owner.crawlWhiffSide =
+              owner.crawlCatchSide;
+
+            owner.crawlWhiffStartX =
+              owner.crawlHandX;
+
+            owner.crawlWhiffStartY =
+              owner.crawlHandY;
+
+            owner.crawlWhiffTargetX =
+              owner.crawlCatchSide ===
+              'right'
+                ? owner
+                    .crawlRightHandX
+                : owner
+                    .crawlLeftHandX;
+
+            owner.crawlWhiffTargetY =
+              owner.crawlCatchSide ===
+              'right'
+                ? owner
+                    .crawlRightHandY
+                : owner
+                    .crawlLeftHandY;
+
+            ai.changeState(
+              'crawlWhiff',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlWhiff', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.16;
+
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const eased =
+            smoothStep01(t);
+
+          owner.crawlHandX =
+            lerpValue(
+              owner.crawlWhiffStartX,
+              owner.crawlWhiffTargetX,
+              eased,
+            );
+
+          owner.crawlHandY =
+            lerpValue(
+              owner.crawlWhiffStartY,
+              owner.crawlWhiffTargetY,
+              eased,
+            ) -
+            Math.sin(
+              t * Math.PI,
+            ) *
+            24;
+
+          const groupId =
+            owner.crawlWhiffSide ===
+            'right'
+              ? 'group-4'
+              : 'group-3';
+
+          const reach =
+            owner.armOffsetToWorldPoint(
+              groupId,
+              owner.crawlHandX,
+              owner.crawlHandY,
+            );
+
+          const reachX =
+            clamp(
+              reach.x,
+              -520,
+              520,
+            );
+
+          const reachY =
+            clamp(
+              reach.y,
+              -500,
+              500,
+            );
+
+          const aimAngle =
+            owner.desiredArmAngleFromBase(
+              groupId,
+              {
+                x:
+                  owner.crawlHandX,
+                y:
+                  owner.crawlHandY,
+              },
+              owner.crawlWhiffSide ===
+                'right'
+                ? owner.rightArmNeutral
+                : owner.leftArmNeutral,
+            );
+
+          if (
+            owner.crawlWhiffSide ===
+            'right'
+          ) {
+            owner.rightArmOverride =
+              aimAngle;
+
+            owner.rightArmOffsetX =
+              reachX;
+
+            owner.rightArmOffsetY =
+              reachY;
+          } else {
+            owner.leftArmOverride =
+              aimAngle;
+
+            owner.leftArmOffsetX =
+              reachX;
+
+            owner.leftArmOffsetY =
+              reachY;
+          }
+
+          if (t >= 1) {
+            owner.crawlHandX =
+              owner.crawlWhiffTargetX;
+
+            owner.crawlHandY =
+              owner.crawlWhiffTargetY;
 
             ai.changeState(
               'crawlMove',
