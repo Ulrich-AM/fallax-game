@@ -2250,6 +2250,56 @@ export class MonolithBoss {
             owner.grabCaptureY =
               target.y;
 
+            owner.grabHandX =
+              target.x;
+
+            owner.grabHandY =
+              target.y;
+
+            {
+              const groupId =
+                owner.grabSide > 0
+                  ? 'group-4'
+                  : 'group-3';
+
+              const base =
+                owner.baseArmPivotWorld(
+                  groupId,
+                );
+
+              const reachX =
+                clamp(
+                  owner.grabHandX -
+                    base.x,
+                  -520,
+                  520,
+                );
+
+              const reachY =
+                clamp(
+                  owner.grabHandY -
+                    base.y,
+                  -460,
+                  460,
+                );
+
+              if (
+                owner.grabSide > 0
+              ) {
+                owner.rightArmOffsetX =
+                  reachX;
+
+                owner.rightArmOffsetY =
+                  reachY;
+              } else {
+                owner.leftArmOffsetX =
+                  reachX;
+
+                owner.leftArmOffsetY =
+                  reachY;
+              }
+            }
+
             owner.grabHoldLocalX =
               owner.grabHandX -
               owner.x;
@@ -3878,6 +3928,56 @@ export class MonolithBoss {
             owner.dropCatchDashSerial =
               target.dashSerial ?? 0;
 
+            owner.dropCatchHandX =
+              target.x;
+
+            owner.dropCatchHandY =
+              target.y;
+
+            {
+              const groupId =
+                owner.dropCatchSide > 0
+                  ? 'group-4'
+                  : 'group-3';
+
+              const base =
+                owner.baseArmPivotWorld(
+                  groupId,
+                );
+
+              const reachX =
+                clamp(
+                  owner.dropCatchHandX -
+                    base.x,
+                  -500,
+                  500,
+                );
+
+              const reachY =
+                clamp(
+                  owner.dropCatchHandY -
+                    base.y,
+                  -500,
+                  320,
+                );
+
+              if (
+                owner.dropCatchSide > 0
+              ) {
+                owner.rightArmOffsetX =
+                  reachX;
+
+                owner.rightArmOffsetY =
+                  reachY;
+              } else {
+                owner.leftArmOffsetX =
+                  reachX;
+
+                owner.leftArmOffsetY =
+                  reachY;
+              }
+            }
+
             owner.pinTargetAt(
               target,
               owner.dropCatchHandX,
@@ -4931,6 +5031,58 @@ export class MonolithBoss {
 
             owner.crawlGrabDashSerial =
               target.dashSerial ?? 0;
+
+            owner.crawlHandX =
+              target.x;
+
+            owner.crawlHandY =
+              target.y;
+
+            {
+              const groupId =
+                owner.crawlCatchSide ===
+                'right'
+                  ? 'group-4'
+                  : 'group-3';
+
+              const base =
+                owner.baseArmPivotWorld(
+                  groupId,
+                );
+
+              const reachX =
+                clamp(
+                  owner.crawlHandX -
+                    base.x,
+                  -520,
+                  520,
+                );
+
+              const reachY =
+                clamp(
+                  owner.crawlHandY -
+                    base.y,
+                  -500,
+                  500,
+                );
+
+              if (
+                owner.crawlCatchSide ===
+                'right'
+              ) {
+                owner.rightArmOffsetX =
+                  reachX;
+
+                owner.rightArmOffsetY =
+                  reachY;
+              } else {
+                owner.leftArmOffsetX =
+                  reachX;
+
+                owner.leftArmOffsetY =
+                  reachY;
+              }
+            }
 
             owner.pinTargetAt(
               target,
