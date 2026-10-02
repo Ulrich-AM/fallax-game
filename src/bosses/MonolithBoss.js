@@ -6637,8 +6637,8 @@ export class MonolithBoss {
           : -1,
       radius: 18,
       previousRadius: 18,
-      speed: 820,
-      maxRadius: 1180,
+      speed: 1100,
+      maxRadius: 2700,
       thickness: 34,
       hitPlayer: false,
     });
