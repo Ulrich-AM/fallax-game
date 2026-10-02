@@ -928,6 +928,8 @@ export class MonolithBoss {
         enter: (owner, ai) => {
           owner.clearAttackPose();
           owner.resetPoseOffsets();
+          owner.crawlWallRecovering =
+            false;
           const phase3 =
             ai.phaseId === 'phase3';
 
