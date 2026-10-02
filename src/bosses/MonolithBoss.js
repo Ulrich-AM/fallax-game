@@ -856,7 +856,17 @@ export class MonolithBoss {
     this.crawlStartY = this.y;
     this.crawlGroundY = this.y;
     this.crawlStepClock = 0;
-    this.crawlStepIndex = 0;
+    this.crawlStepIndex = -1;
+    this.crawlStrokeDuration = 0.27;
+    this.crawlStrokeSide = 'right';
+    this.crawlStrokeStartX = this.x;
+    this.crawlStrokeStartY = this.y;
+    this.crawlStrokeTargetX = this.x;
+    this.crawlStrokeTargetY = this.y;
+    this.crawlLeftHandX = this.x;
+    this.crawlLeftHandY = this.y;
+    this.crawlRightHandX = this.x;
+    this.crawlRightHandY = this.y;
     this.crawlSpeed = 520;
     this.crawlGrabbedTarget = null;
     this.crawlGrabDashSerial = 0;
@@ -4356,9 +4366,9 @@ export class MonolithBoss {
 
           owner.crawlGroundY =
             clamp(
-              world.floorY - 238,
-              world.roofY + 185,
-              world.floorY - 205,
+              world.floorY - 178,
+              world.roofY + 220,
+              world.floorY - 158,
             );
 
           owner.crawlActive = false;
@@ -4542,6 +4552,27 @@ export class MonolithBoss {
 
             owner.crawlActive = true;
             owner.crawlElapsed = 0;
+            owner.crawlStepIndex = -1;
+
+            const leftHand =
+              owner.armPivotWorld(
+                'group-3',
+              );
+
+            const rightHand =
+              owner.armPivotWorld(
+                'group-4',
+              );
+
+            owner.crawlLeftHandX =
+              leftHand.x;
+            owner.crawlLeftHandY =
+              leftHand.y;
+
+            owner.crawlRightHandX =
+              rightHand.x;
+            owner.crawlRightHandY =
+              rightHand.y;
 
             ai.changeState(
               'crawlMove',
@@ -4564,6 +4595,7 @@ export class MonolithBoss {
             );
 
           owner.crawlElapsed += dt;
+
           owner.crawlReachCooldown =
             Math.max(
               0,
@@ -4571,336 +4603,336 @@ export class MonolithBoss {
                 dt,
             );
 
-          // The crawl is intentionally uneven. Each hand gets thrown far
-          // forward, slaps down, stays planted while the body is hauled past it,
-          // then recoils behind the torso. The two hands are almost, but not
-          // perfectly, half a cycle apart so the rhythm reads as frantic rather
-          // than like a mirrored walking animation.
-          const cyclePeriod = 0.52;
+          const strokeDuration =
+            owner.crawlStrokeDuration;
 
-          const basePhase =
-            (
+          const strokeIndex =
+            Math.floor(
               owner.crawlElapsed /
-              cyclePeriod
-            ) % 1;
+              strokeDuration,
+            );
 
-          const timingWobble =
-            Math.sin(
-              owner.crawlElapsed *
-              10.7,
-            ) *
-            0.018;
-
-          const wrapPhase =
-            value =>
+          const strokeT =
+            clamp(
               (
+                owner.crawlElapsed -
+                strokeIndex *
+                strokeDuration
+              ) /
+              strokeDuration,
+              0,
+              1,
+            );
+
+          if (
+            strokeIndex !==
+            owner.crawlStepIndex
+          ) {
+            owner.crawlStepIndex =
+              strokeIndex;
+
+            owner.crawlStrokeSide =
+              strokeIndex % 2 === 0
+                ? 'right'
+                : 'left';
+
+            owner.crawlCatchSide =
+              owner.crawlStrokeSide;
+
+            const activeX =
+              owner.crawlStrokeSide ===
+              'right'
+                ? owner.crawlRightHandX
+                : owner.crawlLeftHandX;
+
+            const activeY =
+              owner.crawlStrokeSide ===
+              'right'
+                ? owner.crawlRightHandY
+                : owner.crawlLeftHandY;
+
+            owner.crawlStrokeStartX =
+              activeX;
+
+            owner.crawlStrokeStartY =
+              activeY;
+
+            const frontHandX =
+              owner.crawlDirection > 0
+                ? Math.max(
+                    owner.crawlLeftHandX,
+                    owner.crawlRightHandX,
+                  )
+                : Math.min(
+                    owner.crawlLeftHandX,
+                    owner.crawlRightHandX,
+                  );
+
+            const stridePattern =
+              [
+                286,
+                318,
+                274,
+                304,
+              ][
+                strokeIndex % 4
+              ];
+
+            owner.crawlStrokeTargetX =
+              clamp(
+                frontHandX +
+                  owner.crawlDirection *
+                  stridePattern,
+                78,
+                world.width - 78,
+              );
+
+            owner.crawlStrokeTargetY =
+              world.floorY - 66;
+          }
+
+          const reachT =
+            smoothStep01(
+              clamp(
+                strokeT / 0.62,
+                0,
+                1,
+              ),
+            );
+
+          const plantT =
+            smoothStep01(
+              clamp(
                 (
-                  value % 1
-                ) +
-                1
-              ) % 1;
+                  strokeT - 0.48
+                ) /
+                0.52,
+                0,
+                1,
+              ),
+            );
 
-          const handPose =
-            phase => {
-              const p =
-                wrapPhase(phase);
+          const lift =
+            Math.sin(
+              clamp(
+                strokeT / 0.62,
+                0,
+                1,
+              ) *
+              Math.PI,
+            );
 
-              // Fast desperate throw forward.
-              if (p < 0.36) {
-                const t =
-                  smoothStep01(
-                    p / 0.36,
-                  );
+          const handX =
+            lerpValue(
+              owner.crawlStrokeStartX,
+              owner.crawlStrokeTargetX,
+              reachT,
+            );
 
-                return {
-                  x:
-                    lerpValue(
-                      -125,
-                      270,
-                      t,
-                    ),
-                  lift:
-                    Math.sin(
-                      t * Math.PI,
-                    ),
-                  grip: 0,
-                  impact: 0,
-                };
-              }
+          const handY =
+            lerpValue(
+              owner.crawlStrokeStartY,
+              owner.crawlStrokeTargetY,
+              reachT,
+            ) -
+            lift * 104;
 
-              // Palm slaps down hard.
-              if (p < 0.46) {
-                const t =
-                  smoothStep01(
-                    (
-                      p - 0.36
-                    ) /
-                    0.10,
-                  );
+          if (
+            owner.crawlStrokeSide ===
+            'right'
+          ) {
+            owner.crawlRightHandX =
+              handX;
 
-                return {
-                  x:
-                    lerpValue(
-                      270,
-                      258,
-                      t,
-                    ),
-                  lift:
-                    (
-                      1 - t
-                    ) *
-                    0.18,
-                  grip: t,
-                  impact:
-                    Math.sin(
-                      t * Math.PI,
-                    ),
-                };
-              }
+            owner.crawlRightHandY =
+              handY;
+          } else {
+            owner.crawlLeftHandX =
+              handX;
 
-              // Hand stays planted while Monolith drags himself past it.
-              if (p < 0.82) {
-                const t =
-                  smoothStep01(
-                    (
-                      p - 0.46
-                    ) /
-                    0.36,
-                  );
+            owner.crawlLeftHandY =
+              handY;
+          }
 
-                return {
-                  x:
-                    lerpValue(
-                      258,
-                      -108,
-                      t,
-                    ),
-                  lift: 0,
-                  grip:
-                    Math.sin(
-                      t * Math.PI,
-                    ),
-                  impact: 0,
-                };
-              }
+          // Once the hand has planted, keep the endpoint nailed to the floor.
+          if (strokeT >= 0.62) {
+            if (
+              owner.crawlStrokeSide ===
+              'right'
+            ) {
+              owner.crawlRightHandX =
+                owner.crawlStrokeTargetX;
 
-              // Quick recoil behind the body before immediately throwing again.
-              const t =
-                smoothStep01(
-                  (
-                    p - 0.82
-                  ) /
-                  0.18,
+              owner.crawlRightHandY =
+                owner.crawlStrokeTargetY;
+            } else {
+              owner.crawlLeftHandX =
+                owner.crawlStrokeTargetX;
+
+              owner.crawlLeftHandY =
+                owner.crawlStrokeTargetY;
+            }
+          }
+
+          const frontHandX =
+            owner.crawlDirection > 0
+              ? Math.max(
+                  owner.crawlLeftHandX,
+                  owner.crawlRightHandX,
+                )
+              : Math.min(
+                  owner.crawlLeftHandX,
+                  owner.crawlRightHandX,
                 );
 
-              return {
-                x:
-                  lerpValue(
-                    -108,
-                    -125,
-                    t,
-                  ),
-                lift:
-                  Math.sin(
-                    t * Math.PI,
-                  ) *
-                  0.30,
-                grip: 0,
-                impact: 0,
-              };
-            };
+          // The body deliberately trails far behind the hands. It only surges
+          // once the reaching hand has found purchase on the floor.
+          const bodyTargetX =
+            frontHandX -
+            owner.crawlDirection *
+            192;
 
-          const rightPose =
-            handPose(
-              basePhase +
-              0.32 +
-              timingWobble,
+          const followRate =
+            2.4 +
+            plantT * 13.5;
+
+          const follow =
+            1 -
+            Math.exp(
+              -followRate * dt,
             );
 
-          const leftPose =
-            handPose(
-              basePhase +
-              0.82 -
-              timingWobble *
-                0.72,
+          const bodyDelta =
+            clamp(
+              (
+                bodyTargetX -
+                owner.x
+              ) *
+              follow,
+              -owner.crawlSpeed *
+                1.45 *
+                dt,
+              owner.crawlSpeed *
+                1.45 *
+                dt,
             );
 
-          owner.crawlCatchSide =
-            rightPose.x >=
-            leftPose.x
-              ? 'right'
-              : 'left';
-
-          const dominantPull =
-            Math.max(
-              rightPose.grip,
-              leftPose.grip,
-            );
-
-          const pullImbalance =
-            rightPose.grip -
-            leftPose.grip;
-
-          const impactPulse =
-            Math.max(
-              rightPose.impact,
-              leftPose.impact,
-            );
-
-          // Most forward motion happens during a planted-hand yank. This gives
-          // the body a lurching, almost falling-forward quality.
           owner.x +=
-            owner.crawlDirection *
-            owner.crawlSpeed *
+            bodyDelta;
+
+          const lowBodyY =
+            owner.crawlGroundY;
+
+          owner.y +=
             (
-              0.54 +
-              dominantPull * 0.92 +
-              impactPulse * 0.12
+              lowBodyY -
+              owner.y
             ) *
-            dt;
-
-          owner.y =
-            owner.crawlGroundY +
-            dominantPull * 9 +
-            impactPulse * 5 -
             (
-              rightPose.lift +
-              leftPose.lift
-            ) *
-            4;
-
-          const leftBase =
-            owner.baseArmPivotWorld(
-              'group-3',
+              1 -
+              Math.exp(
+                -10 * dt,
+              )
             );
 
-          const rightBase =
-            owner.baseArmPivotWorld(
-              'group-4',
-            );
+          const activeSign =
+            owner.crawlStrokeSide ===
+            'right'
+              ? 1
+              : -1;
 
-          const leftFloor =
-            world.floorY -
-            66 -
-            leftBase.y;
-
-          const rightFloor =
-            world.floorY -
-            66 -
-            rightBase.y;
-
-          const rightForward =
-            clamp(
-              (
-                rightPose.x +
-                125
-              ) /
-              395,
-              0,
-              1,
-            );
-
-          const leftForward =
-            clamp(
-              (
-                leftPose.x +
-                125
-              ) /
-              395,
-              0,
-              1,
-            );
-
-          const handJitter =
-            Math.sin(
-              owner.crawlElapsed *
-              24.0,
-            ) *
-            4;
-
-          owner.rightArmOverride =
-            lerpValue(
-              48,
-              -7,
-              rightForward,
-            ) -
-            rightPose.impact * 10;
-
-          owner.rightArmOffsetX =
-            owner.crawlDirection *
-            (
-              rightPose.x +
-              handJitter *
-              rightPose.lift
-            );
-
-          owner.rightArmOffsetY =
-            rightFloor -
-            rightPose.lift * 118 +
-            rightPose.impact * 12;
-
-          owner.leftArmOverride =
-            lerpValue(
-              -48,
-              7,
-              leftForward,
-            ) +
-            leftPose.impact * 10;
-
-          owner.leftArmOffsetX =
-            owner.crawlDirection *
-            (
-              leftPose.x -
-              handJitter *
-              leftPose.lift
-            );
-
-          owner.leftArmOffsetY =
-            leftFloor -
-            leftPose.lift * 118 +
-            leftPose.impact * 12;
-
-          // Torso and head lag behind whichever planted arm is doing the pull.
+          // A stable forward lean plus a tiny pull-side twist sells weight
+          // without the high-frequency shaking from the old procedural crawl.
           owner.bodyRotation =
             clamp(
-              owner.crawlDirection *
-              (
-                pullImbalance * 8.5 +
-                Math.sin(
-                  owner.crawlElapsed *
-                  15.5,
-                ) *
-                1.5
-              ),
-              -11,
-              11,
+              owner.crawlDirection * 9 +
+              activeSign *
+                plantT *
+                2.6,
+              -13,
+              13,
             );
 
           owner.headOffsetX =
             -owner.crawlDirection *
             (
-              pullImbalance * 17 +
-              Math.sin(
-                owner.crawlElapsed *
-                19.0,
-              ) *
-              3
+              24 +
+              plantT * 9
             );
 
           owner.headOffsetY =
-            dominantPull * 10 -
-            (
-              rightPose.lift +
-              leftPose.lift
-            ) *
-            5 +
-            Math.abs(
-              Math.sin(
-                owner.crawlElapsed *
-                21.0,
-              )
-            ) *
-            2;
+            13 +
+            plantT * 5;
+
+          const poseHand = (
+            groupId,
+            x,
+            y,
+            neutral,
+          ) => {
+            const local =
+              owner.armOffsetToWorldPoint(
+                groupId,
+                x,
+                y,
+              );
+
+            return {
+              offsetX:
+                clamp(
+                  local.x,
+                  -560,
+                  560,
+                ),
+              offsetY:
+                clamp(
+                  local.y,
+                  -520,
+                  520,
+                ),
+              angle:
+                owner
+                  .desiredArmAngleFromBase(
+                    groupId,
+                    { x, y },
+                    neutral,
+                  ),
+            };
+          };
+
+          const leftPose =
+            poseHand(
+              'group-3',
+              owner.crawlLeftHandX,
+              owner.crawlLeftHandY,
+              owner.leftArmNeutral,
+            );
+
+          const rightPose =
+            poseHand(
+              'group-4',
+              owner.crawlRightHandX,
+              owner.crawlRightHandY,
+              owner.rightArmNeutral,
+            );
+
+          owner.leftArmOffsetX =
+            leftPose.offsetX;
+
+          owner.leftArmOffsetY =
+            leftPose.offsetY;
+
+          owner.leftArmOverride =
+            leftPose.angle;
+
+          owner.rightArmOffsetX =
+            rightPose.offsetX;
+
+          owner.rightArmOffsetY =
+            rightPose.offsetY;
+
+          owner.rightArmOverride =
+            rightPose.angle;
 
           if (
             target &&
@@ -4919,14 +4951,14 @@ export class MonolithBoss {
                 target.y -
                 (
                   owner.y +
-                  120
+                  95
                 ),
               );
 
             if (
-              signedDx >= 45 &&
-              signedDx <= 430 &&
-              vertical <= 390
+              signedDx >= 30 &&
+              signedDx <= 455 &&
+              vertical <= 410
             ) {
               owner.crawlAimX =
                 target.x;
@@ -4934,10 +4966,14 @@ export class MonolithBoss {
               owner.crawlAimY =
                 target.y;
 
+              owner.crawlCatchSide =
+                owner.crawlStrokeSide;
+
               ai.changeState(
                 'crawlReach',
                 ctx,
               );
+
               return;
             }
           }
@@ -4971,7 +5007,7 @@ export class MonolithBoss {
                 : 0;
 
             owner.crawlWallImpactY =
-              owner.y + 110;
+              owner.y + 86;
 
             owner.crawlActive = false;
 
@@ -7132,6 +7168,7 @@ export class MonolithBoss {
       false;
     this.crawlActive = false;
     this.crawlElapsed = 0;
+    this.crawlStepIndex = -1;
     this.crawlReachCooldown = 0;
     this.crawlGrabbedTarget =
       null;
