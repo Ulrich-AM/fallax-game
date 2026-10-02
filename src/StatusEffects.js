@@ -4,6 +4,8 @@ export const STATUS_EFFECTS =
       Object.freeze({
         id: 'fracture',
         label: 'FRACTURE',
+        activeLabel:
+          'FRACTURED',
         tags:
           Object.freeze([
             'physical',
