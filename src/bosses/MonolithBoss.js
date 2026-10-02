@@ -898,6 +898,7 @@ export class MonolithBoss {
     this.crawlCatchSide = 'right';
     this.crawlWallImpactX = this.x;
     this.crawlWallImpactY = this.y;
+    this.crawlWallRecovering = false;
     this.crawlShockwaves = [];
 
     this.ai = new BossAI(this, {
@@ -3607,6 +3608,8 @@ export class MonolithBoss {
           if (t >= 1) {
             owner.clearAttackPose();
             owner.resetPoseOffsets();
+            owner.crawlWallRecovering =
+              false;
 
             ai.changeState(
               'idle',
@@ -5895,6 +5898,8 @@ export class MonolithBoss {
         ) => {
           owner.crawlGrabbedTarget =
             null;
+          owner.crawlWallRecovering =
+            true;
 
           owner.spawnCrawlShockwave(
             -owner.crawlDirection,
@@ -7540,6 +7545,9 @@ export class MonolithBoss {
     this.crawlElapsed = 0;
     this.crawlStepIndex = -1;
     this.crawlReachCooldown = 0;
+    this.crawlDashGraceTimer = 0;
+    this.crawlReachStartDashSerial = 0;
+    this.crawlWallRecovering = false;
     this.crawlGrabbedTarget =
       null;
     this.crawlShockwaves.length =
@@ -7559,7 +7567,19 @@ export class MonolithBoss {
   update(dt, context) {
     if (this.dead) return;
 
-    if (!context.broken) {
+    const allowCrawlWallRecovery =
+      this.crawlWallRecovering &&
+      (
+        this.ai.stateName ===
+          'crawlWallImpact' ||
+        this.ai.stateName ===
+          'recover'
+      );
+
+    if (
+      !context.broken ||
+      allowCrawlWallRecovery
+    ) {
       this.ai.update(
         dt,
         context,
