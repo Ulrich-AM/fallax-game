@@ -2101,36 +2101,52 @@ export class MonolithBoss {
               snap,
             );
 
+          const groupId =
+            side > 0
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
           const reachX =
             clamp(
-              (
-                owner.grabAimX -
-                owner.x
-              ) *
-              0.42,
-              -170,
-              170,
+              owner.grabHandX -
+                base.x,
+              -520,
+              520,
             );
 
           const reachY =
             clamp(
-              (
-                owner.grabAimY -
-                (
-                  owner.y +
-                  175
-                )
-              ) *
-              0.34,
-              -80,
-              125,
+              owner.grabHandY -
+                base.y,
+              -460,
+              460,
             );
+
+          const aimAngle =
+            owner
+              .desiredArmAngleFromBase(
+                groupId,
+                {
+                  x:
+                    owner.grabHandX,
+                  y:
+                    owner.grabHandY,
+                },
+                side > 0
+                  ? owner.rightArmNeutral
+                  : owner.leftArmNeutral,
+              );
 
           if (side > 0) {
             owner.rightArmOverride =
               lerpValue(
                 158,
-                10,
+                aimAngle,
                 snap,
               );
 
@@ -2158,7 +2174,7 @@ export class MonolithBoss {
             owner.leftArmOverride =
               lerpValue(
                 -158,
-                -10,
+                aimAngle,
                 snap,
               );
 
@@ -2226,18 +2242,12 @@ export class MonolithBoss {
               target.y;
 
             owner.grabHoldLocalX =
-              owner.grabSide * 150;
+              owner.grabHandX -
+              owner.x;
 
             owner.grabHoldLocalY =
-              198;
-
-            owner.grabHandX =
-              owner.x +
-              owner.grabHoldLocalX;
-
-            owner.grabHandY =
-              owner.y +
-              owner.grabHoldLocalY;
+              owner.grabHandY -
+              owner.y;
 
             owner.pinTargetAt(
               target,
@@ -3749,24 +3759,18 @@ export class MonolithBoss {
 
           const reachX =
             clamp(
-              (
-                owner.dropCatchHandX -
-                base.x
-              ) *
-              0.80,
-              -430,
-              430,
+              owner.dropCatchHandX -
+                base.x,
+              -500,
+              500,
             );
 
           const reachY =
             clamp(
-              (
-                owner.dropCatchHandY -
-                base.y
-              ) *
-              0.80,
-              -420,
-              220,
+              owner.dropCatchHandY -
+                base.y,
+              -500,
+              320,
             );
 
           const aimTarget = {
@@ -3777,7 +3781,7 @@ export class MonolithBoss {
           };
 
           const aimAngle =
-            owner.desiredArmAngle(
+            owner.desiredArmAngleFromBase(
               groupId,
               aimTarget,
               side > 0
@@ -4723,22 +4727,22 @@ export class MonolithBoss {
               ? 'group-4'
               : 'group-3';
 
-          const base =
-            owner.baseArmPivotWorld(
+          const currentHand =
+            owner.armPivotWorld(
               groupId,
             );
 
           owner.crawlHandStartX =
-            base.x;
+            currentHand.x;
 
           owner.crawlHandStartY =
-            base.y;
+            currentHand.y;
 
           owner.crawlHandX =
-            base.x;
+            currentHand.x;
 
           owner.crawlHandY =
-            base.y;
+            currentHand.y;
         },
 
         update: (
@@ -4786,28 +4790,22 @@ export class MonolithBoss {
 
           const reachX =
             clamp(
-              (
-                owner.crawlHandX -
-                base.x
-              ) *
-              0.88,
-              -430,
-              430,
+              owner.crawlHandX -
+                base.x,
+              -520,
+              520,
             );
 
           const reachY =
             clamp(
-              (
-                owner.crawlHandY -
-                base.y
-              ) *
-              0.88,
-              -390,
-              390,
+              owner.crawlHandY -
+                base.y,
+              -500,
+              500,
             );
 
           const aimAngle =
-            owner.desiredArmAngle(
+            owner.desiredArmAngleFromBase(
               groupId,
               {
                 x:
@@ -5104,24 +5102,18 @@ export class MonolithBoss {
 
           const reachX =
             clamp(
-              (
-                owner.crawlHandX -
-                base.x
-              ) *
-              0.82,
-              -390,
-              390,
+              owner.crawlHandX -
+                base.x,
+              -500,
+              500,
             );
 
           const reachY =
             clamp(
-              (
-                owner.crawlHandY -
-                base.y
-              ) *
-              0.82,
-              -330,
-              330,
+              owner.crawlHandY -
+                base.y,
+              -460,
+              460,
             );
 
           if (
@@ -6935,6 +6927,44 @@ export class MonolithBoss {
       Math.atan2(
         player.y - pivot.y,
         player.x - pivot.x,
+      ) *
+      180 /
+      Math.PI;
+
+    const deviation =
+      clamp(
+        wrapDegrees(
+          angle - 90,
+        ),
+        -this.armAimClamp,
+        this.armAimClamp,
+      );
+
+    return (
+      neutral +
+      deviation *
+      this.armAimStrength
+    );
+  }
+
+  desiredArmAngleFromBase(
+    groupId,
+    target,
+    neutral,
+  ) {
+    if (!target) {
+      return neutral;
+    }
+
+    const pivot =
+      this.baseArmPivotWorld(
+        groupId,
+      );
+
+    const angle =
+      Math.atan2(
+        target.y - pivot.y,
+        target.x - pivot.x,
       ) *
       180 /
       Math.PI;
