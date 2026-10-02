@@ -105,7 +105,7 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'impact', value: '8 damage' },
       { label: 'tether', value: 'up to 28 dps' },
-      { label: 'barbed hit', value: '18 + 80 Bleed buildup' },
+      { label: 'barbed hit', value: '18 + 100 Bleed buildup' },
       { label: 'special cooldown', value: '12s' },
     ],
   },
