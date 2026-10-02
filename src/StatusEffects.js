@@ -6,6 +6,7 @@ export const STATUS_EFFECTS =
         label: 'FRACTURE',
         activeLabel:
           'FRACTURED',
+        color: '#e4bf4f',
         tags:
           Object.freeze([
             'physical',
@@ -42,6 +43,7 @@ export const STATUS_EFFECTS =
         label: 'BLEED',
         activeLabel:
           'BLEEDING',
+        color: '#d76565',
         tags:
           Object.freeze([
             'physical',
@@ -75,6 +77,7 @@ export const STATUS_EFFECTS =
         label: 'BURN',
         activeLabel:
           'BURNING',
+        color: '#e9954d',
         tags:
           Object.freeze([
             'thermal',
@@ -113,6 +116,7 @@ export const STATUS_EFFECTS =
         label: 'POISON',
         activeLabel:
           'POISONED',
+        color: '#91b85b',
         tags:
           Object.freeze([
             'chemical',
@@ -147,6 +151,7 @@ export const STATUS_EFFECTS =
         label: 'FATIGUE',
         activeLabel:
           'EXHAUSTED',
+        color: '#79a8c7',
         tags:
           Object.freeze([
             'physical',
