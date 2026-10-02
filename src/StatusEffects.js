@@ -174,6 +174,8 @@ export const STATUS_EFFECTS =
                   Object.freeze({
                     staggerDecayMultiplier:
                       0.55,
+                    attackDelayMultiplier:
+                      1.22,
                   }),
               }),
           }),
