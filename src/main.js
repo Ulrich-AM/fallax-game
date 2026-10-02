@@ -46,7 +46,7 @@ import {
 import { BossAI } from './bosses/BossAI.js?v=36';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=68b';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=69aa';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=69ab';
 import { GameAudio } from './AudioManager.js?v=55ba';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -63,7 +63,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v69aa';
+const BUILD_VERSION = 'v69ab';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
