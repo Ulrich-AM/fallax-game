@@ -29,7 +29,7 @@ import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
 import { AnchorWeapon } from './AnchorWeapon.js?v=71';
 import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=72';
-import { GuardSystem } from './GuardSystem.js?v=72';
+import { GuardSystem } from './GuardSystem.js?v=72c';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
 import { WeaponRuntime } from './WeaponRuntime.js?v=72';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
@@ -56,7 +56,7 @@ import {
 import { BossAI } from './bosses/BossAI.js?v=71';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=71';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=71';
-import { MonolithBoss } from './bosses/MonolithBoss.js?v=72';
+import { MonolithBoss } from './bosses/MonolithBoss.js?v=72c';
 import { GameAudio } from './AudioManager.js?v=72b';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
 import { SpriteEditor } from './SpriteEditor.js?v=63a';
@@ -73,7 +73,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v72b';
+const BUILD_VERSION = 'v72c';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
