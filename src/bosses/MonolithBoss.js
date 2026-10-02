@@ -1245,6 +1245,8 @@ export class MonolithBoss {
         update: (
           owner,
           ai,
+          dt,
+          ctx,
         ) => {
           const duration = 0.28;
           const t =
@@ -1312,6 +1314,7 @@ export class MonolithBoss {
           if (t >= 1) {
             ai.changeState(
               'lariatWindup',
+              ctx,
             );
           }
         },
@@ -4193,6 +4196,1085 @@ export class MonolithBoss {
             owner.dropCatchGrabbedTarget =
               null;
 
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
+      // PHASE 3: CRAWL
+      // Monolith drops onto both hands, alternates heavy hand-plants toward a
+      // committed direction, and uses the currently leading hand as the actual
+      // catch point. Missing the player commits him into the arena wall.
+      .addState('crawlLift', {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
+          const target =
+            ai.targetPlayer(ctx);
+
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.34,
+              world,
+            );
+
+          owner.crawlDirection =
+            predicted.x <
+            owner.x
+              ? -1
+              : 1;
+
+          owner.crawlStartX =
+            owner.x;
+
+          owner.crawlStartY =
+            owner.y;
+
+          owner.crawlGroundY =
+            clamp(
+              world.floorY - 238,
+              world.roofY + 185,
+              world.floorY - 205,
+            );
+
+          owner.crawlActive = false;
+          owner.crawlGrabbedTarget =
+            null;
+          owner.crawlReachCooldown = 0;
+          owner.crawlElapsed = 0;
+
+          owner.resetPoseOffsets();
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.38;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const rise =
+            easeInOutSine(t);
+
+          owner.y =
+            owner.crawlStartY -
+            150 *
+            rise;
+
+          const hang =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.leftArmOverride =
+            lerpValue(
+              owner.leftArmNeutral,
+              -18,
+              rise,
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              owner.rightArmNeutral,
+              18,
+              rise,
+            );
+
+          owner.leftArmOffsetX =
+            54 * rise;
+
+          owner.rightArmOffsetX =
+            -54 * rise;
+
+          owner.leftArmOffsetY =
+            72 * rise +
+            hang * 22;
+
+          owner.rightArmOffsetY =
+            72 * rise +
+            hang * 22;
+
+          owner.headOffsetY =
+            -hang * 8;
+
+          if (t >= 1) {
+            owner.crawlStartY =
+              owner.y;
+
+            ai.changeState(
+              'crawlDrop',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlDrop', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.30;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const slam =
+            easeInCubic(t);
+
+          owner.y =
+            lerpValue(
+              owner.crawlStartY,
+              owner.crawlGroundY,
+              slam,
+            );
+
+          const leftBase =
+            owner.baseArmPivotWorld(
+              'group-3',
+            );
+
+          const rightBase =
+            owner.baseArmPivotWorld(
+              'group-4',
+            );
+
+          const leftFloor =
+            world.floorY -
+            66 -
+            leftBase.y;
+
+          const rightFloor =
+            world.floorY -
+            66 -
+            rightBase.y;
+
+          owner.leftArmOverride =
+            lerpValue(
+              -18,
+              -4,
+              slam,
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              18,
+              4,
+              slam,
+            );
+
+          owner.leftArmOffsetX =
+            lerpValue(
+              54,
+              owner.crawlDirection * 82,
+              slam,
+            );
+
+          owner.rightArmOffsetX =
+            lerpValue(
+              -54,
+              -owner.crawlDirection * 82,
+              slam,
+            );
+
+          owner.leftArmOffsetY =
+            lerpValue(
+              72,
+              leftFloor,
+              slam,
+            );
+
+          owner.rightArmOffsetY =
+            lerpValue(
+              72,
+              rightFloor,
+              slam,
+            );
+
+          owner.headOffsetY =
+            -Math.sin(
+              t * Math.PI,
+            ) *
+            12;
+
+          if (t >= 1) {
+            ctx
+              .shakeCamera
+              ?.(7.4, 0.14);
+
+            owner.crawlActive = true;
+            owner.crawlElapsed = 0;
+
+            ai.changeState(
+              'crawlMove',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlMove', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.resolveGrabTarget(
+              ctx,
+            );
+
+          owner.crawlElapsed += dt;
+          owner.crawlReachCooldown =
+            Math.max(
+              0,
+              owner.crawlReachCooldown -
+                dt,
+            );
+
+          const stepPeriod = 0.30;
+          const rawStep =
+            owner.crawlElapsed /
+            stepPeriod;
+
+          const stepIndex =
+            Math.floor(
+              rawStep,
+            );
+
+          const stepT =
+            rawStep -
+            stepIndex;
+
+          owner.crawlStepIndex =
+            stepIndex;
+
+          const rightLeading =
+            stepIndex % 2 === 0;
+
+          owner.crawlCatchSide =
+            rightLeading
+              ? 'right'
+              : 'left';
+
+          const plant =
+            smoothStep01(
+              stepT,
+            );
+
+          const lift =
+            Math.sin(
+              stepT *
+              Math.PI,
+            );
+
+          const pullPulse =
+            Math.sin(
+              stepT *
+              Math.PI,
+            );
+
+          owner.x +=
+            owner.crawlDirection *
+            owner.crawlSpeed *
+            (
+              0.72 +
+              pullPulse * 0.42
+            ) *
+            dt;
+
+          owner.y =
+            owner.crawlGroundY +
+            Math.sin(
+              owner.crawlElapsed *
+              Math.PI *
+              2 /
+              stepPeriod,
+            ) *
+            5;
+
+          const leftBase =
+            owner.baseArmPivotWorld(
+              'group-3',
+            );
+
+          const rightBase =
+            owner.baseArmPivotWorld(
+              'group-4',
+            );
+
+          const leftFloor =
+            world.floorY -
+            66 -
+            leftBase.y;
+
+          const rightFloor =
+            world.floorY -
+            66 -
+            rightBase.y;
+
+          if (rightLeading) {
+            owner.rightArmOverride =
+              lerpValue(
+                34,
+                2,
+                plant,
+              );
+
+            owner.rightArmOffsetX =
+              owner.crawlDirection *
+              lerpValue(
+                82,
+                238,
+                plant,
+              );
+
+            owner.rightArmOffsetY =
+              rightFloor -
+              lift * 78;
+
+            owner.leftArmOverride =
+              -6;
+
+            owner.leftArmOffsetX =
+              -owner.crawlDirection *
+              lerpValue(
+                78,
+                126,
+                1 - plant,
+              );
+
+            owner.leftArmOffsetY =
+              leftFloor +
+              lift * 12;
+          } else {
+            owner.leftArmOverride =
+              lerpValue(
+                -34,
+                -2,
+                plant,
+              );
+
+            owner.leftArmOffsetX =
+              owner.crawlDirection *
+              lerpValue(
+                82,
+                238,
+                plant,
+              );
+
+            owner.leftArmOffsetY =
+              leftFloor -
+              lift * 78;
+
+            owner.rightArmOverride =
+              6;
+
+            owner.rightArmOffsetX =
+              -owner.crawlDirection *
+              lerpValue(
+                78,
+                126,
+                1 - plant,
+              );
+
+            owner.rightArmOffsetY =
+              rightFloor +
+              lift * 12;
+          }
+
+          owner.headOffsetX =
+            -owner.crawlDirection *
+            pullPulse *
+            9;
+
+          owner.headOffsetY =
+            pullPulse * 8;
+
+          if (
+            target &&
+            owner.crawlReachCooldown <=
+              0
+          ) {
+            const signedDx =
+              (
+                target.x -
+                owner.x
+              ) *
+              owner.crawlDirection;
+
+            const vertical =
+              Math.abs(
+                target.y -
+                (
+                  owner.y +
+                  120
+                ),
+              );
+
+            if (
+              signedDx >= 45 &&
+              signedDx <= 430 &&
+              vertical <= 390
+            ) {
+              owner.crawlAimX =
+                target.x;
+
+              owner.crawlAimY =
+                target.y;
+
+              ai.changeState(
+                'crawlReach',
+                ctx,
+              );
+              return;
+            }
+          }
+
+          const wallPadding = 155;
+
+          const hitWall =
+            owner.crawlDirection > 0
+              ? (
+                  owner.x >=
+                  world.width -
+                    wallPadding
+                )
+              : (
+                  owner.x <=
+                  wallPadding
+                );
+
+          if (hitWall) {
+            owner.x =
+              owner.crawlDirection > 0
+                ? (
+                    world.width -
+                    wallPadding
+                  )
+                : wallPadding;
+
+            owner.crawlWallImpactX =
+              owner.crawlDirection > 0
+                ? world.width
+                : 0;
+
+            owner.crawlWallImpactY =
+              owner.y + 110;
+
+            owner.crawlActive = false;
+
+            ai.changeState(
+              'crawlWallImpact',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlReach', {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
+          const target =
+            owner.resolveGrabTarget(
+              ctx,
+            );
+
+          const predicted =
+            owner.predictTarget(
+              target,
+              0.10,
+              world,
+            );
+
+          owner.crawlAimX =
+            predicted.x;
+
+          owner.crawlAimY =
+            predicted.y;
+
+          const groupId =
+            owner.crawlCatchSide ===
+            'right'
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          owner.crawlHandStartX =
+            base.x;
+
+          owner.crawlHandStartY =
+            base.y;
+
+          owner.crawlHandX =
+            base.x;
+
+          owner.crawlHandY =
+            base.y;
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.22;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const snap =
+            easeOutCubic(t);
+
+          const groupId =
+            owner.crawlCatchSide ===
+            'right'
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          owner.crawlHandX =
+            lerpValue(
+              owner.crawlHandStartX,
+              owner.crawlAimX,
+              snap,
+            );
+
+          owner.crawlHandY =
+            lerpValue(
+              owner.crawlHandStartY,
+              owner.crawlAimY,
+              snap,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.crawlHandX -
+                base.x
+              ) *
+              0.88,
+              -430,
+              430,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.crawlHandY -
+                base.y
+              ) *
+              0.88,
+              -390,
+              390,
+            );
+
+          const aimAngle =
+            owner.desiredArmAngle(
+              groupId,
+              {
+                x:
+                  owner.crawlHandX,
+                y:
+                  owner.crawlHandY,
+              },
+              owner.crawlCatchSide ===
+                'right'
+                ? owner.rightArmNeutral
+                : owner.leftArmNeutral,
+            );
+
+          if (
+            owner.crawlCatchSide ===
+            'right'
+          ) {
+            owner.rightArmOverride =
+              aimAngle;
+
+            owner.rightArmOffsetX =
+              reachX;
+
+            owner.rightArmOffsetY =
+              reachY;
+
+            owner.leftArmOverride =
+              -12;
+          } else {
+            owner.leftArmOverride =
+              aimAngle;
+
+            owner.leftArmOffsetX =
+              reachX;
+
+            owner.leftArmOffsetY =
+              reachY;
+
+            owner.rightArmOverride =
+              12;
+          }
+
+          const target =
+            owner.resolveGrabTarget(
+              ctx,
+            );
+
+          if (
+            target &&
+            !(
+              target
+                .dashInvulnerabilityTimer >
+              0
+            ) &&
+            owner.circleHitsTarget(
+              owner.crawlHandX,
+              owner.crawlHandY,
+              92,
+              target,
+            )
+          ) {
+            owner.crawlGrabbedTarget =
+              target;
+
+            owner.crawlGrabDashSerial =
+              target.dashSerial ?? 0;
+
+            owner.pinTargetAt(
+              target,
+              owner.crawlHandX,
+              owner.crawlHandY,
+              world,
+            );
+
+            target.takeDamage?.(6);
+            target.vx = 0;
+            target.vy = 0;
+            target.grounded = false;
+
+            ctx
+              .shakeCamera
+              ?.(4.2, 0.09);
+
+            owner.crawlActive = false;
+
+            ai.changeState(
+              'crawlLatch',
+              ctx,
+            );
+            return;
+          }
+
+          if (t >= 1) {
+            owner.crawlReachCooldown =
+              0.22;
+
+            ai.changeState(
+              'crawlMove',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlLatch', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.crawlGrabbedTarget;
+
+          if (!target) {
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.crawlGrabDashSerial
+          ) {
+            target
+              .spawnGrabEscapeTrail
+              ?.(owner.crawlHandX, owner.crawlHandY);
+
+            owner.crawlGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const t =
+            clamp(
+              ai.stateTime /
+                0.16,
+              0,
+              1,
+            );
+
+          const squeeze =
+            Math.sin(
+              t * Math.PI,
+            );
+
+          owner.pinTargetAt(
+            target,
+            owner.crawlHandX,
+            owner.crawlHandY,
+            world,
+          );
+
+          target.vx = 0;
+          target.vy = 0;
+
+          if (
+            owner.crawlCatchSide ===
+            'right'
+          ) {
+            owner.rightArmOverride -=
+              squeeze * 16;
+          } else {
+            owner.leftArmOverride +=
+              squeeze * 16;
+          }
+
+          owner.headOffsetX =
+            owner.crawlDirection *
+            squeeze * 8;
+
+          if (t >= 1) {
+            owner.crawlThrowStartX =
+              owner.crawlHandX;
+
+            owner.crawlThrowStartY =
+              owner.crawlHandY;
+
+            ai.changeState(
+              'crawlThrow',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlThrow', {
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const target =
+            owner.crawlGrabbedTarget;
+
+          if (!target) {
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          if (
+            (
+              target.dashSerial ?? 0
+            ) !==
+            owner.crawlGrabDashSerial
+          ) {
+            target
+              .spawnGrabEscapeTrail
+              ?.(owner.crawlHandX, owner.crawlHandY);
+
+            owner.crawlGrabbedTarget =
+              null;
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+            return;
+          }
+
+          const duration = 0.34;
+          const releaseAt = 0.78;
+
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const swingT =
+            clamp(
+              t /
+                releaseAt,
+              0,
+              1,
+            );
+
+          const swing =
+            easeInCubic(
+              swingT,
+            );
+
+          const endX =
+            owner.x -
+            owner.crawlDirection *
+              235;
+
+          const endY =
+            owner.y + 72;
+
+          owner.crawlHandX =
+            lerpValue(
+              owner.crawlThrowStartX,
+              endX,
+              swing,
+            );
+
+          owner.crawlHandY =
+            lerpValue(
+              owner.crawlThrowStartY,
+              endY,
+              swing,
+            ) -
+            Math.sin(
+              swingT * Math.PI,
+            ) *
+              130;
+
+          const groupId =
+            owner.crawlCatchSide ===
+            'right'
+              ? 'group-4'
+              : 'group-3';
+
+          const base =
+            owner.baseArmPivotWorld(
+              groupId,
+            );
+
+          const reachX =
+            clamp(
+              (
+                owner.crawlHandX -
+                base.x
+              ) *
+              0.82,
+              -390,
+              390,
+            );
+
+          const reachY =
+            clamp(
+              (
+                owner.crawlHandY -
+                base.y
+              ) *
+              0.82,
+              -330,
+              330,
+            );
+
+          if (
+            owner.crawlCatchSide ===
+            'right'
+          ) {
+            owner.rightArmOffsetX =
+              reachX;
+
+            owner.rightArmOffsetY =
+              reachY;
+
+            owner.rightArmOverride =
+              lerpValue(
+                owner.rightArmAngle,
+                132,
+                swing,
+              );
+
+            owner.leftArmOverride =
+              -66;
+          } else {
+            owner.leftArmOffsetX =
+              reachX;
+
+            owner.leftArmOffsetY =
+              reachY;
+
+            owner.leftArmOverride =
+              lerpValue(
+                owner.leftArmAngle,
+                -132,
+                swing,
+              );
+
+            owner.rightArmOverride =
+              66;
+          }
+
+          owner.pinTargetAt(
+            target,
+            owner.crawlHandX,
+            owner.crawlHandY,
+            world,
+          );
+
+          target.vx = 0;
+          target.vy = 0;
+
+          if (swingT >= 1) {
+            target.takeDamage?.(18);
+
+            target.vx =
+              -owner.crawlDirection *
+              1150;
+
+            target.vy = -520;
+            target.grounded = false;
+
+            owner.crawlGrabbedTarget =
+              null;
+
+            ctx
+              .shakeCamera
+              ?.(5.8, 0.11);
+
+            ai.changeState(
+              'recover',
+              ctx,
+            );
+          }
+        },
+      })
+
+      .addState('crawlWallImpact', {
+        enter: (
+          owner,
+          ai,
+          ctx,
+        ) => {
+          owner.crawlGrabbedTarget =
+            null;
+
+          owner.spawnCrawlShockwave(
+            -owner.crawlDirection,
+          );
+
+          owner.takeDamage(18);
+
+          ctx
+            .addBossStagger
+            ?.(28, 'crawl-wall');
+
+          ctx
+            .shakeCamera
+            ?.(11.5, 0.20);
+        },
+
+        update: (
+          owner,
+          ai,
+          dt,
+          ctx,
+        ) => {
+          const duration = 0.72;
+          const t =
+            clamp(
+              ai.stateTime /
+                duration,
+              0,
+              1,
+            );
+
+          const recoil =
+            Math.sin(
+              t * Math.PI,
+            ) *
+            Math.exp(
+              -2.4 * t,
+            );
+
+          owner.x =
+            (
+              owner.crawlDirection > 0
+                ? world.width - 155
+                : 155
+            ) -
+            owner.crawlDirection *
+            recoil * 74;
+
+          owner.y =
+            owner.crawlGroundY -
+            recoil * 28;
+
+          owner.bodyRotation =
+            -owner.crawlDirection *
+            recoil * 13;
+
+          owner.leftArmOverride =
+            lerpValue(
+              -4,
+              owner.leftArmNeutral,
+              smoothStep01(t),
+            );
+
+          owner.rightArmOverride =
+            lerpValue(
+              4,
+              owner.rightArmNeutral,
+              smoothStep01(t),
+            );
+
+          if (t >= 1) {
             ai.changeState(
               'recover',
               ctx,
