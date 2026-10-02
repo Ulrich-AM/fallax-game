@@ -4542,6 +4542,12 @@ function showItemTooltip(itemId, event) {
       row.className =
         'item-tooltip-stat';
 
+      if (stat.effect) {
+        row.classList.add(
+          'item-tooltip-stat-effect',
+        );
+      }
+
       const label =
         document.createElement('span');
 
