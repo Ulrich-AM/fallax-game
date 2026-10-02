@@ -533,6 +533,26 @@ attachStatusController(
 
 attachStatusController(
   matrixBoss,
+  {
+    fracture: {
+      susceptibility:
+        0.85,
+    },
+    bleed: {
+      immune: true,
+    },
+    poison: {
+      immune: true,
+    },
+    burn: {
+      susceptibility:
+        1.25,
+    },
+    fatigue: {
+      susceptibility:
+        0.80,
+    },
+  },
 );
 
 attachStatusController(
@@ -3933,9 +3953,12 @@ function drawHUD() {
       bx,
       rowY,
       bw,
-      entry.active
-        ? '#d7dbe2'
-        : '#858b94',
+      entry.color ??
+        (
+          entry.active
+            ? '#d7dbe2'
+            : '#858b94'
+        ),
       entry.active
         ? `${entry.activeTimer.toFixed(1)}s`
         : `${Math.ceil(entry.buildup)}/${entry.threshold}`,
@@ -4170,9 +4193,12 @@ function drawBossBar() {
     );
 
     ctx.fillStyle =
-      entry.active
-        ? '#d7dbe2'
-        : '#858b94';
+      entry.color ??
+      (
+        entry.active
+          ? '#d7dbe2'
+          : '#858b94'
+      );
 
     ctx.fillRect(
       x,
@@ -4206,9 +4232,12 @@ function drawBossBar() {
       "9px 'Pixel Arial 11', Arial, sans-serif";
 
     ctx.fillStyle =
-      entry.active
-        ? COLORS.text
-        : COLORS.dim;
+      entry.color ??
+      (
+        entry.active
+          ? COLORS.text
+          : COLORS.dim
+      );
 
     ctx.textAlign =
       'right';
