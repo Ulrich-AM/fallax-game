@@ -3875,7 +3875,7 @@ function drawHUD() {
   drawResourceBar(
     'STAMINA',
     player.stamina,
-    MOVEMENT.staminaMax,
+    player.effectiveMaxStamina,
     bx,
     rowY,
     bw,
@@ -3884,7 +3884,9 @@ function drawHUD() {
       : COLORS.stamina,
     `${Math.ceil(
       player.stamina,
-    )}/${MOVEMENT.staminaMax}`,
+    )}/${Math.round(
+      player.effectiveMaxStamina,
+    )}`,
   );
 
   rowY += rowStep;
@@ -3915,6 +3917,41 @@ function drawHUD() {
   );
 
   rowY += rowStep;
+
+  const playerStatusEntries =
+    player.status
+      ?.getHudEntries
+      ?.() ??
+    [];
+
+  for (
+    const entry
+    of playerStatusEntries
+      .slice(0, 3)
+  ) {
+    drawResourceBar(
+      entry.active
+        ? entry.activeLabel
+        : entry.label,
+      entry.active
+        ? entry.activeTimer
+        : entry.buildup,
+      entry.active
+        ? entry.activeDuration
+        : entry.threshold,
+      bx,
+      rowY,
+      bw,
+      entry.active
+        ? '#d7dbe2'
+        : '#858b94',
+      entry.active
+        ? `${entry.activeTimer.toFixed(1)}s`
+        : `${Math.ceil(entry.buildup)}/${entry.threshold}`,
+    );
+
+    rowY += rowStep;
+  }
 
   const activeWeapon =
     getActiveWeaponInstance();
@@ -4152,7 +4189,12 @@ function drawBossBar() {
       width *
         (
           entry.active
-            ? 1
+            ? (
+                entry.activeDuration > 0
+                  ? entry.activeTimer /
+                    entry.activeDuration
+                  : 0
+              )
             : entry
                 .buildupRatio
         ),
