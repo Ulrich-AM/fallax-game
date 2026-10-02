@@ -28,6 +28,13 @@ const VOLUMES = {
   buttonHover: 0.34,
 };
 
+const THEME_AUDIO_KEYS = {
+  mainmenu: 'themeMainmenu',
+  prologue: 'themePrologue',
+  matrix: 'themeMatrix',
+  monolith: 'themeMonolith',
+};
+
 // Fixed pools prevent rapid-fire weapons from allocating a new HTMLAudioElement
 // for every projectile. The minimum interval also stops dense bullet patterns
 // from asking the browser to mix dozens of near-identical sounds per second.
@@ -84,6 +91,18 @@ export class GameAudio {
     this.themeKey = null;
     this.currentThemeKey = null;
 
+    // Music uses decoded Web Audio buffers when available. AudioBufferSourceNode
+    // looping is sample-accurate and avoids the small MP3 media-element seam.
+    this.musicContext = null;
+    this.musicGain = null;
+    this.themeSource = null;
+    this.themeBuffers =
+      new Map();
+    this.themeBufferPromises =
+      new Map();
+    this.themeStartSerial = 0;
+    this.pendingThemeKey = null;
+
     this.themes = {
       mainmenu: makeAudio('themeMainmenu', true),
       prologue: makeAudio('themePrologue', true),
@@ -106,9 +125,234 @@ export class GameAudio {
     this.loopStates = new Map();
   }
 
+  ensureMusicContext() {
+    if (this.musicContext) {
+      return this.musicContext;
+    }
+
+    const AudioContextClass =
+      globalThis.AudioContext ??
+      globalThis.webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return null;
+    }
+
+    try {
+      this.musicContext =
+        new AudioContextClass();
+
+      this.musicGain =
+        this.musicContext
+          .createGain();
+
+      this.musicGain
+        .connect(
+          this.musicContext
+            .destination,
+        );
+
+      return this.musicContext;
+    } catch {
+      this.musicContext = null;
+      this.musicGain = null;
+      return null;
+    }
+  }
+
+  loadThemeBuffer(key) {
+    const cached =
+      this.themeBuffers.get(
+        key,
+      );
+
+    if (cached) {
+      return Promise.resolve(
+        cached,
+      );
+    }
+
+    const pending =
+      this.themeBufferPromises
+        .get(key);
+
+    if (pending) {
+      return pending;
+    }
+
+    const context =
+      this.ensureMusicContext();
+
+    const audioKey =
+      THEME_AUDIO_KEYS[key];
+
+    if (
+      !context ||
+      !audioKey
+    ) {
+      return Promise.resolve(
+        null,
+      );
+    }
+
+    const promise =
+      fetch(
+        PATHS[audioKey],
+      )
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(
+              'theme fetch failed',
+            );
+          }
+
+          return response
+            .arrayBuffer();
+        })
+        .then(bytes =>
+          context.decodeAudioData(
+            bytes,
+          ),
+        )
+        .then(buffer => {
+          this.themeBuffers.set(
+            key,
+            buffer,
+          );
+
+          this.themeBufferPromises
+            .delete(key);
+
+          return buffer;
+        })
+        .catch(() => {
+          this.themeBufferPromises
+            .delete(key);
+
+          return null;
+        });
+
+    this.themeBufferPromises
+      .set(
+        key,
+        promise,
+      );
+
+    return promise;
+  }
+
+  stopBufferedTheme() {
+    this.themeStartSerial++;
+    this.pendingThemeKey = null;
+
+    if (!this.themeSource) {
+      return;
+    }
+
+    try {
+      this.themeSource.stop();
+    } catch {
+      // Source may already have stopped.
+    }
+
+    try {
+      this.themeSource
+        .disconnect();
+    } catch {
+      // Ignore already-disconnected sources.
+    }
+
+    this.themeSource = null;
+  }
+
+  startBufferedTheme(
+    key,
+    buffer,
+    serial,
+  ) {
+    if (
+      !buffer ||
+      !this.musicContext ||
+      !this.musicGain ||
+      serial !==
+        this.themeStartSerial ||
+      this.themeKey !== key ||
+      this.suspended ||
+      !this.unlocked
+    ) {
+      return false;
+    }
+
+    if (this.themeSource) {
+      try {
+        this.themeSource.stop();
+      } catch {
+        // Ignore already-stopped sources.
+      }
+
+      try {
+        this.themeSource
+          .disconnect();
+      } catch {
+        // Ignore already-disconnected sources.
+      }
+    }
+
+    const source =
+      this.musicContext
+        .createBufferSource();
+
+    source.buffer = buffer;
+    source.loop = true;
+    source.loopStart = 0;
+    source.loopEnd =
+      buffer.duration;
+
+    const audioKey =
+      THEME_AUDIO_KEYS[key];
+
+    this.musicGain.gain.value =
+      VOLUMES[audioKey] ??
+      1;
+
+    source.connect(
+      this.musicGain,
+    );
+
+    source.start(0);
+
+    this.themeSource = source;
+    this.currentThemeKey = key;
+    this.pendingThemeKey = null;
+
+    for (
+      const audio
+      of Object.values(
+        this.themes,
+      )
+    ) {
+      audio.pause();
+    }
+
+    return true;
+  }
+
   unlock() {
     if (this.unlocked) return;
     this.unlocked = true;
+
+    const context =
+      this.ensureMusicContext();
+
+    if (
+      context &&
+      context.state ===
+        'suspended'
+    ) {
+      context
+        .resume()
+        .catch(() => {});
+    }
 
     if (!this.suspended) {
       this.syncTheme();
@@ -126,6 +370,8 @@ export class GameAudio {
       this.syncTheme();
       return;
     }
+
+    this.stopBufferedTheme();
 
     this.themeKey = key;
 
@@ -148,12 +394,106 @@ export class GameAudio {
       return;
     }
 
-    const audio = this.themes[this.themeKey];
+    const key =
+      this.themeKey;
+
+    const context =
+      this.ensureMusicContext();
+
+    if (context) {
+      if (
+        context.state ===
+          'suspended'
+      ) {
+        context
+          .resume()
+          .catch(() => {});
+      }
+
+      if (
+        this.themeSource &&
+        this.currentThemeKey ===
+          key
+      ) {
+        return;
+      }
+
+      if (
+        this.pendingThemeKey ===
+          key
+      ) {
+        return;
+      }
+
+      this.pendingThemeKey = key;
+
+      const serial =
+        ++this.themeStartSerial;
+
+      this.loadThemeBuffer(
+        key,
+      ).then(buffer => {
+        if (
+          this.startBufferedTheme(
+            key,
+            buffer,
+            serial,
+          )
+        ) {
+          return;
+        }
+
+        // If decoding is unavailable, retain the old HTMLAudio fallback.
+        if (
+          serial !==
+            this.themeStartSerial ||
+          this.themeKey !==
+            key ||
+          this.suspended
+        ) {
+          return;
+        }
+
+        this.pendingThemeKey = null;
+
+        const audio =
+          this.themes[key];
+
+        if (!audio) {
+          return;
+        }
+
+        if (
+          this.currentThemeKey !==
+            key
+        ) {
+          audio.currentTime = 0;
+          this.currentThemeKey =
+            key;
+        }
+
+        if (audio.paused) {
+          audio
+            .play()
+            .catch(() => {});
+        }
+      });
+
+      return;
+    }
+
+    const audio =
+      this.themes[key];
+
     if (!audio) return;
 
-    if (this.currentThemeKey !== this.themeKey) {
+    if (
+      this.currentThemeKey !==
+      key
+    ) {
       audio.currentTime = 0;
-      this.currentThemeKey = this.themeKey;
+      this.currentThemeKey =
+        key;
     }
 
     if (audio.paused) {
@@ -222,6 +562,15 @@ export class GameAudio {
     this.suspended = next;
 
     if (next) {
+      if (
+        this.musicContext &&
+        this.musicContext.state ===
+          'running'
+      ) {
+        this.musicContext
+          .suspend()
+          .catch(() => {});
+      }
       for (
         const audio
         of Object.values(this.themes)
@@ -239,7 +588,22 @@ export class GameAudio {
       return;
     }
 
-    this.syncTheme();
+    if (
+      this.musicContext &&
+      this.musicContext.state ===
+        'suspended'
+    ) {
+      this.musicContext
+        .resume()
+        .then(() =>
+          this.syncTheme(),
+        )
+        .catch(() =>
+          this.syncTheme(),
+        );
+    } else {
+      this.syncTheme();
+    }
 
     for (
       const [key, active]
