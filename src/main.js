@@ -2881,6 +2881,13 @@ function update(dt) {
             .getLeadTime(
               baseSeconds,
             ),
+      addBossStagger:
+        (amount, source) =>
+          bossStaggerSystem
+            .addStagger(
+              amount,
+              source,
+            ),
       broken:
         bossStaggerSystem
           .isBroken,
