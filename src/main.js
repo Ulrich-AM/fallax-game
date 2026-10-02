@@ -53,7 +53,7 @@ import {
   PROGRESS_EPOCH,
   getProgressEpochStatus,
 } from './ProgressEpoch.js?v=63';
-import { BossAI } from './bosses/BossAI.js?v=36';
+import { BossAI } from './bosses/BossAI.js?v=71';
 import { PrologueBoss } from './bosses/PrologueBoss.js?v=68b';
 import { MatrixBoss } from './bosses/MatrixBoss.js?v=63';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=69ac';
