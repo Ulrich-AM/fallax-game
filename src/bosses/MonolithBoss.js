@@ -4504,14 +4504,14 @@ export class MonolithBoss {
           owner.leftArmOffsetX =
             lerpValue(
               54,
-              -owner.crawlDirection * 114,
+              -owner.crawlDirection * 108,
               slam,
             );
 
           owner.rightArmOffsetX =
             lerpValue(
               -54,
-              owner.crawlDirection * 268,
+              owner.crawlDirection * 265,
               slam,
             );
 
@@ -4713,14 +4713,14 @@ export class MonolithBoss {
           const rightPose =
             handPose(
               basePhase +
-              0.37 +
+              0.32 +
               timingWobble,
             );
 
           const leftPose =
             handPose(
               basePhase +
-              0.87 -
+              0.82 -
               timingWobble *
                 0.72,
             );
