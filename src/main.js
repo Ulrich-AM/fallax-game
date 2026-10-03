@@ -19,19 +19,20 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=73';
+} from './equipment.js?v=74';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
 import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
-import { AnchorWeapon } from './AnchorWeapon.js?v=71';
+import { AnchorWeapon } from './AnchorWeapon.js?v=74';
+import { FukiyaWeapon } from './FukiyaWeapon.js?v=74';
 import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=72';
 import { GuardSystem } from './GuardSystem.js?v=72c';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
-import { WeaponRuntime } from './WeaponRuntime.js?v=73';
+import { WeaponRuntime } from './WeaponRuntime.js?v=74';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
@@ -73,7 +74,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v73';
+const BUILD_VERSION = 'v74';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -434,6 +435,7 @@ const machWeapon = new MachWeapon();
 const relayWeapon = new RelayWeapon();
 const parallaxWeapon = new ParallaxWeapon();
 const anchorWeapon = new AnchorWeapon();
+const fukiyaWeapon = new FukiyaWeapon();
 const keplerWeapon = new KeplerWeapon();
 const backfireAbility = new BackfireAbility();
 const strikeAbility = new StrikeAbility();
@@ -481,6 +483,7 @@ const weaponRuntime =
     relay: relayWeapon,
     parallax: parallaxWeapon,
     anchor: anchorWeapon,
+    fukiya: fukiyaWeapon,
     kepler: keplerWeapon,
   });
 
@@ -5398,6 +5401,7 @@ window.BOSSFIGHTS = {
   relayWeapon,
   parallaxWeapon,
   anchorWeapon,
+  fukiyaWeapon,
   keplerWeapon,
   guardSystem,
   bossStaggerSystem,
