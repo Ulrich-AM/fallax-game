@@ -165,6 +165,9 @@ export class WeaponRuntime {
         target,
         artPixel,
         active('horizon'),
+        {
+          resolveHit,
+        },
       );
 
     this.get('mach')
