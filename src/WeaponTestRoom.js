@@ -1,6 +1,6 @@
 import {
   compileSpriteAsset,
-} from './SpriteAssets.js?v=63a';
+} from './SpriteAssets.js?v=72da';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
@@ -947,6 +947,19 @@ export class WeaponTestRoom {
     this.ctx.restore();
   }
 
+  getArtPixelSize() {
+    return clamp(
+      Number(
+        this.compiled
+          ?.asset
+          ?.render
+          ?.artPixelSize,
+      ) || 4,
+      1,
+      8,
+    );
+  }
+
   drawMuzzle(pose, compiled) {
     const marker =
       compiled
@@ -972,13 +985,18 @@ export class WeaponTestRoom {
         this.angle,
       );
 
+    const artPixelSize =
+      this.getArtPixelSize();
+
     const x =
       pose.pivotX +
-      rotated[0] * 4;
+      rotated[0] *
+        artPixelSize;
 
     const y =
       pose.pivotY +
-      rotated[1] * 4;
+      rotated[1] *
+        artPixelSize;
 
     this.ctx.save();
 
@@ -1091,6 +1109,9 @@ export class WeaponTestRoom {
     const entry =
       this.rasterEntry();
 
+    const artPixelSize =
+      this.getArtPixelSize();
+
     for (
       const glow
       of entry.glows
@@ -1099,7 +1120,7 @@ export class WeaponTestRoom {
         glow.raster,
         pose.pivotX,
         pose.pivotY,
-        4,
+        artPixelSize,
         {
           alpha: 0.72,
           shadowColor:
@@ -1118,7 +1139,7 @@ export class WeaponTestRoom {
       entry.base,
       pose.pivotX,
       pose.pivotY,
-      4,
+      artPixelSize,
     );
 
     this.drawMuzzle(
