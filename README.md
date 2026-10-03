@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v73**
+Current reference build: **v74**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -119,13 +119,12 @@ Effects use buildup, thresholds, active durations, susceptibility/resistance, an
 
 Current normal-game examples:
 - Strike -> Fracture
-- Anchor barbed special -> Bleed
+- Anchor impact / Ripcord -> Bleed
+- Fukiya darts / Needleburst -> Poison
 - Mach -> Fracture
 - Backfire -> Burn
 - Monolith heavy slams -> Fracture on the player
 - Monolith throws/grabs -> Fatigue on the player
-
-Poison is implemented and testable, but is intentionally waiting for a fitting weapon/source instead of being assigned arbitrarily.
 
 Status-related item stats are colored yellow in tooltips.
 
@@ -139,7 +138,17 @@ Current weapons:
 - Relay
 - Parallax
 - Anchor
+- Fukiya
 - Kepler
+
+Anchor now applies a small amount of Bleed buildup on every successful hook impact. Its Q special, **Ripcord**, is contextual: ripping a boss anchor free deals tension-scaled damage, Bleed buildup, and stagger, while using it on a surface anchor converts the tether into a strong movement impulse.
+
+Fukiya is a Poison-focused blowgun:
+- 12 damage every 0.58s
+- +22 Poison buildup per normal dart
+- **Q, Needleburst:** seven low-damage darts in a short spread burst, each adding +18 Poison buildup
+- 10s special cooldown
+- shop price: 460 denarii
 
 Horizon is the first weapon with two dedicated specials:
 - **Q, Recoil Drive:** arms the next shot with much stronger recoil and +18 stagger. Cooldown: 6.5s.
@@ -368,6 +377,7 @@ src/
 ├── RelayWeapon.js
 ├── ParallaxWeapon.js
 ├── AnchorWeapon.js
+├── FukiyaWeapon.js
 ├── KeplerWeapon.js
 ├── BackfireAbility.js
 ├── StrikeAbility.js
@@ -430,6 +440,9 @@ Added a per-weapon sprite-editor pixel-size setting. Weapon JSON now stores `ren
 
 ### v73
 Replaced Horizon's placeholder homing-star special with a dual-special kit. Q now arms Recoil Drive, E arms Overcharge, both can stack on the same shot, Horizon special hits use the shared combat resolver for stagger, and the control/HUD architecture now supports a generic rebindable secondary weapon special.
+
+### v74
+Reworked Anchor so normal hook impacts always add light Bleed buildup and replaced the old armed Barbed shot with Ripcord, a tether-state special that scales off boss-anchor tension or slingshots the player from surface anchors. Added Fukiya using the authored sprite asset as a Poison weapon with a seven-dart Needleburst special and a 460-denarii shop price.
 
 ## Development status
 
