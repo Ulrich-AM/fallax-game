@@ -324,6 +324,19 @@
             <span>muzzle: not set</span>
           </div>
 
+          <label class="sprite-select-row">
+            <span>pixel size</span>
+            <input
+              id="sprite-weapon-pixel-size"
+              type="number"
+              min="1"
+              max="8"
+              step="0.25"
+              value="4"
+            />
+          </label>
+          <small>Game pixels per art pixel. Lower values let small weapons use more art pixels and finer detail. Default: 4.</small>
+
           <label class="sprite-inline-check">
             <input id="sprite-weapon-flip-reverse" type="checkbox" />
             <span>flip on reverse aim</span>
@@ -649,6 +662,6 @@
     </section>
   </div>
 
-  <script type="module" src="src/main.js?v=72d"></script>
+  <script type="module" src="src/main.js?v=72da"></script>
 </body>
 </html>
