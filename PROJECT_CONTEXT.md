@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v72ca**
+> Current reference build: **v72d**
 
 ## 1. What Fallax is
 
@@ -242,9 +242,17 @@ Current design:
 v72ca changes:
 - Crawl cadence is faster again
 - body follow is stronger
-- wall-impact animation starts from the exact collision pose
+- wall-impact animation gained smoother pose blending
 - arms/head/body smoothly settle before normal recovery
 - no hard snap into fixed wall-impact arm angles
+
+v72d changes:
+- Crawl uses longer uneven hand reaches and a stronger planted-hand pull
+- the torso trails lower and surges forward during each pull instead of gliding evenly
+- head/body pose now alternates between forward reach and visible strain
+- a leading hand hitting the wall no longer teleports the trailing torso to the wall
+- wall impact begins from the exact live Crawl pose, then recoils and settles before ordinary recovery
+- R restarts clear active attack telegraphs so warning icons cannot stack across attempts
 
 ### Monolith performance
 Monolith is the heaviest boss to render because of procedural sprite-group animation.
@@ -376,6 +384,12 @@ Generic status architecture + Fracture vertical slice.
 - faster Crawl
 - smoother Crawl -> wall-impact -> recover transition
 - boss compact effect bars now exactly match player compact effect bars in size
+
+### v72d
+- more desperate hand-over-hand Crawl animation
+- exact-pose wall contact without torso teleport
+- improved wall-impact recoil and delayed arm settling
+- restart-time telegraph cleanup prevents stacked warning marks
 
 ## 13. Development rules / invariants
 
