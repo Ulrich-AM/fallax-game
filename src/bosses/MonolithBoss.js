@@ -900,6 +900,7 @@ export class MonolithBoss {
     this.crawlWallImpactY = this.y;
     this.crawlWallStartX = this.x;
     this.crawlWallStartY = this.y;
+    this.crawlWallSettleX = this.x;
     this.crawlWallStartBodyRotation = 0;
     this.crawlWallStartHeadOffsetX = 0;
     this.crawlWallStartHeadOffsetY = 0;
@@ -4752,10 +4753,10 @@ export class MonolithBoss {
 
             const stridePattern =
               [
-                164,
-                182,
-                158,
-                174,
+                188,
+                220,
+                176,
+                208,
               ][
                 strokeIndex % 4
               ];
@@ -4774,9 +4775,9 @@ export class MonolithBoss {
           }
 
           const reachT =
-            smoothStep01(
+            easeOutCubic(
               clamp(
-                strokeT / 0.62,
+                strokeT / 0.54,
                 0,
                 1,
               ),
@@ -4786,18 +4787,31 @@ export class MonolithBoss {
             smoothStep01(
               clamp(
                 (
-                  strokeT - 0.48
+                  strokeT - 0.44
                 ) /
-                0.52,
+                0.56,
                 0,
                 1,
               ),
             );
 
+          const pullPulse =
+            Math.sin(
+              clamp(
+                (
+                  strokeT - 0.44
+                ) /
+                0.56,
+                0,
+                1,
+              ) *
+              Math.PI,
+            );
+
           const lift =
             Math.sin(
               clamp(
-                strokeT / 0.62,
+                strokeT / 0.54,
                 0,
                 1,
               ) *
@@ -4817,7 +4831,7 @@ export class MonolithBoss {
               owner.crawlStrokeTargetY,
               reachT,
             ) -
-            lift * 104;
+            lift * 126;
 
           if (
             owner.crawlStrokeSide ===
@@ -4837,7 +4851,7 @@ export class MonolithBoss {
           }
 
           // Once the hand has planted, keep the endpoint nailed to the floor.
-          if (strokeT >= 0.62) {
+          if (strokeT >= 0.54) {
             if (
               owner.crawlStrokeSide ===
               'right'
@@ -4867,21 +4881,33 @@ export class MonolithBoss {
                   owner.crawlRightHandX,
                 );
 
-          // The body deliberately trails far behind the hands. It only surges
-          // once the reaching hand has found purchase on the floor.
+          // Let the hands get visibly ahead of the body, then make each plant
+          // yank the torso forward. The uneven pull is deliberate: Crawl should
+          // look like Monolith is hauling his own weight toward the player.
+          const trailDistance =
+            224 -
+            plantT * 46;
+
           const bodyTargetX =
             frontHandX -
             owner.crawlDirection *
-            192;
+            trailDistance;
 
           const followRate =
-            3.4 +
-            plantT * 18.0;
+            2.0 +
+            plantT * 27.0;
 
           const follow =
             1 -
             Math.exp(
               -followRate * dt,
+            );
+
+          const maxFollowSpeed =
+            owner.crawlSpeed *
+            (
+              1.20 +
+              plantT * 0.95
             );
 
           const bodyDelta =
@@ -4891,19 +4917,17 @@ export class MonolithBoss {
                 owner.x
               ) *
               follow,
-              -owner.crawlSpeed *
-                1.55 *
-                dt,
-              owner.crawlSpeed *
-                1.55 *
-                dt,
+              -maxFollowSpeed * dt,
+              maxFollowSpeed * dt,
             );
 
           owner.x +=
             bodyDelta;
 
           const lowBodyY =
-            owner.crawlGroundY;
+            owner.crawlGroundY +
+            10 +
+            pullPulse * 8;
 
           owner.y +=
             (
@@ -4913,7 +4937,7 @@ export class MonolithBoss {
             (
               1 -
               Math.exp(
-                -10 * dt,
+                -14 * dt,
               )
             );
 
@@ -4923,28 +4947,39 @@ export class MonolithBoss {
               ? 1
               : -1;
 
-          // A stable forward lean plus a tiny pull-side twist sells weight
-          // without the high-frequency shaking from the old procedural crawl.
+          // Reach forward with the head, then recoil it as the planted hand
+          // drags the body. This makes the alternating strokes read as strain
+          // instead of a smooth four-legged walk.
           owner.bodyRotation =
             clamp(
-              owner.crawlDirection * 9 +
+              owner.crawlDirection *
+                (
+                  11 +
+                  plantT * 3.5
+                ) +
               activeSign *
-                plantT *
-                2.6,
-              -13,
-              13,
+                (
+                  1 -
+                  plantT * 1.6
+                ) *
+                5.2,
+              -18,
+              18,
             );
 
           owner.headOffsetX =
-            -owner.crawlDirection *
+            owner.crawlDirection *
             (
-              24 +
-              plantT * 9
+              14 +
+              lift * 18 -
+              plantT * 28
             );
 
           owner.headOffsetY =
-            13 +
-            plantT * 5;
+            16 -
+            lift * 10 +
+            pullPulse * 10 +
+            plantT * 6;
 
           const poseHand = (
             groupId,
@@ -5102,13 +5137,30 @@ export class MonolithBoss {
             );
 
           if (hitWall) {
-            owner.x =
+            const bodyLimitX =
               owner.crawlDirection > 0
                 ? (
                     world.width -
                     wallPadding
                   )
                 : wallPadding;
+
+            // A hand can hit the wall while the torso is still trailing well
+            // behind it. Only clamp actual body penetration; otherwise preserve
+            // the exact crawl pose and let the impact animation take over.
+            if (
+              (
+                owner.crawlDirection > 0 &&
+                owner.x > bodyLimitX
+              ) ||
+              (
+                owner.crawlDirection < 0 &&
+                owner.x < bodyLimitX
+              )
+            ) {
+              owner.x =
+                bodyLimitX;
+            }
 
             owner.crawlWallImpactX =
               owner.crawlDirection > 0
@@ -5918,6 +5970,30 @@ export class MonolithBoss {
             owner.x;
           owner.crawlWallStartY =
             owner.y;
+
+          const wallBodyX =
+            owner.crawlDirection > 0
+              ? world.width - 155
+              : 155;
+
+          const forwardGap =
+            Math.max(
+              0,
+              (
+                wallBodyX -
+                owner.crawlWallStartX
+              ) *
+              owner.crawlDirection,
+            );
+
+          owner.crawlWallSettleX =
+            owner.crawlWallStartX +
+            owner.crawlDirection *
+              Math.min(
+                96,
+                forwardGap,
+              );
+
           owner.crawlWallStartBodyRotation =
             owner.bodyRotation;
           owner.crawlWallStartHeadOffsetX =
@@ -5961,7 +6037,7 @@ export class MonolithBoss {
           dt,
           ctx,
         ) => {
-          const duration = 0.82;
+          const duration = 0.78;
           const t =
             clamp(
               ai.stateTime /
@@ -5970,39 +6046,62 @@ export class MonolithBoss {
               1,
             );
 
-          const settle =
-            easeInOutSine(t);
+          const impactT =
+            clamp(
+              t / 0.30,
+              0,
+              1,
+            );
 
-          const impactBlend =
+          const impactKick =
+            Math.sin(
+              impactT * Math.PI,
+            ) *
+            Math.exp(
+              -1.5 * impactT,
+            );
+
+          const bodyPush =
             easeOutCubic(
               clamp(
-                t / 0.34,
+                t / 0.22,
                 0,
                 1,
               ),
             );
 
-          const recoil =
-            Math.sin(
-              t * Math.PI,
-            ) *
-            Math.exp(
-              -2.0 * t,
+          const settle =
+            smoothStep01(
+              clamp(
+                (
+                  t - 0.16
+                ) /
+                0.84,
+                0,
+                1,
+              ),
             );
 
-          const wallX =
-            owner.crawlDirection > 0
-              ? world.width - 155
-              : 155;
+          const armSettle =
+            smoothStep01(
+              clamp(
+                (
+                  t - 0.24
+                ) /
+                0.76,
+                0,
+                1,
+              ),
+            );
 
           owner.x =
             lerpValue(
               owner.crawlWallStartX,
-              wallX,
-              impactBlend,
+              owner.crawlWallSettleX,
+              bodyPush,
             ) -
             owner.crawlDirection *
-            recoil * 68;
+            impactKick * 62;
 
           owner.y =
             lerpValue(
@@ -6010,71 +6109,74 @@ export class MonolithBoss {
               owner.crawlGroundY,
               settle,
             ) -
-            recoil * 24;
+            impactKick * 18;
 
           owner.bodyRotation =
             lerpValue(
               owner.crawlWallStartBodyRotation,
-              -owner.crawlDirection * 3,
+              -owner.crawlDirection * 4,
               settle,
             ) -
             owner.crawlDirection *
-            recoil * 9;
+            impactKick * 11;
 
           owner.headOffsetX =
             lerpValue(
               owner.crawlWallStartHeadOffsetX,
-              -owner.crawlDirection * 6,
+              -owner.crawlDirection * 8,
               settle,
-            );
+            ) -
+            owner.crawlDirection *
+            impactKick * 24;
 
           owner.headOffsetY =
             lerpValue(
               owner.crawlWallStartHeadOffsetY,
               4,
               settle,
-            );
+            ) +
+            impactKick * 14;
 
           owner.leftArmOffsetX =
             lerpValue(
               owner.crawlWallStartLeftArmOffsetX,
               0,
-              settle,
+              armSettle,
             );
 
           owner.leftArmOffsetY =
             lerpValue(
               owner.crawlWallStartLeftArmOffsetY,
               8,
-              settle,
+              armSettle,
             );
 
           owner.rightArmOffsetX =
             lerpValue(
               owner.crawlWallStartRightArmOffsetX,
               0,
-              settle,
+              armSettle,
             );
 
           owner.rightArmOffsetY =
             lerpValue(
               owner.crawlWallStartRightArmOffsetY,
               8,
-              settle,
+              armSettle,
             );
 
           owner.leftArmOverride =
             lerpValue(
               owner.crawlWallStartLeftArmOverride,
               owner.leftArmNeutral,
-              settle,
+              armSettle,
             );
 
           owner.rightArmOverride =
             lerpValue(
               owner.crawlWallStartRightArmOverride,
               owner.rightArmNeutral,
-              settle,
+              armSettle,
             );
 
           if (t >= 1) {
@@ -7654,6 +7756,7 @@ export class MonolithBoss {
     this.crawlDashGraceTimer = 0;
     this.crawlReachStartDashSerial = 0;
     this.crawlWallRecovering = false;
+    this.crawlWallSettleX = this.x;
     this.crawlGrabbedTarget =
       null;
     this.crawlShockwaves.length =
