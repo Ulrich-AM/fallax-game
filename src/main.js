@@ -19,10 +19,10 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=72';
+} from './equipment.js?v=73';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
-import { HorizonWeapon } from './HorizonWeapon.js?v=63a';
+import { HorizonWeapon } from './HorizonWeapon.js?v=73';
 import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
@@ -31,7 +31,7 @@ import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=72';
 import { GuardSystem } from './GuardSystem.js?v=72c';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
-import { WeaponRuntime } from './WeaponRuntime.js?v=72';
+import { WeaponRuntime } from './WeaponRuntime.js?v=73';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
@@ -73,7 +73,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v72da';
+const BUILD_VERSION = 'v73';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -1969,6 +1969,7 @@ const DEFAULT_CONTROLS = Object.freeze({
   sprint: 'ShiftLeft',
   dash: 'KeyF',
   special: 'KeyQ',
+  special2: 'KeyE',
   weapon1: 'Digit1',
   weapon2: 'Digit2',
   extra1: 'Digit3',
@@ -3533,6 +3534,16 @@ function update(dt) {
     });
   }
 
+  if (pressed.has(controlBindings.special2)) {
+    activeWeapon
+      ?.triggerSecondarySpecial
+      ?.({
+        player,
+        pointerWorld:
+          combatPointerWorld,
+      });
+  }
+
   weaponRuntime.updateAll({
     dt,
     player,
@@ -4088,29 +4099,59 @@ function drawHUD() {
       ?.specialAbilities ??
     [];
 
-  if (specials.length > 0) {
+  for (
+    let i = 0;
+    i < specials.length;
+    i++
+  ) {
     const special =
-      specials[0];
+      specials[i];
+
+    const binding =
+      special.binding ??
+      (
+        i === 0
+          ? 'special'
+          : 'special2'
+      );
+
+    const bindingCode =
+      controlBindings[binding];
 
     const readyRatio =
-      special.cooldown > 0
-        ? 1 -
-          Math.min(
-            1,
-            special.remaining /
-            special.cooldown,
-          )
-        : 1;
+      special.active
+        ? 1
+        : (
+            special.cooldown > 0
+              ? 1 -
+                Math.min(
+                  1,
+                  special.remaining /
+                  special.cooldown,
+                )
+              : 1
+          );
 
     const specialText =
-      special.remaining <= 0
-        ? `READY [${keyLabel(
-            controlBindings.special,
+      special.active
+        ? `${special.activeText ?? 'ACTIVE'} [${keyLabel(
+            bindingCode,
           )}]`
-        : `${special.remaining.toFixed(1)}s`;
+        : (
+            special.remaining <= 0
+              ? `READY [${keyLabel(
+                  bindingCode,
+                )}]`
+              : `${special.remaining.toFixed(1)}s`
+          );
 
     drawResourceBar(
-      'SPECIAL',
+      special.hudLabel ??
+        (
+          i === 0
+            ? 'SPECIAL'
+            : `SPECIAL ${i + 1}`
+        ),
       readyRatio,
       1,
       bx,
