@@ -351,6 +351,9 @@ export class HorizonWeapon {
     target,
     artPixelSize,
     active = true,
+    {
+      resolveHit = null,
+    } = {},
   ) {
     this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
 
@@ -389,7 +392,7 @@ export class HorizonWeapon {
           player,
           target,
           artPixelSize,
-          arguments[7]?.resolveHit ?? null,
+          resolveHit,
         );
       }
     }
