@@ -11,6 +11,7 @@ export class WeaponRuntime {
       ['relay', 'default'],
       ['parallax', 'default'],
       ['anchor', 'default'],
+      ['fukiya', 'default'],
       ['kepler', 'default'],
     ]);
   }
@@ -190,6 +191,7 @@ export class WeaponRuntime {
         'relay',
         'parallax',
         'anchor',
+        'fukiya',
       ]
     ) {
       this.get(id)
@@ -305,6 +307,7 @@ export class WeaponRuntime {
         'relay',
         'parallax',
         'anchor',
+        'fukiya',
         'kepler',
       ]
     ) {
