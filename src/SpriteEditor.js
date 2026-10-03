@@ -6,7 +6,7 @@ import {
   getSpriteMaterial,
   serializeSpriteAsset,
   parseSpriteAsset,
-} from './SpriteAssets.js?v=63a';
+} from './SpriteAssets.js?v=72da';
 import {
   rasterize,
 } from './pixelShapes.js?v=49';
@@ -108,6 +108,7 @@ export class SpriteEditor {
     glowStrengthInput,
     glowLabel,
     scaleInput,
+    pixelSizeInput,
     importFileInput,
     snapInput,
     symmetryInput,
@@ -176,6 +177,8 @@ export class SpriteEditor {
       glowLabel;
     this.scaleInput =
       scaleInput;
+    this.pixelSizeInput =
+      pixelSizeInput;
     this.importFileInput =
       importFileInput;
     this.snapInput = snapInput;
@@ -389,6 +392,33 @@ export class SpriteEditor {
         this.scaleInput.value =
           String(next);
         this.renderAll();
+      },
+    );
+
+    this.pixelSizeInput?.addEventListener(
+      'change',
+      () => {
+        const next =
+          Math.round(
+            clamp(
+              Number(
+                this.pixelSizeInput.value,
+              ) || 4,
+              1,
+              8,
+            ) *
+            4,
+          ) /
+          4;
+
+        this.pushHistory();
+        this.future.length = 0;
+        this.asset.render ??= {};
+        this.asset.render.artPixelSize =
+          next;
+        this.pixelSizeInput.value =
+          String(next);
+        this.renderPreview();
       },
     );
 
@@ -956,6 +986,15 @@ export class SpriteEditor {
         String(this.asset.scale ?? 1);
     }
 
+    if (this.pixelSizeInput) {
+      this.pixelSizeInput.value =
+        String(
+          this.asset.render
+            ?.artPixelSize ??
+          4,
+        );
+    }
+
     if (this.flipOnReverseInput) {
       this.flipOnReverseInput.checked =
         this.asset.render?.flipOnReverse === true;
@@ -1142,6 +1181,15 @@ export class SpriteEditor {
     if (this.scaleInput) {
       this.scaleInput.value =
         String(imported.scale ?? 1);
+    }
+
+    if (this.pixelSizeInput) {
+      this.pixelSizeInput.value =
+        String(
+          imported.render
+            ?.artPixelSize ??
+          4,
+        );
     }
 
     if (this.flipOnReverseInput) {
@@ -1939,6 +1987,15 @@ export class SpriteEditor {
     if (this.scaleInput) {
       this.scaleInput.value =
         String(this.asset.scale ?? 1);
+    }
+
+    if (this.pixelSizeInput) {
+      this.pixelSizeInput.value =
+        String(
+          this.asset.render
+            ?.artPixelSize ??
+          4,
+        );
     }
 
     if (this.flipOnReverseInput) {
@@ -4537,7 +4594,16 @@ export class SpriteEditor {
         angle,
       );
 
-    const artPixel = 4;
+    const artPixel =
+      clamp(
+        Number(
+          compiled.asset.render
+            ?.artPixelSize,
+        ) || 4,
+        1,
+        8,
+      );
+
     const bounds =
       raster.shapeBounds ?? {
         minX:
