@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v72ca**
+Current reference build: **v72d**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -234,7 +234,7 @@ Crawl uses endpoint-IK-like planted hand targets:
 - a full miss ends in a wall crash and shockwave
 - the wall crash deals small self-damage and self-stagger
 
-As of v72ca, Crawl is faster and its wall-impact animation blends smoothly from the collision pose into normal recovery.
+As of v72d, Crawl has a more uneven, desperate hauling cadence: the hands lunge farther ahead, each plant yanks the trailing torso forward, and the head visibly strains through the pull. Wall impact now preserves the real contact pose instead of teleporting the torso when a leading hand reaches the wall first.
 
 ## Telegraphs
 
@@ -413,6 +413,9 @@ Fixed Crawl wall-lock recovery and made Crawl grabs dash-evadable with whiff rec
 
 ### v72ca
 Increased Crawl speed again, smoothed the Crawl wall-impact recovery transition, and standardized boss/player compact status bar sizing.
+
+### v72d
+Made Crawl read more like a desperate hand-over-hand pursuit, removed the torso snap when a leading hand hits the wall first, improved the wall-impact recoil/settle blend, and cleared lingering attack telegraphs on R restarts so warning marks cannot stack across attempts.
 
 ## Development status
 
