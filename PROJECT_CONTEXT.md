@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v73**
+> Current reference build: **v74**
 
 ## 1. What Fallax is
 
@@ -130,7 +130,7 @@ Current identities:
 - Backfire pellets -> Burn
 - Monolith Piledriver / Ground Sweep -> Fracture buildup on player
 - Monolith Crawl throw / Drop Catch / Wall Toss -> Fatigue buildup on player
-- Poison is implemented but intentionally does not yet have an arbitrary weapon source
+- Fukiya darts / Needleburst -> Poison
 
 Effect-related equipment stats are colored yellow in item tooltips.
 
@@ -171,6 +171,7 @@ Weapons:
 - Relay
 - Parallax
 - Anchor
+- Fukiya
 - Kepler
 
 Abilities:
@@ -187,7 +188,24 @@ Armor:
 `src/WeaponRuntime.js` coordinates weapon updates.
 Each weapon remains in its own module.
 
-Anchor used to contain a bespoke bleed timer/DPS system. That old implementation was removed. Barbed Anchor now applies real Bleed buildup through the shared status architecture.
+Anchor used to contain a bespoke bleed timer/DPS system. That old implementation was removed. As of v74, every successful Anchor hook impact applies +12 real Bleed buildup through CombatResolver. The old armed Barbed-shot special was removed.
+
+Anchor Q is now **Ripcord**:
+- requires an attached anchor
+- boss anchor: 24-54 damage, +55 to +120 Bleed buildup, and +10 to +32 stagger depending on tether tension
+- surface anchor: converts the tether into a 1050-1600 movement impulse toward the anchor
+- 9s cooldown
+- special resolves through the shared combat hit path when damaging a boss
+
+Fukiya was added in v74 as the first dedicated Poison weapon:
+- user-authored sprite asset, scale 0.4
+- 12 damage per normal dart, 0.58s fire cooldown
+- +22 Poison buildup per normal dart
+- Q Needleburst fires seven darts with 5 damage and +18 Poison buildup each
+- Needleburst cooldown: 10s
+- shop price: 460 denarii
+- darts respect boss hit tests, so Monolith remains head-only
+- Poison still follows boss susceptibility profiles; Matrix and Monolith remain immune
 
 As of v73, Horizon is the first weapon with two dedicated specials:
 - Q: Recoil Drive arms the next shot for 2250 recoil and +18 stagger, 6.5s cooldown
@@ -417,6 +435,17 @@ Generic status architecture + Fracture vertical slice.
 - HUD now supports multiple specials for a weapon
 - Horizon special stagger uses the shared combat resolver
 
+### v74
+- Anchor normal hook impacts now add +12 Bleed buildup
+- replaced Anchor's old Barbed next-shot modifier with contextual Ripcord
+- boss Ripcord scales damage, Bleed, and stagger with tether tension
+- surface Ripcord provides a strong reel/slingshot movement impulse
+- added Fukiya from the user-authored sprite asset
+- Fukiya applies Poison buildup with normal darts
+- Q Needleburst fires a seven-dart toxic spread
+- Fukiya price set to 460 denarii
+- Fukiya damage/status hits use CombatResolver and respect boss hitTest rules
+
 ## 13. Development rules / invariants
 
 When modifying Fallax:
@@ -443,6 +472,7 @@ The game is now past the bare boss-prototype stage. Good next areas include:
 - attack-memory/adaptive boss weighting
 - preemptive-strike mechanics during telegraph windows
 - additional bosses after Monolith polish
-- rework Anchor's currently barebones Barbed special without reintroducing bespoke Bleed logic
+- tune Fukiya Poison buildup / Needleburst after browser playtesting
+- tune Anchor Ripcord tension scaling after browser playtesting
 
 Do not assume every brainstormed mechanic is already implemented. Check the repo before coding.
