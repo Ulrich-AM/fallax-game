@@ -246,17 +246,23 @@ export class AnchorWeapon {
     this.returnSpeed = 1450;
     this.returnArrivalDistance = 24;
 
-    this.specialCooldown = 12;
+    this.normalBleedBuildup = 12;
+
+    this.specialCooldown = 9;
     this.specialCooldownTimer =
       this.specialCooldown;
 
-    this.barbedReadyDuration = 6;
-    this.barbedReadyTimer = 0;
-    this.barbedTipScale = 1.65;
-    this.barbedProjectileDamage = 18;
-    this.barbedBleedBuildup = 100;
-    this.barbedTensionMultiplier = 1.35;
-    this.barbedVisualTime = 0;
+    this.ripcordBaseDamage = 24;
+    this.ripcordTensionDamage = 30;
+    this.ripcordBaseBleed = 55;
+    this.ripcordTensionBleed = 65;
+    this.ripcordBaseStagger = 10;
+    this.ripcordTensionStagger = 22;
+    this.ripcordSurfaceImpulse = 1050;
+    this.ripcordSurfaceTensionImpulse = 550;
+    this.ripcordRequested = false;
+    this.ripcordFlashDuration = 0.18;
+    this.ripcordFlashTimer = 0;
 
     this.wasFiring = false;
 
@@ -287,8 +293,8 @@ export class AnchorWeapon {
     this.specialCooldownTimer =
       this.specialCooldown;
 
-    this.barbedReadyTimer = 0;
-    this.barbedVisualTime = 0;
+    this.ripcordRequested = false;
+    this.ripcordFlashTimer = 0;
     this.wasFiring = false;
 
     this.projectile = null;
@@ -379,11 +385,6 @@ export class AnchorWeapon {
         artPixelSize,
       );
 
-    const barbed =
-      this.barbedReadyTimer > 0;
-
-    this.barbedReadyTimer = 0;
-
     this.projectile = {
       x: muzzle.x,
       y: muzzle.y,
@@ -405,7 +406,6 @@ export class AnchorWeapon {
         this.projectileLife,
       maxLife:
         this.projectileLife,
-      barbed,
     };
 
     this.shotSerial++;
@@ -566,7 +566,6 @@ export class AnchorWeapon {
     x,
     y,
     angle,
-    barbed = false,
   ) {
     this.anchor = {
       mode: 'boss',
@@ -578,7 +577,6 @@ export class AnchorWeapon {
       x,
       y,
       angle,
-      barbed,
     };
 
     this.projectile = null;
@@ -589,7 +587,6 @@ export class AnchorWeapon {
     x,
     y,
     angle,
-    barbed = false,
   ) {
     this.anchor = {
       mode: 'surface',
@@ -597,7 +594,6 @@ export class AnchorWeapon {
       y,
       angle,
       target: null,
-      barbed,
     };
 
     this.projectile = null;
@@ -674,13 +670,11 @@ export class AnchorWeapon {
     x,
     y,
     angle = 0,
-    barbed = false,
   ) {
     this.returningTip = {
       x,
       y,
       angle,
-      barbed,
     };
 
     this.anchor = null;
@@ -696,7 +690,6 @@ export class AnchorWeapon {
         anchor.x,
         anchor.y,
         anchor.angle ?? 0,
-        !!anchor.barbed,
       );
 
       return;
@@ -707,46 +700,156 @@ export class AnchorWeapon {
         this.projectile.x,
         this.projectile.y,
         this.projectile.angle,
-        !!this.projectile.barbed,
       );
     }
   }
 
   triggerSpecial() {
     if (
-      this.specialCooldownTimer >
-        0 ||
-      this.tipDetached()
+      this.specialCooldownTimer > 0 ||
+      !this.anchor ||
+      this.ripcordRequested
     ) {
+      return false;
+    }
+
+    this.ripcordRequested = true;
+    return true;
+  }
+
+  get specialAbilities() {
+    return [{
+      id: 'anchor-ripcord',
+      name: 'ripcord',
+      hudLabel: 'RIPCORD',
+      cooldown:
+        this.specialCooldown,
+      remaining:
+        this.specialCooldownTimer,
+      active:
+        this.ripcordRequested ||
+        this.ripcordFlashTimer > 0,
+      activeText: 'RIP!',
+    }];
+  }
+
+  executeRipcord(
+    player,
+    resolveHit = null,
+  ) {
+    const anchor =
+      this.anchorPosition();
+
+    if (!anchor) {
+      return false;
+    }
+
+    const tension =
+      this.tension(player);
+
+    if (
+      anchor.mode === 'boss' &&
+      anchor.target &&
+      !anchor.target.dead
+    ) {
+      const damage =
+        this.ripcordBaseDamage +
+        this.ripcordTensionDamage *
+        tension.ratio;
+
+      const bleed =
+        this.ripcordBaseBleed +
+        this.ripcordTensionBleed *
+        tension.ratio;
+
+      const stagger =
+        this.ripcordBaseStagger +
+        this.ripcordTensionStagger *
+        tension.ratio;
+
+      if (
+        typeof resolveHit ===
+        'function'
+      ) {
+        resolveHit(
+          anchor.target,
+          {
+            damage,
+            stagger,
+            buildup: {
+              bleed,
+            },
+            source: 'anchor-ripcord',
+            attacker: player,
+          },
+        );
+      } else {
+        anchor.target
+          .takeDamage?.(
+            damage,
+          );
+
+        anchor.target
+          .status
+          ?.addBuildup
+          ?.(
+            'bleed',
+            bleed,
+            {
+              source:
+                'anchor-ripcord',
+            },
+          );
+      }
+    } else if (
+      anchor.mode ===
+        'surface'
+    ) {
+      const dx =
+        anchor.x - player.x;
+
+      const dy =
+        anchor.y - player.y;
+
+      const distance =
+        Math.max(
+          0.0001,
+          Math.hypot(dx, dy),
+        );
+
+      const impulse =
+        this.ripcordSurfaceImpulse +
+        this.ripcordSurfaceTensionImpulse *
+        tension.ratio;
+
+      player.vx +=
+        dx /
+        distance *
+        impulse;
+
+      player.vy +=
+        dy /
+        distance *
+        impulse;
+
+      player.grounded = false;
+    } else {
       return false;
     }
 
     this.specialCooldownTimer =
       this.specialCooldown;
 
-    this.barbedReadyTimer =
-      this.barbedReadyDuration;
+    this.ripcordFlashTimer =
+      this.ripcordFlashDuration;
+
+    this.beginReturn(
+      anchor.x,
+      anchor.y,
+      anchor.angle ?? 0,
+    );
 
     return true;
-  }
-
-  get specialAbilities() {
-    const barbedActive =
-      this.barbedReadyTimer > 0 ||
-      !!this.projectile?.barbed ||
-      !!this.anchor?.barbed ||
-      !!this.returningTip?.barbed;
-
-    return [{
-      id: 'anchor-barbed',
-      name: 'barbed anchor',
-      cooldown:
-        this.specialCooldown,
-      remaining:
-        this.specialCooldownTimer,
-      active:
-        barbedActive,
-    }];
   }
 
   updateReturningTip(
@@ -850,15 +953,12 @@ export class AnchorWeapon {
         );
     }
 
-    this.barbedReadyTimer =
+    this.ripcordFlashTimer =
       Math.max(
         0,
-        this.barbedReadyTimer -
+        this.ripcordFlashTimer -
           dt,
       );
-
-    this.barbedVisualTime +=
-      dt;
 
     const firePressed =
       active &&
@@ -929,11 +1029,6 @@ export class AnchorWeapon {
           6,
         )
       ) {
-        const damage =
-          projectile.barbed
-            ? this.barbedProjectileDamage
-            : this.projectileDamage;
-
         if (
           typeof resolveHit ===
           'function'
@@ -941,41 +1036,31 @@ export class AnchorWeapon {
           resolveHit(
             target,
             {
-              damage,
-              buildup:
-                projectile.barbed
-                  ? {
-                      bleed:
-                        this.barbedBleedBuildup,
-                    }
-                  : {},
-              source:
-                projectile.barbed
-                  ? 'anchor-barbed'
-                  : 'anchor',
+              damage:
+                this.projectileDamage,
+              buildup: {
+                bleed:
+                  this.normalBleedBuildup,
+              },
+              source: 'anchor',
               attacker:
                 player,
             },
           );
         } else {
           target.takeDamage?.(
-            damage,
+            this.projectileDamage,
           );
 
-          if (
-            projectile.barbed
-          ) {
-            target.status
-              ?.addBuildup
-              ?.(
-                'bleed',
-                this.barbedBleedBuildup,
-                {
-                  source:
-                    'anchor-barbed',
-                },
-              );
-          }
+          target.status
+            ?.addBuildup
+            ?.(
+              'bleed',
+              this.normalBleedBuildup,
+              {
+                source: 'anchor',
+              },
+            );
         }
 
         this.attachBoss(
@@ -983,7 +1068,6 @@ export class AnchorWeapon {
           projectile.x,
           projectile.y,
           projectile.angle,
-          !!projectile.barbed,
         );
       } else if (
         projectile.life >
@@ -1000,7 +1084,6 @@ export class AnchorWeapon {
             hit.x,
             hit.y,
             projectile.angle,
-            !!projectile.barbed,
           );
         }
       }
@@ -1027,13 +1110,24 @@ export class AnchorWeapon {
           projectile.x,
           projectile.y,
           projectile.angle,
-          !!projectile.barbed,
         );
       }
     }
 
-    const anchor =
+    let anchor =
       this.anchorPosition();
+
+    if (this.ripcordRequested) {
+      this.ripcordRequested = false;
+
+      this.executeRipcord(
+        player,
+        resolveHit,
+      );
+
+      anchor =
+        this.anchorPosition();
+    }
 
     if (
       anchor &&
@@ -1065,7 +1159,6 @@ export class AnchorWeapon {
           anchor.x,
           anchor.y,
           anchor.angle,
-          !!anchor.barbed,
         );
       } else {
         player.vx +=
@@ -1095,7 +1188,6 @@ export class AnchorWeapon {
           anchor.x,
           anchor.y,
           anchor.angle,
-          !!anchor.barbed,
         );
       } else {
         const tension =
@@ -1117,13 +1209,7 @@ export class AnchorWeapon {
 
           anchor.target
             .takeDamage?.(
-              dps *
-              (
-                anchor.barbed
-                  ? this.barbedTensionMultiplier
-                  : 1
-              ) *
-              dt,
+              dps * dt,
             );
         }
 
@@ -1142,7 +1228,6 @@ export class AnchorWeapon {
             anchor.x,
             anchor.y,
             anchor.angle,
-            !!anchor.barbed,
           );
         }
       }
@@ -1223,15 +1308,34 @@ export class AnchorWeapon {
         tension.ratio;
 
       ctx.strokeStyle =
-        tension.ratio >
-        0.7
-          ? '#ff6b6b'
-          : '#d7dbe2';
+        this.ripcordFlashTimer > 0
+          ? '#ffffff'
+          : (
+              tension.ratio >
+              0.7
+                ? '#ff6b6b'
+                : '#d7dbe2'
+            );
 
       ctx.lineWidth =
-        2 +
-        3 *
-        tension.ratio;
+        (
+          2 +
+          3 *
+          tension.ratio
+        ) +
+        (
+          this.ripcordFlashTimer > 0
+            ? 4
+            : 0
+        );
+
+      if (
+        this.ripcordFlashTimer > 0
+      ) {
+        ctx.shadowColor =
+          '#ff7777';
+        ctx.shadowBlur = 20;
+      }
 
       ctx.beginPath();
 
@@ -1257,17 +1361,15 @@ export class AnchorWeapon {
         tip.angle ?? 0,
         cameraX,
         artPixelSize,
-        tip.barbed
-          ? 2
+        this.ripcordFlashTimer > 0
+          ? 2.2
           : (
               anchor?.mode ===
                 'boss'
                 ? 1.45
                 : 1.2
             ),
-        tip.barbed
-          ? this.barbedTipScale
-          : 1,
+        1,
       );
     }
 
@@ -1293,42 +1395,6 @@ export class AnchorWeapon {
         artPixelSize,
         {
           glowStrength: 0,
-        },
-      );
-    } else if (
-      this.barbedReadyTimer > 0
-    ) {
-      this.bodySprite.draw(
-        ctx,
-        aim.x -
-          cameraX,
-        aim.y,
-        aim.angle,
-        artPixelSize,
-        {
-          glowStrength: 0,
-        },
-      );
-
-      const pulse =
-        1 +
-        0.08 *
-        Math.sin(
-          this.barbedVisualTime *
-          10,
-        );
-
-      this.tipSprite.draw(
-        ctx,
-        aim.x -
-          cameraX,
-        aim.y,
-        aim.angle,
-        artPixelSize *
-          this.barbedTipScale *
-          pulse,
-        {
-          glowStrength: 2,
         },
       );
     } else {
