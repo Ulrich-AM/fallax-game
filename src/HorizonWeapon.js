@@ -179,16 +179,25 @@ export class HorizonWeapon {
     this.weaponKickDuration = 0.13;
     this.weaponKickDistance = 14;
 
-    this.specialCooldown = 14;
-    this.specialCooldownTimer = this.specialCooldown;
-    this.specialProjectileSpeed = 190;
-    this.specialProjectileLife = 5.2;
-    this.specialProjectileSize = 58;
-    this.specialProjectileDamage = 68;
-    this.specialHomingStrength = 1.15;
-    this.specialRecoil = 1350;
-    this.specialWeaponKickDistance = 28;
-    this.specialProjectiles = [];
+    this.recoilDriveCooldown = 6.5;
+    this.recoilDriveCooldownTimer =
+      this.recoilDriveCooldown;
+    this.recoilDriveArmed = false;
+    this.recoilDriveRecoil = 2250;
+    this.recoilDriveStagger = 18;
+
+    this.overchargeCooldown = 12;
+    this.overchargeCooldownTimer =
+      this.overchargeCooldown;
+    this.overchargeArmed = false;
+    this.overchargeChargeMultiplier = 2;
+    this.overchargeDamageMultiplier = 2.5;
+    this.overchargeRecoilMultiplier = 1.45;
+    this.overchargeStagger = 34;
+
+    this.activeShotRecoilDrive = false;
+    this.activeShotOvercharge = false;
+    this.lastShotOvercharge = false;
     this.shotSerial = 0;
   }
 
@@ -200,24 +209,81 @@ export class HorizonWeapon {
     this.lockedAngle = 0;
     this.shotApplied = false;
     this.weaponKickTimer = 0;
-    this.specialCooldownTimer = this.specialCooldown;
-    this.specialProjectiles.length = 0;
+    this.recoilDriveCooldownTimer =
+      this.recoilDriveCooldown;
+    this.overchargeCooldownTimer =
+      this.overchargeCooldown;
+    this.recoilDriveArmed = false;
+    this.overchargeArmed = false;
+    this.activeShotRecoilDrive = false;
+    this.activeShotOvercharge = false;
+    this.lastShotOvercharge = false;
     this.shotSerial = 0;
   }
 
-  triggerSpecial({ player, pointerWorld } = {}) {
-    if (!player || !pointerWorld) return false;
-    return this.fireSpecial(player, pointerWorld);
+  triggerSpecial() {
+    if (
+      this.recoilDriveCooldownTimer > 0 ||
+      this.recoilDriveArmed ||
+      this.activeShotRecoilDrive ||
+      this.chargeTimer > 0
+    ) {
+      return false;
+    }
+
+    this.recoilDriveArmed = true;
+    this.recoilDriveCooldownTimer =
+      this.recoilDriveCooldown;
+    return true;
+  }
+
+  triggerSecondarySpecial() {
+    if (
+      this.overchargeCooldownTimer > 0 ||
+      this.overchargeArmed ||
+      this.activeShotOvercharge ||
+      this.chargeTimer > 0
+    ) {
+      return false;
+    }
+
+    this.overchargeArmed = true;
+    this.overchargeCooldownTimer =
+      this.overchargeCooldown;
+    return true;
   }
 
   get specialAbilities() {
-    return [{
-      id: 'horizon-star',
-      name: 'star',
-      cooldown: this.specialCooldown,
-      remaining: this.specialCooldownTimer,
-      active: false,
-    }];
+    return [
+      {
+        id: 'horizon-recoil-drive',
+        name: 'recoil drive',
+        hudLabel: 'RECOIL DRIVE',
+        binding: 'special',
+        activeText: 'ARMED',
+        cooldown:
+          this.recoilDriveCooldown,
+        remaining:
+          this.recoilDriveCooldownTimer,
+        active:
+          this.recoilDriveArmed ||
+          this.activeShotRecoilDrive,
+      },
+      {
+        id: 'horizon-overcharge',
+        name: 'overcharge',
+        hudLabel: 'OVERCHARGE',
+        binding: 'special2',
+        activeText: 'ARMED',
+        cooldown:
+          this.overchargeCooldown,
+        remaining:
+          this.overchargeCooldownTimer,
+        active:
+          this.overchargeArmed ||
+          this.activeShotOvercharge,
+      },
+    ];
   }
 
   get locksPlayer() {
@@ -252,8 +318,26 @@ export class HorizonWeapon {
   beginCharge(player, pointerWorld) {
     if (this.cooldownTimer > 0) return false;
 
-    this.lockedAngle = this.getTargetAngle(player, pointerWorld);
-    this.chargeTimer = this.chargeDuration;
+    this.lockedAngle =
+      this.getTargetAngle(
+        player,
+        pointerWorld,
+      );
+
+    this.activeShotRecoilDrive =
+      this.recoilDriveArmed;
+
+    this.activeShotOvercharge =
+      this.overchargeArmed;
+
+    this.chargeTimer =
+      this.chargeDuration *
+      (
+        this.activeShotOvercharge
+          ? this.overchargeChargeMultiplier
+          : 1
+      );
+
     this.flashTimer = 0;
     this.shotApplied = false;
     return true;
@@ -271,14 +355,23 @@ export class HorizonWeapon {
     this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
 
     if (active) {
-      this.specialCooldownTimer = Math.max(
-        0,
-        this.specialCooldownTimer - dt,
-      );
+      this.recoilDriveCooldownTimer =
+        Math.max(
+          0,
+          this.recoilDriveCooldownTimer - dt,
+        );
+
+      this.overchargeCooldownTimer =
+        Math.max(
+          0,
+          this.overchargeCooldownTimer - dt,
+        );
     }
 
     if (!active && this.chargeTimer > 0) {
       this.chargeTimer = 0;
+      this.activeShotRecoilDrive = false;
+      this.activeShotOvercharge = false;
     }
 
     if (active && firing && !this.wasFiring) {
@@ -292,7 +385,12 @@ export class HorizonWeapon {
       if (this.chargeTimer <= 0) {
         this.flashTimer = this.flashDuration;
         this.cooldownTimer = this.fireCooldown;
-        this.applyShot(player, target, artPixelSize);
+        this.applyShot(
+          player,
+          target,
+          artPixelSize,
+          arguments[7]?.resolveHit ?? null,
+        );
       }
     }
 
@@ -302,116 +400,67 @@ export class HorizonWeapon {
       this.weaponKickTimer - dt,
     );
 
-    this.updateSpecialProjectiles(dt, target);
   }
 
-  fireSpecial(player, pointerWorld) {
-    if (this.specialCooldownTimer > 0) return false;
-
-    this.shotSerial++;
-
-    const angle = this.getTargetAngle(player, pointerWorld);
-    const dirX = Math.cos(angle);
-    const dirY = Math.sin(angle);
-
-    const pivotX =
-      player.x +
-      dirX *
-      this.orbitRadius;
-
-    const pivotY =
-      player.y +
-      dirY *
-      this.orbitRadius;
-
-    const muzzle =
-      this.sprite
-        .getMarkerWorldPosition(
-          'muzzle',
-          pivotX,
-          pivotY,
-          angle,
-          4,
-        );
-
-    this.specialProjectiles.push({
-      x: muzzle.x,
-      y: muzzle.y,
-      vx: dirX * this.specialProjectileSpeed,
-      vy: dirY * this.specialProjectileSpeed,
-      life: this.specialProjectileLife,
-      maxLife: this.specialProjectileLife,
-      hitTarget: false,
-    });
-
-    this.specialCooldownTimer = this.specialCooldown;
-    this.weaponKickTimer = this.weaponKickDuration;
-    this.weaponKickDistance = this.specialWeaponKickDistance;
-
-    player.vx -= dirX * this.specialRecoil;
-    player.vy -= dirY * this.specialRecoil;
-    player.grounded = false;
-    return true;
-  }
-
-  updateSpecialProjectiles(dt, target) {
-    for (const projectile of this.specialProjectiles) {
-      projectile.life = Math.max(0, projectile.life - dt);
-
-      if (target && !target.dead && projectile.life > 0) {
-        const dx = target.x - projectile.x;
-        const dy = target.y - projectile.y;
-        const distance = Math.hypot(dx, dy) || 1;
-
-        const desiredX =
-          dx / distance * this.specialProjectileSpeed;
-        const desiredY =
-          dy / distance * this.specialProjectileSpeed;
-
-        const steer = Math.min(
-          1,
-          this.specialHomingStrength * dt,
-        );
-
-        projectile.vx +=
-          (desiredX - projectile.vx) * steer;
-        projectile.vy +=
-          (desiredY - projectile.vy) * steer;
-
-        const hitRadius =
-          this.specialProjectileSize * 0.5 +
-          (target.halfSize ?? 48) * 0.82;
-
-        if (
-          !projectile.hitTarget &&
-          distance <= hitRadius
-        ) {
-          target.takeDamage?.(
-            this.specialProjectileDamage,
-          );
-
-          projectile.hitTarget = true;
-          projectile.life = 0;
-        }
-      }
-
-      projectile.x += projectile.vx * dt;
-      projectile.y += projectile.vy * dt;
-    }
-
-    this.specialProjectiles =
-      this.specialProjectiles.filter(
-        projectile => projectile.life > 0,
-      );
-  }
-
-  applyShot(player, target, artPixelSize) {
+  applyShot(
+    player,
+    target,
+    artPixelSize,
+    resolveHit = null,
+  ) {
     if (this.shotApplied) return;
     this.shotApplied = true;
     this.shotSerial++;
 
-    const dirX = Math.cos(this.lockedAngle);
-    const dirY = Math.sin(this.lockedAngle);
+    const recoilDrive =
+      this.activeShotRecoilDrive;
+
+    const overcharged =
+      this.activeShotOvercharge;
+
+    const shotDamage =
+      this.damage *
+      (
+        overcharged
+          ? this.overchargeDamageMultiplier
+          : 1
+      );
+
+    const shotStagger =
+      (
+        recoilDrive
+          ? this.recoilDriveStagger
+          : 0
+      ) +
+      (
+        overcharged
+          ? this.overchargeStagger
+          : 0
+      );
+
+    let shotRecoil =
+      this.recoil *
+      (
+        overcharged
+          ? this.overchargeRecoilMultiplier
+          : 1
+      );
+
+    if (recoilDrive) {
+      shotRecoil =
+        this.recoilDriveRecoil *
+        (
+          overcharged
+            ? this.overchargeRecoilMultiplier
+            : 1
+        );
+    }
+
+    const dirX =
+      Math.cos(this.lockedAngle);
+
+    const dirY =
+      Math.sin(this.lockedAngle);
 
     const pivotX =
       player.x +
@@ -439,34 +488,95 @@ export class HorizonWeapon {
       dirX,
       dirY,
       this.beamRange,
-      4,
-      this.damage,
+      overcharged ? 8 : 4,
+      shotDamage,
     );
 
     if (target && !target.dead) {
-      const radius = (target.halfSize ?? 48) * 0.94;
-      const hitDistance = rayCircleHit(
-        muzzle.x,
-        muzzle.y,
-        dirX,
-        dirY,
-        this.beamRange,
-        target.x,
-        target.y,
-        radius,
-      );
+      const radius =
+        (target.halfSize ?? 48) *
+        0.94;
+
+      const hitDistance =
+        rayCircleHit(
+          muzzle.x,
+          muzzle.y,
+          dirX,
+          dirY,
+          this.beamRange,
+          target.x,
+          target.y,
+          radius,
+        );
 
       if (hitDistance !== null) {
-        target.takeDamage?.(this.damage);
+        if (
+          typeof resolveHit ===
+          'function'
+        ) {
+          resolveHit(
+            target,
+            {
+              damage: shotDamage,
+              stagger: shotStagger,
+              source:
+                overcharged
+                  ? (
+                      recoilDrive
+                        ? 'horizon-drive-overcharge'
+                        : 'horizon-overcharge'
+                    )
+                  : (
+                      recoilDrive
+                        ? 'horizon-recoil-drive'
+                        : 'horizon'
+                    ),
+              attacker: player,
+            },
+          );
+        } else {
+          target.takeDamage?.(
+            shotDamage,
+          );
+        }
       }
     }
 
-    this.weaponKickDistance = 14;
-    this.weaponKickTimer = this.weaponKickDuration;
+    this.lastShotOvercharge =
+      overcharged;
 
-    player.vx -= dirX * this.recoil;
-    player.vy -= dirY * this.recoil;
+    this.weaponKickDistance =
+      recoilDrive
+        ? 30
+        : (
+            overcharged
+              ? 22
+              : 14
+          );
+
+    this.weaponKickTimer =
+      this.weaponKickDuration;
+
+    player.vx -=
+      dirX *
+      shotRecoil;
+
+    player.vy -=
+      dirY *
+      shotRecoil;
+
     player.grounded = false;
+
+    if (recoilDrive) {
+      this.recoilDriveArmed = false;
+    }
+
+    if (overcharged) {
+      this.overchargeArmed = false;
+    }
+
+    this.activeShotRecoilDrive = false;
+    this.activeShotOvercharge = false;
   }
 
   getSpriteEntry(
@@ -539,12 +649,31 @@ export class HorizonWeapon {
 
     if (this.flashTimer > 0) {
       ctx.globalAlpha = 1;
-      ctx.lineWidth = this.bodyThicknessPixels;
-      ctx.shadowColor = 'rgba(255,255,255,1)';
-      ctx.shadowBlur = 24;
+      ctx.lineWidth =
+        this.bodyThicknessPixels *
+        (
+          this.lastShotOvercharge
+            ? 1.8
+            : 1
+        );
+      ctx.shadowColor =
+        'rgba(255,255,255,1)';
+      ctx.shadowBlur =
+        this.lastShotOvercharge
+          ? 42
+          : 24;
     } else {
-      ctx.globalAlpha = 0.24;
-      ctx.lineWidth = this.bodyThicknessPixels;
+      ctx.globalAlpha =
+        this.activeShotOvercharge
+          ? 0.38
+          : 0.24;
+      ctx.lineWidth =
+        this.bodyThicknessPixels *
+        (
+          this.activeShotOvercharge
+            ? 1.28
+            : 1
+        );
       ctx.shadowBlur = 0;
     }
 
@@ -565,33 +694,5 @@ export class HorizonWeapon {
     ctx.stroke();
     ctx.restore();
 
-    this.drawSpecialProjectiles(ctx, cameraX);
-  }
-
-  drawSpecialProjectiles(ctx, cameraX) {
-    ctx.save();
-
-    for (const projectile of this.specialProjectiles) {
-      const ratio =
-        projectile.life / projectile.maxLife;
-
-      const size =
-        this.specialProjectileSize *
-        (0.84 + ratio * 0.16);
-
-      ctx.globalAlpha = Math.max(0, ratio);
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(255,255,255,1)';
-      ctx.shadowBlur = 30;
-
-      ctx.fillRect(
-        Math.round(projectile.x - cameraX - size / 2),
-        Math.round(projectile.y - size / 2),
-        size,
-        size,
-      );
-    }
-
-    ctx.restore();
   }
 }
