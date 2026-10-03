@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v72d**
+Current reference build: **v72da**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -416,6 +416,9 @@ Increased Crawl speed again, smoothed the Crawl wall-impact recovery transition,
 
 ### v72d
 Made Crawl read more like a desperate hand-over-hand pursuit, removed the torso snap when a leading hand hits the wall first, improved the wall-impact recoil/settle blend, and cleared lingering attack telegraphs on R restarts so warning marks cannot stack across attempts.
+
+### v72da
+Added a per-weapon sprite-editor pixel-size setting. Weapon JSON now stores `render.artPixelSize` with a backwards-compatible default of 4, and both the game preview and weapon test room respect the chosen value.
 
 ## Development status
 
