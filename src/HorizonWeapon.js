@@ -192,7 +192,7 @@ export class HorizonWeapon {
     this.overchargeArmed = false;
     this.overchargeChargeMultiplier = 2;
     this.overchargeDamageMultiplier = 2.5;
-    this.overchargeRecoilMultiplier = 1.45;
+    this.overchargeRecoilMultiplier = 1.5;
     this.overchargeStagger = 34;
 
     this.activeShotRecoilDrive = false;
