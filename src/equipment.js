@@ -50,7 +50,9 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'shot damage', value: '42' },
       { label: 'charge / cooldown', value: '0.34s / 1.10s' },
-      { label: 'star', value: '68 damage / 14s' },
+      { label: 'Q recoil drive', value: '2250 recoil + 18 stagger / 6.5s' },
+      { label: 'E overcharge', value: '105 damage + 34 stagger / 12s' },
+      { label: 'Q + E', value: '3375 recoil + 52 stagger' },
     ],
   },
   mach: {
