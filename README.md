@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v72da**
+Current reference build: **v73**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -45,6 +45,7 @@ Controls can be rebound in the in-game settings menu.
 | Fire | Left Mouse |
 | Guard / parry | Right Mouse |
 | Weapon special | Q |
+| Secondary weapon special | E |
 | Weapon slots | 1 / 2 |
 | Extra slots | 3 / 4 |
 | Restart encounter | R |
@@ -139,6 +140,13 @@ Current weapons:
 - Parallax
 - Anchor
 - Kepler
+
+Horizon is the first weapon with two dedicated specials:
+- **Q, Recoil Drive:** arms the next shot with much stronger recoil and +18 stagger. Cooldown: 6.5s.
+- **E, Overcharge:** arms the next shot with a 2x charge time, 105 damage, +34 stagger, and increased recoil. Cooldown: 12s.
+- Q and E can be armed together, producing 3375 recoil and +52 stagger on the same shot.
+
+The secondary-special input is generic and rebindable, so later weapons can also use E without weapon-specific key handling.
 
 Abilities:
 - Backfire
@@ -419,6 +427,9 @@ Made Crawl read more like a desperate hand-over-hand pursuit, removed the torso 
 
 ### v72da
 Added a per-weapon sprite-editor pixel-size setting. Weapon JSON now stores `render.artPixelSize` with a backwards-compatible default of 4, and both the game preview and weapon test room respect the chosen value.
+
+### v73
+Replaced Horizon's placeholder homing-star special with a dual-special kit. Q now arms Recoil Drive, E arms Overcharge, both can stack on the same shot, Horizon special hits use the shared combat resolver for stagger, and the control/HUD architecture now supports a generic rebindable secondary weapon special.
 
 ## Development status
 
