@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v72da**
+> Current reference build: **v73**
 
 ## 1. What Fallax is
 
@@ -36,6 +36,7 @@ Defaults:
 - Left Mouse: fire
 - Right Mouse: guard / parry
 - Q: weapon special
+- E: secondary weapon special
 - 1 / 2: weapon slots
 - 3 / 4: extra slots
 - R: restart encounter
@@ -187,6 +188,16 @@ Armor:
 Each weapon remains in its own module.
 
 Anchor used to contain a bespoke bleed timer/DPS system. That old implementation was removed. Barbed Anchor now applies real Bleed buildup through the shared status architecture.
+
+As of v73, Horizon is the first weapon with two dedicated specials:
+- Q: Recoil Drive arms the next shot for 2250 recoil and +18 stagger, 6.5s cooldown
+- E: Overcharge arms the next shot for 2x charge time, 105 damage, +34 stagger, and increased recoil, 12s cooldown
+- Q + E can be stacked for 3375 recoil and +52 stagger
+- both use generic rebindable special inputs and multi-special HUD rows
+- Horizon special-hit stagger is routed through CombatResolver
+- the old homing white-square / "star" placeholder special was removed
+
+Anchor's current Barbed special is intentionally unchanged in v73 and is a candidate for a later rework.
 
 ## 6. Monolith: critical current behavior
 
@@ -397,6 +408,15 @@ Generic status architecture + Fracture vertical slice.
 - old assets default to 4 game pixels per art pixel
 - sprite preview and weapon test room both respect the saved value
 
+### v73
+- removed Horizon's placeholder homing-star special
+- Q Recoil Drive arms the next Horizon shot for extreme recoil and bonus stagger
+- E Overcharge arms the next shot for extended charge, 105 damage, bonus stagger, and stronger recoil
+- both specials can be stacked on one shot
+- added a generic rebindable secondary weapon-special control on E
+- HUD now supports multiple specials for a weapon
+- Horizon special stagger uses the shared combat resolver
+
 ## 13. Development rules / invariants
 
 When modifying Fallax:
@@ -423,5 +443,6 @@ The game is now past the bare boss-prototype stage. Good next areas include:
 - attack-memory/adaptive boss weighting
 - preemptive-strike mechanics during telegraph windows
 - additional bosses after Monolith polish
+- rework Anchor's currently barebones Barbed special without reintroducing bespoke Bleed logic
 
 Do not assume every brainstormed mechanic is already implemented. Check the repo before coding.
