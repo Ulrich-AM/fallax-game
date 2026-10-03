@@ -59,21 +59,21 @@ import { MatrixBoss } from './bosses/MatrixBoss.js?v=71';
 import { MonolithBoss } from './bosses/MonolithBoss.js?v=72d';
 import { GameAudio } from './AudioManager.js?v=72b';
 import { DeveloperConsole } from './DeveloperConsole.js?v=58';
-import { SpriteEditor } from './SpriteEditor.js?v=63a';
-import { WeaponTestRoom } from './WeaponTestRoom.js?v=63a';
+import { SpriteEditor } from './SpriteEditor.js?v=72da';
+import { WeaponTestRoom } from './WeaponTestRoom.js?v=72da';
 import {
   SpriteAssetStore,
   compileSpriteAsset,
   listSpriteMaterials,
   serializeSpriteAsset,
-} from './SpriteAssets.js?v=63a';
+} from './SpriteAssets.js?v=72da';
 import {
   drawRasterAtPivot,
 } from './WeaponSpriteRenderer.js?v=63a';
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v72d';
+const BUILD_VERSION = 'v72da';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -114,6 +114,7 @@ const spritePreviewTrueSize = document.querySelector('#sprite-preview-true-size'
 const spriteEditorSnap = document.querySelector('#sprite-editor-snap');
 const spriteEditorSymmetry = document.querySelector('#sprite-editor-symmetry');
 const spriteEditorScale = document.querySelector('#sprite-editor-scale');
+const spriteWeaponPixelSize = document.querySelector('#sprite-weapon-pixel-size');
 const spritePreviewSpin = document.querySelector('#sprite-preview-spin');
 const spritePreviewGlow = document.querySelector('#sprite-preview-glow');
 const spritePreviewGlowStrength = document.querySelector('#sprite-preview-glow-strength');
@@ -885,6 +886,7 @@ const spriteEditor =
     glowStrengthInput: spritePreviewGlowStrength,
     glowLabel: spritePreviewGlowLabel,
     scaleInput: spriteEditorScale,
+    pixelSizeInput: spriteWeaponPixelSize,
     importFileInput: spriteEditorImportFile,
     snapInput: spriteEditorSnap,
     symmetryInput: spriteEditorSymmetry,
@@ -1834,10 +1836,13 @@ function registerDeveloperCommands() {
         `type: ${asset.type}`,
         `pivot: ${asset.pivot[0]}, ${asset.pivot[1]}`,
         `scale: ${asset.scale ?? 1}x`,
+        asset.type === 'weapon'
+          ? `art pixel: ${asset.render?.artPixelSize ?? 4} game px`
+          : null,
         `parts: ${asset.parts.length}`,
         `glowing parts: ${glowCount}`,
         `markers: ${markerNames.length ? markerNames.join(', ') : 'none'}`,
-      ];
+      ].filter(Boolean);
     },
   });
 
