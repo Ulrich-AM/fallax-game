@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v72d**
+> Current reference build: **v72da**
 
 ## 1. What Fallax is
 
@@ -390,6 +390,12 @@ Generic status architecture + Fracture vertical slice.
 - exact-pose wall contact without torso teleport
 - improved wall-impact recoil and delayed arm settling
 - restart-time telegraph cleanup prevents stacked warning marks
+
+### v72da
+- weapon sprite editor has a configurable art-pixel size
+- value is saved as `render.artPixelSize`
+- old assets default to 4 game pixels per art pixel
+- sprite preview and weapon test room both respect the saved value
 
 ## 13. Development rules / invariants
 
