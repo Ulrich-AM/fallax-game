@@ -177,14 +177,8 @@ export class MagnitudeWeapon {
 
     return {
       angle,
-      x:
-        player.x +
-        Math.cos(angle) *
-        this.orbitRadius,
-      y:
-        player.y +
-        Math.sin(angle) *
-        this.orbitRadius,
+      x: player.x,
+      y: player.y,
     };
   }
 
