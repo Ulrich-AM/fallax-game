@@ -19,7 +19,7 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=74';
+} from './equipment.js?v=74a';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
