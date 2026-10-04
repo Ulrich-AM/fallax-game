@@ -7,7 +7,10 @@ export class WeaponRuntime {
 
     this.shotAudio = new Map([
       ['vector', 'vector'],
+      ['magnitude', 'vector'],
       ['horizon', 'horizon'],
+      ['vienna', 'horizon'],
+      ['kismet', 'default'],
       ['relay', 'default'],
       ['parallax', 'default'],
       ['anchor', 'default'],
@@ -192,6 +195,9 @@ export class WeaponRuntime {
         'parallax',
         'anchor',
         'fukiya',
+        'magnitude',
+        'vienna',
+        'kismet',
       ]
     ) {
       this.get(id)
@@ -308,6 +314,9 @@ export class WeaponRuntime {
         'parallax',
         'anchor',
         'fukiya',
+        'magnitude',
+        'vienna',
+        'kismet',
         'kepler',
       ]
     ) {
