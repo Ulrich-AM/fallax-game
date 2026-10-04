@@ -19,10 +19,13 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=74ba';
+} from './equipment.js?v=75';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
+import { MagnitudeWeapon } from './MagnitudeWeapon.js?v=75';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
+import { ViennaWeapon } from './ViennaWeapon.js?v=75';
+import { KismetWeapon } from './KismetWeapon.js?v=75';
 import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
@@ -32,7 +35,7 @@ import { KeplerWeapon } from './KeplerWeapon.js?v=63a';
 import { BackfireAbility } from './BackfireAbility.js?v=72';
 import { GuardSystem } from './GuardSystem.js?v=72c';
 import { BossStaggerSystem } from './BossStaggerSystem.js?v=71';
-import { WeaponRuntime } from './WeaponRuntime.js?v=74';
+import { WeaponRuntime } from './WeaponRuntime.js?v=75';
 import { StrikeAbility } from './StrikeAbility.js?v=71';
 import {
   StatusController,
@@ -74,7 +77,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v74ba';
+const BUILD_VERSION = 'v75';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -429,8 +432,11 @@ const playerDefinition = group([
 
 const playerRaster = rasterize(playerDefinition);
 const vectorWeapon = new VectorWeapon();
+const magnitudeWeapon = new MagnitudeWeapon();
 const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
+const viennaWeapon = new ViennaWeapon();
+const kismetWeapon = new KismetWeapon();
 const machWeapon = new MachWeapon();
 const relayWeapon = new RelayWeapon();
 const parallaxWeapon = new ParallaxWeapon();
@@ -477,8 +483,11 @@ const playerCombatSource = {
 const weaponRuntime =
   new WeaponRuntime({
     vector: vectorWeapon,
+    magnitude: magnitudeWeapon,
     euclid: euclidWeapon,
     horizon: horizonWeapon,
+    vienna: viennaWeapon,
+    kismet: kismetWeapon,
     mach: machWeapon,
     relay: relayWeapon,
     parallax: parallaxWeapon,
@@ -3534,6 +3543,8 @@ function update(dt) {
       player,
       pointerWorld:
         combatPointerWorld,
+      target:
+        activeBoss,
     });
   }
 
@@ -3544,6 +3555,8 @@ function update(dt) {
         player,
         pointerWorld:
           combatPointerWorld,
+        target:
+          activeBoss,
       });
   }
 
@@ -5401,8 +5414,11 @@ window.BOSSFIGHTS = {
   prologueBoss,
   matrixBoss,
   vectorWeapon,
+  magnitudeWeapon,
   euclidWeapon,
   horizonWeapon,
+  viennaWeapon,
+  kismetWeapon,
   machWeapon,
   relayWeapon,
   parallaxWeapon,
