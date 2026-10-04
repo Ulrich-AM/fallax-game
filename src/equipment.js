@@ -24,7 +24,7 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'damage', value: '4 x 3 burst' },
       { label: 'burst cooldown', value: '0.42s' },
-      { label: 'special', value: '20-shot volley / 7.5s' },
+      { label: 'volley', value: '20 shots / 7.5s', special: true, effect: true },
     ],
   },
   euclid: {
@@ -36,8 +36,7 @@ export const ITEM_LIBRARY = {
     appearance: 'thin gray rectangle',
     stats: [
       { label: 'beam dps', value: '8' },
-      { label: 'overcharge', value: '72 dps x 3s' },
-      { label: 'special cooldown', value: '18s' },
+      { label: 'overcharge', value: '72 dps x 3s / 18s', special: true, effect: true },
     ],
   },
   horizon: {
@@ -50,9 +49,8 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'shot damage', value: '42' },
       { label: 'charge / cooldown', value: '0.34s / 1.10s' },
-      { label: 'Q recoil drive', value: '2250 recoil + 18 stagger / 6.5s' },
-      { label: 'E overcharge', value: '105 damage + 34 stagger / 12s' },
-      { label: 'Q + E', value: '3375 recoil + 52 stagger' },
+      { label: 'recoil drive', value: '2250 recoil + 18 stagger / 6.5s', special: true, effect: true },
+      { label: 'overcharge', value: '105 damage + 34 stagger / 12s', special: true, effect: true },
     ],
   },
   mach: {
@@ -67,8 +65,7 @@ export const ITEM_LIBRARY = {
       { label: 'fire interval', value: '0.16s' },
       { label: 'point-blank rate', value: '~93.8 dps' },
       { label: 'fracture', value: '+5 / wave', effect: true },
-      { label: 'screech', value: '3 x 42 / 16s' },
-      { label: 'screech fracture', value: '+22 / wave', effect: true },
+      { label: 'screech', value: '3 x 42 + 22 fracture / wave / 16s', special: true, effect: true },
     ],
   },
   relay: {
@@ -82,7 +79,7 @@ export const ITEM_LIBRARY = {
       { label: 'node shot', value: '7 damage' },
       { label: 'link damage', value: '13 dps each' },
       { label: 'capacity', value: '7 nodes / 6 links' },
-      { label: 'overload', value: '3x links x 3s / 14s' },
+      { label: 'overload', value: '3x links x 3s / 14s', special: true, effect: true },
     ],
   },
   parallax: {
@@ -96,7 +93,7 @@ export const ITEM_LIBRARY = {
       { label: 'volley', value: '3 x 5.2' },
       { label: 'focus bonus', value: '+9 (24.6 total)' },
       { label: 'fire cooldown', value: '0.46s' },
-      { label: 'focal collapse', value: '60 focal dps + 4/beam' },
+      { label: 'focal collapse', value: '60 focal dps + 4 / beam', special: true, effect: true },
     ],
   },
   anchor: {
@@ -109,10 +106,8 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'impact', value: '8 damage + 12 Bleed buildup', effect: true },
       { label: 'tether', value: 'up to 28 dps' },
-      { label: 'ripcord boss', value: '24-54 damage + 55-120 Bleed', effect: true },
-      { label: 'ripcord stagger', value: '+10 to +32 by tension' },
-      { label: 'ripcord surface', value: '1050-1600 pull impulse' },
-      { label: 'special cooldown', value: '9s' },
+      { label: 'ripcord', value: '24-54 damage + 55-120 Bleed + 10-32 stagger / 9s', special: true, effect: true },
+      { label: 'ripcord (surface)', value: '1050-1600 pull impulse / 9s', special: true, effect: true },
     ],
   },
   fukiya: {
@@ -125,9 +120,7 @@ export const ITEM_LIBRARY = {
     stats: [
       { label: 'dart', value: '12 damage / 0.58s' },
       { label: 'poison', value: '+22 buildup / dart', effect: true },
-      { label: 'needleburst', value: '7 x 5 damage / 10s' },
-      { label: 'needleburst poison', value: '+18 / dart', effect: true },
-      { label: 'price', value: '460 denarii' },
+      { label: 'needleburst', value: '7 x 5 damage + 18 Poison / dart / 10s', special: true, effect: true },
     ],
   },
 
@@ -142,7 +135,7 @@ export const ITEM_LIBRARY = {
       { label: 'shot damage', value: '9' },
       { label: 'capacity', value: '6 orbiters' },
       { label: 'loaded fire rate', value: '1 shot / 0.28s' },
-      { label: 'orbital release', value: '6 x 12.15 / 10s' },
+      { label: 'orbital release', value: '6 x 12.15 / 10s', special: true, effect: true },
     ],
   },
   backfire: {
