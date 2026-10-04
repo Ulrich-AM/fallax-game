@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v75**
+> Current reference build: **v75a**
 
 ## 1. What Fallax is
 
@@ -509,14 +509,23 @@ Generic status architecture + Fracture vertical slice.
 
 ### v75
 - added Magnitude, Vienna, and Kismet
-- all three use the exact user-authored sprite asset coordinates
 - Magnitude is a faster Vector-style beginner weapon with a 3s Machine Gun special
 - Vienna uses a three-pulse Bleed burst and a wider Bleed+Burn Barrage
-- Kismet normal fire uses homing Fatigue+Burn squares
 - Kismet Q stores 3 orbiters per use up to 15
 - Kismet E performs a gently scaling outward-then-inward Convergence hit
 - Kismet Convergence resolves a valid boss hit region before damage, preserving Monolith head-only behavior
 - prices: Magnitude 220, Vienna 680, Kismet 1250 denarii
+
+### v75a
+- corrected Magnitude, Vienna, and Kismet runtime anchoring so player position is the world anchor and JSON sprite pivots determine the authored offset
+- removed obsolete runtime orbit offsets from Magnitude and Vienna; Kismet no longer uses one either
+- Kismet normal fire is now continuous: 5 damage every 0.11s, high initial inaccuracy, homing correction, +3 Fatigue and +1 Burn per bullet
+- Kismet normal recoil is applied per shot for strong cumulative push
+- Kismet Q orbiters launch visibly from the authored muzzle instead of appearing around the boss
+- orbiters rearrange toward equal angular spacing whenever the stored count changes
+- normal orbiter radius increased to 150; Convergence expands to 285 before collapsing
+- Kismet impacts spawn fast white glowing expanding-ring effects
+- Convergence still validates the boss hit region before damage
 
 ## 13. Development rules / invariants
 
