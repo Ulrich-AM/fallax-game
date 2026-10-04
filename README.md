@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v75a**
+Current reference build: **v75b**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -394,6 +394,7 @@ src/
 ├── ExtraSystem.js
 │
 ├── WeaponRuntime.js
+├── EffectsLibrary.js
 ├── VectorWeapon.js
 ├── MagnitudeWeapon.js
 ├── EuclidWeapon.js
@@ -485,6 +486,19 @@ Added Magnitude, Vienna, and Kismet from user-authored sprite JSON. Magnitude is
 
 ### v75a
 Fixed the new weapons to use their authored sprite pivots directly instead of adding extra runtime orbit offsets. Kismet now fires a continuous inaccurate homing stream, launches Q orbiters from the muzzle, spaces stored orbiters evenly around a wider ring, expands farther during Convergence, and shows fast white expanding-ring impacts.
+
+### v75b
+Polished Kismet again: its normal homing squares now match Vector's bullet size, use trailing ghost squares, and only home for their first 1 second. Q orbiters enter formation with a smoother transition, normal orbit radius increased again, and the old weapon-local impact-ring system was replaced by a shared pooled **EffectsLibrary**. The library currently provides reusable world effects such as impact rings and flare glows, plus separate world/screen draw layers for future effects.
+
+## Effects library
+
+**src/EffectsLibrary.js** owns reusable visual effects instead of making each weapon implement its own effect arrays, update loops, and draw code.
+
+Current built-ins:
+- `impact-ring`
+- `flare-glow`
+
+The library uses pooled effect records and has separate world/screen layers. True whole-frame distortion or filter effects will still need an offscreen compositing pass later, but the screen-effect API is reserved now.
 
 ## Development status
 
