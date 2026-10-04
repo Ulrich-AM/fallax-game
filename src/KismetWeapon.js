@@ -560,23 +560,20 @@ export class KismetWeapon {
   constructor() {
     this.name = 'Kismet';
 
-    this.orbitRadius = 54;
-
-    this.volleyCount = 4;
-    this.damage = 7;
-    this.fatigueBuildup = 8;
-    this.burnBuildup = 3;
-    this.fireCooldown = 0.82;
+    this.damage = 5;
+    this.fatigueBuildup = 3;
+    this.burnBuildup = 1;
+    this.fireCooldown = 0.11;
     this.fireTimer = 0;
-    this.recoil = 820;
+    this.recoil = 72;
 
-    this.bulletSpeed = 780;
-    this.bulletLife = 3.4;
+    this.bulletSpeed = 820;
+    this.bulletLife = 3.2;
     this.bulletTurnRate =
-      Math.PI * 1.85;
+      Math.PI * 2.4;
     this.bulletSize = 12;
-    this.volleySpread =
-      Math.PI / 180 * 6;
+    this.fireInaccuracy =
+      Math.PI / 180 * 34;
 
     this.orbitSpecialCooldown = 6.5;
     this.orbitSpecialCooldownTimer =
@@ -584,9 +581,14 @@ export class KismetWeapon {
     this.orbitAddCount = 3;
     this.maxOrbiters = 15;
     this.orbiters = [];
-    this.orbiterRadius = 92;
-    this.orbiterSpeed = 1.35;
+    this.orbiterRadius = 150;
+    this.orbiterOuterRadius = 285;
+    this.orbiterSpeed = 1.2;
+    this.orbiterRearrangeRate =
+      Math.PI * 2.8;
+    this.orbiterLaunchSpeed = 1080;
     this.orbiterSize = 18;
+    this.formationPhase = 0;
 
     this.convergenceCooldown = 10.5;
     this.convergenceCooldownTimer =
@@ -602,6 +604,7 @@ export class KismetWeapon {
     this.convergenceBurnPerOrb = 1.5;
 
     this.bullets = [];
+    this.impactRings = [];
     this.orbitTarget = null;
     this.shotSerial = 0;
 
@@ -627,7 +630,9 @@ export class KismetWeapon {
     this.convergenceTargetOffsetX = 0;
     this.convergenceTargetOffsetY = 0;
     this.bullets.length = 0;
+    this.impactRings.length = 0;
     this.orbiters.length = 0;
+    this.formationPhase = 0;
     this.orbitTarget = null;
     this.shotSerial = 0;
   }
@@ -648,18 +653,12 @@ export class KismetWeapon {
       angle,
       dirX: Math.cos(angle),
       dirY: Math.sin(angle),
-      x:
-        player.x +
-        Math.cos(angle) *
-        this.orbitRadius,
-      y:
-        player.y +
-        Math.sin(angle) *
-        this.orbitRadius,
+      x: player.x,
+      y: player.y,
     };
   }
 
-  fireVolley(
+  fireOne(
     player,
     pointerWorld,
   ) {
@@ -679,40 +678,28 @@ export class KismetWeapon {
           this.artPixelSize,
         );
 
-    for (
-      let i = 0;
-      i < this.volleyCount;
-      i++
-    ) {
-      const centered =
-        i -
-        (
-          this.volleyCount -
-          1
-        ) /
-        2;
+    const angle =
+      aim.angle +
+      (
+        Math.random() * 2 - 1
+      ) *
+      this.fireInaccuracy;
 
-      const angle =
-        aim.angle +
-        centered *
-        this.volleySpread;
-
-      this.bullets.push({
-        x: muzzle.x,
-        y: muzzle.y,
-        vx:
-          Math.cos(angle) *
-          this.bulletSpeed,
-        vy:
-          Math.sin(angle) *
-          this.bulletSpeed,
-        angle,
-        life:
-          this.bulletLife,
-        maxLife:
-          this.bulletLife,
-      });
-    }
+    this.bullets.push({
+      x: muzzle.x,
+      y: muzzle.y,
+      vx:
+        Math.cos(angle) *
+        this.bulletSpeed,
+      vy:
+        Math.sin(angle) *
+        this.bulletSpeed,
+      angle,
+      life:
+        this.bulletLife,
+      maxLife:
+        this.bulletLife,
+    });
 
     player.vx -=
       aim.dirX *
@@ -727,8 +714,47 @@ export class KismetWeapon {
     this.shotSerial++;
   }
 
+  spawnImpactRing(
+    x,
+    y,
+    scale = 1,
+  ) {
+    this.impactRings.push({
+      x,
+      y,
+      life: 0.22,
+      maxLife: 0.22,
+      startRadius:
+        3 * scale,
+      endRadius:
+        42 * scale,
+      lineWidth:
+        4 * scale,
+    });
+  }
+
+  updateImpactRings(dt) {
+    for (
+      const ring
+      of this.impactRings
+    ) {
+      ring.life =
+        Math.max(
+          0,
+          ring.life - dt,
+        );
+    }
+
+    this.impactRings =
+      this.impactRings.filter(
+        ring =>
+          ring.life > 0,
+      );
+  }
+
   triggerSpecial(
     {
+      player,
       target,
     } = {},
   ) {
@@ -739,6 +765,7 @@ export class KismetWeapon {
     if (
       this.orbitSpecialCooldownTimer >
         0 ||
+      !player ||
       !boss ||
       boss.dead ||
       this.orbiters.length >=
@@ -759,37 +786,61 @@ export class KismetWeapon {
         remaining,
       );
 
-    const baseAngle =
-      this.orbiters.length > 0
-        ? this.orbiters[
-            this.orbiters.length - 1
-          ].angle +
-          Math.PI * 0.72
-        : 0;
+    const aim =
+      this.getAim(
+        player,
+        {
+          x: boss.x,
+          y: boss.y,
+        },
+      );
+
+    const muzzle =
+      this.sprite
+        .getMarkerWorldPosition(
+          'muzzle',
+          aim.x,
+          aim.y,
+          aim.angle,
+          this.artPixelSize,
+        );
 
     for (
       let i = 0;
       i < count;
       i++
     ) {
+      const spread =
+        (
+          i -
+          (
+            count - 1
+          ) /
+          2
+        ) *
+        (
+          Math.PI /
+          180 *
+          8
+        );
+
       this.orbiters.push({
         angle:
-          baseAngle +
-          (
-            Math.PI * 2 *
-            i /
-            Math.max(
-              1,
-              count,
-            )
-          ),
+          aim.angle +
+          spread,
+        launching: true,
+        x: muzzle.x,
+        y: muzzle.y,
+        flightAngle:
+          aim.angle +
+          spread,
       });
     }
 
     this.orbitSpecialCooldownTimer =
       this.orbitSpecialCooldown;
 
-    this.shotSerial++;
+    this.shotSerial += count;
     return true;
   }
 
@@ -807,6 +858,10 @@ export class KismetWeapon {
         0 ||
       this.convergenceTimer > 0 ||
       this.orbiters.length <= 0 ||
+      this.orbiters.some(
+        orbiter =>
+          orbiter.launching,
+      ) ||
       !boss ||
       boss.dead
     ) {
@@ -948,6 +1003,11 @@ export class KismetWeapon {
           );
 
       if (projectileHit) {
+        this.spawnImpactRing(
+          bullet.x,
+          bullet.y,
+        );
+
         bullet.life = 0;
         continue;
       }
@@ -1006,6 +1066,11 @@ export class KismetWeapon {
             );
         }
 
+        this.spawnImpactRing(
+          bullet.x,
+          bullet.y,
+        );
+
         bullet.life = 0;
       }
 
@@ -1051,7 +1116,7 @@ export class KismetWeapon {
       return (
         this.orbiterRadius +
         (
-          190 -
+          this.orbiterOuterRadius -
           this.orbiterRadius
         ) *
         easeOutCubic(t)
@@ -1070,10 +1135,10 @@ export class KismetWeapon {
       );
 
     return (
-      190 +
+      this.orbiterOuterRadius +
       (
         12 -
-        190
+        this.orbiterOuterRadius
       ) *
       easeInCubic(t)
     );
@@ -1120,6 +1185,12 @@ export class KismetWeapon {
       this.convergenceBaseBurn +
       this.convergenceBurnPerOrb *
       count;
+
+    this.spawnImpactRing(
+      point.x,
+      point.y,
+      1.8,
+    );
 
     if (
       typeof resolveHit ===
@@ -1179,13 +1250,100 @@ export class KismetWeapon {
 
     this.orbitTarget = target;
 
+    this.formationPhase +=
+      this.orbiterSpeed *
+      dt;
+
+    const count =
+      this.orbiters.length;
+
+    const normalRadius =
+      this.orbiterRadius;
+
     for (
-      const orbiter
-      of this.orbiters
+      let i = 0;
+      i < count;
+      i++
     ) {
-      orbiter.angle +=
-        this.orbiterSpeed *
-        dt;
+      const orbiter =
+        this.orbiters[i];
+
+      const targetAngle =
+        this.formationPhase +
+        Math.PI * 2 *
+        i /
+        count;
+
+      if (orbiter.launching) {
+        const targetX =
+          target.x +
+          Math.cos(
+            targetAngle,
+          ) *
+          normalRadius;
+
+        const targetY =
+          target.y +
+          Math.sin(
+            targetAngle,
+          ) *
+          normalRadius;
+
+        const desired =
+          Math.atan2(
+            targetY -
+              orbiter.y,
+            targetX -
+              orbiter.x,
+          );
+
+        orbiter.flightAngle =
+          approachAngle(
+            orbiter.flightAngle,
+            desired,
+            Math.PI * 4.8 *
+              dt,
+          );
+
+        orbiter.x +=
+          Math.cos(
+            orbiter.flightAngle,
+          ) *
+          this.orbiterLaunchSpeed *
+          dt;
+
+        orbiter.y +=
+          Math.sin(
+            orbiter.flightAngle,
+          ) *
+          this.orbiterLaunchSpeed *
+          dt;
+
+        if (
+          Math.hypot(
+            targetX -
+              orbiter.x,
+            targetY -
+              orbiter.y,
+          ) <= 22
+        ) {
+          orbiter.launching =
+            false;
+
+          orbiter.angle =
+            targetAngle;
+        }
+
+        continue;
+      }
+
+      orbiter.angle =
+        approachAngle(
+          orbiter.angle,
+          targetAngle,
+          this.orbiterRearrangeRate *
+            dt,
+        );
     }
 
     if (
@@ -1255,7 +1413,7 @@ export class KismetWeapon {
       firing &&
       this.fireTimer <= 0
     ) {
-      this.fireVolley(
+      this.fireOne(
         player,
         pointerWorld,
       );
@@ -1278,6 +1436,8 @@ export class KismetWeapon {
       target,
       resolveHit,
     );
+
+    this.updateImpactRings(dt);
   }
 
   getSpriteEntry(
@@ -1406,19 +1566,27 @@ export class KismetWeapon {
       const orbiter
       of this.orbiters
     ) {
-      const x =
-        centerX +
-        Math.cos(
-          orbiter.angle,
-        ) *
-        radius;
+      let x;
+      let y;
 
-      const y =
-        centerY +
-        Math.sin(
-          orbiter.angle,
-        ) *
-        radius;
+      if (orbiter.launching) {
+        x = orbiter.x;
+        y = orbiter.y;
+      } else {
+        x =
+          centerX +
+          Math.cos(
+            orbiter.angle,
+          ) *
+          radius;
+
+        y =
+          centerY +
+          Math.sin(
+            orbiter.angle,
+          ) *
+          radius;
+      }
 
       this.drawSquare(
         ctx,
@@ -1432,6 +1600,79 @@ export class KismetWeapon {
           ? 26
           : 18,
       );
+    }
+  }
+
+  drawImpactRings(
+    ctx,
+    cameraX,
+  ) {
+    for (
+      const ring
+      of this.impactRings
+    ) {
+      const t =
+        1 -
+        ring.life /
+        ring.maxLife;
+
+      const radius =
+        ring.startRadius +
+        (
+          ring.endRadius -
+          ring.startRadius
+        ) *
+        easeOutCubic(
+          clamp(
+            t,
+            0,
+            1,
+          ),
+        );
+
+      const alpha =
+        Math.pow(
+          clamp(
+            ring.life /
+            ring.maxLife,
+            0,
+            1,
+          ),
+          1.35,
+        );
+
+      ctx.save();
+      ctx.globalAlpha =
+        alpha;
+      ctx.strokeStyle =
+        '#ffffff';
+      ctx.lineWidth =
+        ring.lineWidth *
+        (
+          0.45 +
+          0.55 *
+          alpha
+        );
+      ctx.shadowColor =
+        '#ffffff';
+      ctx.shadowBlur =
+        22;
+
+      ctx.beginPath();
+      ctx.arc(
+        Math.round(
+          ring.x -
+          cameraX,
+        ),
+        Math.round(
+          ring.y,
+        ),
+        radius,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -1449,6 +1690,11 @@ export class KismetWeapon {
     );
 
     this.drawOrbiters(
+      ctx,
+      cameraX,
+    );
+
+    this.drawImpactRings(
       ctx,
       cameraX,
     );
