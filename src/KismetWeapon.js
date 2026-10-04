@@ -557,7 +557,10 @@ function findDamagePoint(target) {
 }
 
 export class KismetWeapon {
-  constructor() {
+  constructor(
+    effects = null,
+  ) {
+    this.effects = effects;
     this.name = 'Kismet';
 
     this.damage = 5;
@@ -571,7 +574,11 @@ export class KismetWeapon {
     this.bulletLife = 3.2;
     this.bulletTurnRate =
       Math.PI * 2.4;
-    this.bulletSize = 12;
+    this.bulletHomingDuration = 1;
+    this.bulletSize = 15;
+    this.bulletTrailLife = 0.14;
+    this.bulletTrailInterval = 0.018;
+    this.bulletTrailMaxGhosts = 7;
     this.fireInaccuracy =
       Math.PI / 180 * 34;
 
@@ -581,12 +588,13 @@ export class KismetWeapon {
     this.orbitAddCount = 3;
     this.maxOrbiters = 15;
     this.orbiters = [];
-    this.orbiterRadius = 150;
-    this.orbiterOuterRadius = 285;
+    this.orbiterRadius = 185;
+    this.orbiterOuterRadius = 340;
     this.orbiterSpeed = 1.2;
     this.orbiterRearrangeRate =
-      Math.PI * 2.8;
-    this.orbiterLaunchSpeed = 1080;
+      Math.PI * 1.6;
+    this.orbiterLaunchSpeed = 920;
+    this.orbiterEntryDuration = 0.30;
     this.orbiterSize = 18;
     this.formationPhase = 0;
 
@@ -604,7 +612,6 @@ export class KismetWeapon {
     this.convergenceBurnPerOrb = 1.5;
 
     this.bullets = [];
-    this.impactRings = [];
     this.orbitTarget = null;
     this.shotSerial = 0;
 
@@ -630,7 +637,6 @@ export class KismetWeapon {
     this.convergenceTargetOffsetX = 0;
     this.convergenceTargetOffsetY = 0;
     this.bullets.length = 0;
-    this.impactRings.length = 0;
     this.orbiters.length = 0;
     this.formationPhase = 0;
     this.orbitTarget = null;
@@ -699,6 +705,9 @@ export class KismetWeapon {
         this.bulletLife,
       maxLife:
         this.bulletLife,
+      age: 0,
+      trailTimer: 0,
+      trail: [],
     });
 
     player.vx -=
@@ -712,44 +721,6 @@ export class KismetWeapon {
     player.grounded = false;
 
     this.shotSerial++;
-  }
-
-  spawnImpactRing(
-    x,
-    y,
-    scale = 1,
-  ) {
-    this.impactRings.push({
-      x,
-      y,
-      life: 0.22,
-      maxLife: 0.22,
-      startRadius:
-        3 * scale,
-      endRadius:
-        42 * scale,
-      lineWidth:
-        4 * scale,
-    });
-  }
-
-  updateImpactRings(dt) {
-    for (
-      const ring
-      of this.impactRings
-    ) {
-      ring.life =
-        Math.max(
-          0,
-          ring.life - dt,
-        );
-    }
-
-    this.impactRings =
-      this.impactRings.filter(
-        ring =>
-          ring.life > 0,
-      );
   }
 
   triggerSpecial(
@@ -829,6 +800,9 @@ export class KismetWeapon {
           aim.angle +
           spread,
         launching: true,
+        entryBlend: 0,
+        entryX: muzzle.x,
+        entryY: muzzle.y,
         x: muzzle.x,
         y: muzzle.y,
         flightAngle:
@@ -860,7 +834,11 @@ export class KismetWeapon {
       this.orbiters.length <= 0 ||
       this.orbiters.some(
         orbiter =>
-          orbiter.launching,
+          orbiter.launching ||
+          (
+            orbiter.entryBlend ??
+            1
+          ) < 0.95,
       ) ||
       !boss ||
       boss.dead
@@ -941,7 +919,48 @@ export class KismetWeapon {
       const bullet
       of this.bullets
     ) {
+      bullet.age += dt;
+      bullet.trailTimer -= dt;
+
       if (
+        bullet.trailTimer <= 0
+      ) {
+        bullet.trail.push({
+          x: bullet.x,
+          y: bullet.y,
+          life:
+            this.bulletTrailLife,
+          maxLife:
+            this.bulletTrailLife,
+        });
+
+        if (
+          bullet.trail.length >
+          this.bulletTrailMaxGhosts
+        ) {
+          bullet.trail.shift();
+        }
+
+        bullet.trailTimer =
+          this.bulletTrailInterval;
+      }
+
+      for (
+        const ghost
+        of bullet.trail
+      ) {
+        ghost.life -= dt;
+      }
+
+      bullet.trail =
+        bullet.trail.filter(
+          ghost =>
+            ghost.life > 0,
+        );
+
+      if (
+        bullet.age <=
+          this.bulletHomingDuration &&
         target &&
         !target.dead
       ) {
@@ -1003,9 +1022,12 @@ export class KismetWeapon {
           );
 
       if (projectileHit) {
-        this.spawnImpactRing(
-          bullet.x,
-          bullet.y,
+        this.effects?.spawn?.(
+          'impact-ring',
+          {
+            x: bullet.x,
+            y: bullet.y,
+          },
         );
 
         bullet.life = 0;
@@ -1066,9 +1088,12 @@ export class KismetWeapon {
             );
         }
 
-        this.spawnImpactRing(
-          bullet.x,
-          bullet.y,
+        this.effects?.spawn?.(
+          'impact-ring',
+          {
+            x: bullet.x,
+            y: bullet.y,
+          },
         );
 
         bullet.life = 0;
@@ -1186,10 +1211,14 @@ export class KismetWeapon {
       this.convergenceBurnPerOrb *
       count;
 
-    this.spawnImpactRing(
-      point.x,
-      point.y,
-      1.8,
+    this.effects?.spawn?.(
+      'impact-ring',
+      {
+        x: point.x,
+        y: point.y,
+        scale: 1.8,
+        glow: 30,
+      },
     );
 
     if (
@@ -1330,8 +1359,19 @@ export class KismetWeapon {
           orbiter.launching =
             false;
 
+          orbiter.entryBlend = 0;
+          orbiter.entryX =
+            orbiter.x;
+          orbiter.entryY =
+            orbiter.y;
+
           orbiter.angle =
-            targetAngle;
+            Math.atan2(
+              orbiter.y -
+                target.y,
+              orbiter.x -
+                target.x,
+            );
         }
 
         continue;
@@ -1344,6 +1384,24 @@ export class KismetWeapon {
           this.orbiterRearrangeRate *
             dt,
         );
+
+      if (
+        (
+          orbiter.entryBlend ??
+          1
+        ) < 1
+      ) {
+        orbiter.entryBlend =
+          Math.min(
+            1,
+            (
+              orbiter.entryBlend ??
+              0
+            ) +
+            dt /
+            this.orbiterEntryDuration,
+          );
+      }
     }
 
     if (
@@ -1436,8 +1494,6 @@ export class KismetWeapon {
       target,
       resolveHit,
     );
-
-    this.updateImpactRings(dt);
   }
 
   getSpriteEntry(
@@ -1490,6 +1546,14 @@ export class KismetWeapon {
     ctx,
     cameraX,
   ) {
+    const size =
+      this.bulletSize;
+
+    const half =
+      size * 0.5;
+
+    ctx.save();
+
     for (
       const bullet
       of this.bullets
@@ -1505,15 +1569,66 @@ export class KismetWeapon {
           1,
         );
 
-      this.drawSquare(
-        ctx,
-        bullet.x - cameraX,
-        bullet.y,
-        this.bulletSize,
-        alpha,
-        12,
+      for (
+        const ghost
+        of bullet.trail
+      ) {
+        const ageAlpha =
+          Math.max(
+            0,
+            ghost.life /
+            ghost.maxLife,
+          );
+
+        ctx.globalAlpha =
+          ageAlpha *
+          alpha *
+          0.30;
+
+        ctx.fillStyle =
+          '#ffffff';
+
+        ctx.shadowColor =
+          '#ffffff';
+        ctx.shadowBlur = 8;
+
+        ctx.fillRect(
+          Math.round(
+            ghost.x -
+            cameraX -
+            half,
+          ),
+          Math.round(
+            ghost.y -
+            half,
+          ),
+          size,
+          size,
+        );
+      }
+
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor =
+        '#ffffff';
+      ctx.shadowBlur = 12;
+
+      ctx.fillRect(
+        Math.round(
+          bullet.x -
+          cameraX -
+          half,
+        ),
+        Math.round(
+          bullet.y -
+          half,
+        ),
+        size,
+        size,
       );
     }
+
+    ctx.restore();
   }
 
   drawOrbiters(
@@ -1573,19 +1688,63 @@ export class KismetWeapon {
         x = orbiter.x;
         y = orbiter.y;
       } else {
-        x =
+        const orbitX =
           centerX +
           Math.cos(
             orbiter.angle,
           ) *
           radius;
 
-        y =
+        const orbitY =
           centerY +
           Math.sin(
             orbiter.angle,
           ) *
           radius;
+
+        const blend =
+          clamp(
+            orbiter.entryBlend ??
+            1,
+            0,
+            1,
+          );
+
+        const smoothBlend =
+          blend *
+          blend *
+          (
+            3 -
+            2 * blend
+          );
+
+        x =
+          (
+            orbiter.entryX ??
+            orbitX
+          ) +
+          (
+            orbitX -
+            (
+              orbiter.entryX ??
+              orbitX
+            )
+          ) *
+          smoothBlend;
+
+        y =
+          (
+            orbiter.entryY ??
+            orbitY
+          ) +
+          (
+            orbitY -
+            (
+              orbiter.entryY ??
+              orbitY
+            )
+          ) *
+          smoothBlend;
       }
 
       this.drawSquare(
@@ -1603,79 +1762,6 @@ export class KismetWeapon {
     }
   }
 
-  drawImpactRings(
-    ctx,
-    cameraX,
-  ) {
-    for (
-      const ring
-      of this.impactRings
-    ) {
-      const t =
-        1 -
-        ring.life /
-        ring.maxLife;
-
-      const radius =
-        ring.startRadius +
-        (
-          ring.endRadius -
-          ring.startRadius
-        ) *
-        easeOutCubic(
-          clamp(
-            t,
-            0,
-            1,
-          ),
-        );
-
-      const alpha =
-        Math.pow(
-          clamp(
-            ring.life /
-            ring.maxLife,
-            0,
-            1,
-          ),
-          1.35,
-        );
-
-      ctx.save();
-      ctx.globalAlpha =
-        alpha;
-      ctx.strokeStyle =
-        '#ffffff';
-      ctx.lineWidth =
-        ring.lineWidth *
-        (
-          0.45 +
-          0.55 *
-          alpha
-        );
-      ctx.shadowColor =
-        '#ffffff';
-      ctx.shadowBlur =
-        22;
-
-      ctx.beginPath();
-      ctx.arc(
-        Math.round(
-          ring.x -
-          cameraX,
-        ),
-        Math.round(
-          ring.y,
-        ),
-        radius,
-        0,
-        Math.PI * 2,
-      );
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
   draw(
     ctx,
     player,
@@ -1690,11 +1776,6 @@ export class KismetWeapon {
     );
 
     this.drawOrbiters(
-      ctx,
-      cameraX,
-    );
-
-    this.drawImpactRings(
       ctx,
       cameraX,
     );
