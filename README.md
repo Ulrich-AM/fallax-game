@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v75**
+Current reference build: **v75a**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -481,7 +481,10 @@ Rewrote equipment descriptions around player-facing identity and use cases inste
 Simplified equipment descriptions again. They now use plain, straightforward wording with less marketing-style language, while leaving the stat rows and gameplay values unchanged.
 
 ### v75
-Added Magnitude, Vienna, and Kismet from user-authored sprite JSON. Magnitude is a faster Vector-style beginner weapon with a three-second Machine Gun special. Vienna fires three heavy Bleed pulses and has a wider Bleed+Burn Barrage. Kismet fires homing Fatigue+Burn squares, stores up to 15 Q orbiters, and uses E Convergence for a gently scaling collective hit. Uploaded pivots, muzzle markers, scales, group pivots, and art-pixel sizes are preserved.
+Added Magnitude, Vienna, and Kismet from user-authored sprite JSON. Magnitude is a faster Vector-style beginner weapon with a three-second Machine Gun special. Vienna fires three heavy Bleed pulses and has a wider Bleed+Burn Barrage. Kismet fires homing Fatigue+Burn squares, stores up to 15 Q orbiters, and uses E Convergence for a gently scaling collective hit.
+
+### v75a
+Fixed the new weapons to use their authored sprite pivots directly instead of adding extra runtime orbit offsets. Kismet now fires a continuous inaccurate homing stream, launches Q orbiters from the muzzle, spaces stored orbiters evenly around a wider ring, expands farther during Convergence, and shows fast white expanding-ring impacts.
 
 ## Development status
 
