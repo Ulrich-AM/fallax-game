@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v74a**
+> Current reference build: **v74b**
 
 ## 1. What Fallax is
 
@@ -452,6 +452,12 @@ Generic status architecture + Fracture vertical slice.
 - ordinary stats remain neutral
 - Horizon tooltip is condensed to shot damage, charge/cooldown, Recoil Drive, and Overcharge
 - redundant Q/E prefixes and duplicate special cooldown/effect rows were removed from weapon stat summaries
+- no gameplay balance values changed
+
+### v74b
+- rewrote all equipment descriptions for players rather than developers
+- descriptions emphasize playstyle, decision-making, and item identity
+- exact numeric mechanics remain in stat rows instead of prose
 - no gameplay balance values changed
 
 ## 13. Development rules / invariants
