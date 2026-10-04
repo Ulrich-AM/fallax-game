@@ -19,13 +19,13 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=75';
+} from './equipment.js?v=75a';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
-import { MagnitudeWeapon } from './MagnitudeWeapon.js?v=75';
+import { MagnitudeWeapon } from './MagnitudeWeapon.js?v=75a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
-import { ViennaWeapon } from './ViennaWeapon.js?v=75';
-import { KismetWeapon } from './KismetWeapon.js?v=75';
+import { ViennaWeapon } from './ViennaWeapon.js?v=75a';
+import { KismetWeapon } from './KismetWeapon.js?v=75a';
 import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
@@ -77,7 +77,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v75';
+const BUILD_VERSION = 'v75a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
