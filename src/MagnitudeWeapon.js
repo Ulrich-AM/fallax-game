@@ -118,8 +118,11 @@ export class MagnitudeWeapon {
     this.damage = 4;
     this.orbitRadius = 42;
     this.bulletSpeed = 1360;
-    this.bulletLife = 1.45;
+    this.bulletLife = 1.6;
     this.bulletSize = 15;
+    this.bulletTrailLife = 0.14;
+    this.bulletTrailInterval = 0.018;
+    this.bulletTrailMaxGhosts = 7;
 
     this.burstSize = 3;
     this.burstInterval = 0.045;
@@ -222,9 +225,13 @@ export class MagnitudeWeapon {
       vy:
         Math.sin(shotAngle) *
         this.bulletSpeed,
-      damage: this.damage,
+      baseDamage: this.damage,
+      currentDamage: this.damage,
       life: this.bulletLife,
       maxLife: this.bulletLife,
+      opacity: 1,
+      trailTimer: 0,
+      trail: [],
     });
 
     if (recoil > 0) {
@@ -287,6 +294,44 @@ export class MagnitudeWeapon {
       const bullet
       of this.bullets
     ) {
+      bullet.trailTimer -= dt;
+
+      if (
+        bullet.trailTimer <= 0
+      ) {
+        bullet.trail.push({
+          x: bullet.x,
+          y: bullet.y,
+          life:
+            this.bulletTrailLife,
+          maxLife:
+            this.bulletTrailLife,
+        });
+
+        if (
+          bullet.trail.length >
+          this.bulletTrailMaxGhosts
+        ) {
+          bullet.trail.shift();
+        }
+
+        bullet.trailTimer =
+          this.bulletTrailInterval;
+      }
+
+      for (
+        const ghost
+        of bullet.trail
+      ) {
+        ghost.life -= dt;
+      }
+
+      bullet.trail =
+        bullet.trail.filter(
+          ghost =>
+            ghost.life > 0,
+        );
+
       bullet.x +=
         bullet.vx * dt;
 
@@ -298,6 +343,17 @@ export class MagnitudeWeapon {
           0,
           bullet.life - dt,
         );
+
+      bullet.opacity =
+        Math.max(
+          0,
+          bullet.life /
+          bullet.maxLife,
+        );
+
+      bullet.currentDamage =
+        bullet.baseDamage *
+        bullet.opacity;
 
       if (
         bullet.life <= 0
@@ -312,7 +368,7 @@ export class MagnitudeWeapon {
             bullet.x,
             bullet.y,
             radius,
-            bullet.damage,
+            bullet.currentDamage,
           );
 
       if (projectileHit) {
@@ -337,14 +393,14 @@ export class MagnitudeWeapon {
             target,
             {
               damage:
-                bullet.damage,
+                bullet.currentDamage,
               source: 'magnitude',
               attacker: player,
             },
           );
         } else {
           target.takeDamage?.(
-            bullet.damage,
+            bullet.currentDamage,
           );
         }
 
@@ -523,16 +579,42 @@ export class MagnitudeWeapon {
       const bullet
       of this.bullets
     ) {
-      const alpha =
-        Math.min(
-          1,
-          bullet.life /
-            0.18,
+      for (
+        const ghost
+        of bullet.trail
+      ) {
+        const ageAlpha =
+          Math.max(
+            0,
+            ghost.life /
+            ghost.maxLife,
+          );
+
+        ctx.globalAlpha =
+          ageAlpha *
+          bullet.opacity *
+          0.26;
+
+        ctx.fillStyle =
+          '#e5e7eb';
+
+        ctx.fillRect(
+          Math.round(
+            ghost.x -
+            cameraX -
+            half,
+          ),
+          Math.round(
+            ghost.y -
+            half,
+          ),
+          size,
+          size,
         );
+      }
 
       ctx.globalAlpha =
-        0.45 +
-        alpha * 0.55;
+        bullet.opacity;
 
       ctx.fillStyle =
         '#e5e7eb';
