@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v74ba**
+Current reference build: **v75**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -121,6 +121,8 @@ Current normal-game examples:
 - Strike -> Fracture
 - Anchor impact / Ripcord -> Bleed
 - Fukiya darts / Needleburst -> Poison
+- Vienna pulses -> Bleed; Barrage -> Bleed + Burn
+- Kismet homing squares -> Fatigue + Burn; Convergence -> Burn
 - Mach -> Fracture
 - Backfire -> Burn
 - Monolith heavy slams -> Fracture on the player
@@ -132,8 +134,11 @@ Status-related item stats are colored yellow in tooltips.
 
 Current weapons:
 - Vector
+- Magnitude
 - Euclid
 - Horizon
+- Vienna
+- Kismet
 - Mach
 - Relay
 - Parallax
@@ -149,6 +154,25 @@ Fukiya is a Poison-focused blowgun:
 - **Q, Needleburst:** seven low-damage darts in a short spread burst, each adding +18 Poison buildup
 - 10s special cooldown
 - shop price: 460 denarii
+
+Magnitude is a faster Vector-style beginner weapon:
+- same 4-damage square bullets and trail/fade behavior as Vector
+- 0.30s burst cooldown and 1360 projectile speed
+- **Q, Machine Gun:** automatic fire for 3 seconds with heavy cumulative recoil
+- shop price: 220 denarii
+
+Vienna is a heavy three-pulse rifle:
+- three 30-damage laser pulses, each adding +28 Bleed buildup
+- 2.6s reload after a normal burst
+- **Q, Barrage:** three wider 55-damage pulses spaced 0.5s apart, each adding Bleed and Burn
+- shop price: 680 denarii
+
+Kismet is an end-game homing weapon:
+- normal fire launches four homing glowing squares with Fatigue + Burn buildup and high recoil
+- **Q, Fated Orbit:** adds 3 harmless orbiters around the boss, up to 15
+- **E, Convergence:** pushes stored orbiters outward and collapses them onto a valid boss hit region for a large collective hit
+- Convergence damage scales gently with stored orbiter count instead of multiplying sharply
+- shop price: 1250 denarii
 
 Horizon is the first weapon with two dedicated specials:
 - **Q, Recoil Drive:** arms the next shot with much stronger recoil and +18 stagger. Cooldown: 6.5s.
@@ -371,8 +395,11 @@ src/
 │
 ├── WeaponRuntime.js
 ├── VectorWeapon.js
+├── MagnitudeWeapon.js
 ├── EuclidWeapon.js
 ├── HorizonWeapon.js
+├── ViennaWeapon.js
+├── KismetWeapon.js
 ├── MachWeapon.js
 ├── RelayWeapon.js
 ├── ParallaxWeapon.js
@@ -452,6 +479,9 @@ Rewrote equipment descriptions around player-facing identity and use cases inste
 
 ### v74ba
 Simplified equipment descriptions again. They now use plain, straightforward wording with less marketing-style language, while leaving the stat rows and gameplay values unchanged.
+
+### v75
+Added Magnitude, Vienna, and Kismet from user-authored sprite JSON. Magnitude is a faster Vector-style beginner weapon with a three-second Machine Gun special. Vienna fires three heavy Bleed pulses and has a wider Bleed+Burn Barrage. Kismet fires homing Fatigue+Burn squares, stores up to 15 Q orbiters, and uses E Convergence for a gently scaling collective hit. Uploaded pivots, muzzle markers, scales, group pivots, and art-pixel sizes are preserved.
 
 ## Development status
 
