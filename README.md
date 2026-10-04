@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v74b**
+Current reference build: **v74ba**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -449,6 +449,9 @@ Cleaned up equipment tooltips. Normal stats keep the neutral palette, special-mo
 
 ### v74b
 Rewrote equipment descriptions around player-facing identity and use cases instead of implementation details. Exact mechanics remain in stat rows.
+
+### v74ba
+Simplified equipment descriptions again. They now use plain, straightforward wording with less marketing-style language, while leaving the stat rows and gameplay values unchanged.
 
 ## Development status
 
