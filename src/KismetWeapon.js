@@ -489,6 +489,73 @@ function easeInCubic(t) {
   return t * t * t;
 }
 
+function findDamagePoint(target) {
+  if (
+    !target ||
+    target.dead ||
+    typeof target.hitTest !==
+      'function'
+  ) {
+    return null;
+  }
+
+  if (
+    target.hitTest(
+      target.x,
+      target.y,
+      4,
+    )
+  ) {
+    return {
+      x: target.x,
+      y: target.y,
+    };
+  }
+
+  const maxRadius = 280;
+  const ringStep = 28;
+  const samples = 24;
+
+  for (
+    let radius = ringStep;
+    radius <= maxRadius;
+    radius += ringStep
+  ) {
+    for (
+      let i = 0;
+      i < samples;
+      i++
+    ) {
+      const angle =
+        Math.PI * 2 *
+        i /
+        samples;
+
+      const x =
+        target.x +
+        Math.cos(angle) *
+        radius;
+
+      const y =
+        target.y +
+        Math.sin(angle) *
+        radius;
+
+      if (
+        target.hitTest(
+          x,
+          y,
+          4,
+        )
+      ) {
+        return { x, y };
+      }
+    }
+  }
+
+  return null;
+}
+
 export class KismetWeapon {
   constructor() {
     this.name = 'Kismet';
@@ -527,6 +594,8 @@ export class KismetWeapon {
     this.convergenceDuration = 1.1;
     this.convergenceTimer = 0;
     this.convergenceDamageApplied = false;
+    this.convergenceTargetOffsetX = 0;
+    this.convergenceTargetOffsetY = 0;
     this.convergenceBaseDamage = 50;
     this.convergenceDamagePerOrb = 4.5;
     this.convergenceBaseBurn = 10;
@@ -555,6 +624,8 @@ export class KismetWeapon {
     this.convergenceTimer = 0;
     this.convergenceDamageApplied =
       false;
+    this.convergenceTargetOffsetX = 0;
+    this.convergenceTargetOffsetY = 0;
     this.bullets.length = 0;
     this.orbiters.length = 0;
     this.orbitTarget = null;
@@ -722,15 +793,38 @@ export class KismetWeapon {
     return true;
   }
 
-  triggerSecondarySpecial() {
+  triggerSecondarySpecial(
+    {
+      target,
+    } = {},
+  ) {
+    const boss =
+      target ??
+      this.orbitTarget;
+
     if (
       this.convergenceCooldownTimer >
         0 ||
       this.convergenceTimer > 0 ||
-      this.orbiters.length <= 0
+      this.orbiters.length <= 0 ||
+      !boss ||
+      boss.dead
     ) {
       return false;
     }
+
+    const point =
+      findDamagePoint(boss);
+
+    if (!point) {
+      return false;
+    }
+
+    this.orbitTarget = boss;
+    this.convergenceTargetOffsetX =
+      point.x - boss.x;
+    this.convergenceTargetOffsetY =
+      point.y - boss.y;
 
     this.convergenceCooldownTimer =
       this.convergenceCooldown;
@@ -998,6 +1092,18 @@ export class KismetWeapon {
     ) {
       return;
     }
+
+    const point =
+      findDamagePoint(target);
+
+    if (!point) {
+      return;
+    }
+
+    this.convergenceTargetOffsetX =
+      point.x - target.x;
+    this.convergenceTargetOffsetY =
+      point.y - target.y;
 
     this.convergenceDamageApplied =
       true;
@@ -1267,19 +1373,48 @@ export class KismetWeapon {
     const converging =
       this.convergenceTimer > 0;
 
+    let centerX =
+      this.orbitTarget.x;
+
+    let centerY =
+      this.orbitTarget.y;
+
+    if (converging) {
+      const elapsed =
+        this.convergenceDuration -
+        this.convergenceTimer;
+
+      const centerBlend =
+        easeOutCubic(
+          clamp(
+            elapsed / 0.40,
+            0,
+            1,
+          ),
+        );
+
+      centerX +=
+        this.convergenceTargetOffsetX *
+        centerBlend;
+
+      centerY +=
+        this.convergenceTargetOffsetY *
+        centerBlend;
+    }
+
     for (
       const orbiter
       of this.orbiters
     ) {
       const x =
-        this.orbitTarget.x +
+        centerX +
         Math.cos(
           orbiter.angle,
         ) *
         radius;
 
       const y =
-        this.orbitTarget.y +
+        centerY +
         Math.sin(
           orbiter.angle,
         ) *
