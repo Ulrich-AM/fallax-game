@@ -19,7 +19,7 @@ export const ITEM_LIBRARY = {
     price: 0,
     name: 'Vector',
     category: 'weapons',
-    description: 'A compact burst-fire weapon.',
+    description: 'Reliable and quick. Fires tight three-round bursts, with Volley turning a safe opening into a storm of shots.',
     appearance: 'gray square',
     stats: [
       { label: 'damage', value: '4 x 3 burst' },
@@ -32,7 +32,7 @@ export const ITEM_LIBRARY = {
     price: 340,
     name: 'Euclid',
     category: 'weapons',
-    description: 'A sustained precision energy weapon.',
+    description: 'Keep the beam steady and stay on target. Euclid rewards clean tracking, then lets you overcharge for a short burst of brutal output.',
     appearance: 'thin gray rectangle',
     stats: [
       { label: 'beam dps', value: '8' },
@@ -44,7 +44,7 @@ export const ITEM_LIBRARY = {
     price: 560,
     name: 'Horizon',
     category: 'weapons',
-    description: 'A charged precision weapon with powerful recoil.',
+    description: 'A heavy precision cannon built around commitment and recoil. Charge your shot, pick your moment, and use the kick to control the fight.',
     appearance: 'long gray rectangle',
     stats: [
       { label: 'shot damage', value: '42' },
@@ -58,7 +58,7 @@ export const ITEM_LIBRARY = {
     price: 700,
     name: 'Mach',
     category: 'weapons',
-    description: 'A pressure-wave weapon with strong sustained recoil.',
+    description: 'A close-range pressure weapon that rewards aggression. Its waves hit hardest up close and steadily fracture anything that stays in front of you.',
     appearance: 'wide gray rectangle',
     stats: [
       { label: 'wave damage', value: 'up to 15' },
@@ -73,7 +73,7 @@ export const ITEM_LIBRARY = {
     price: 620,
     name: 'Relay',
     category: 'weapons',
-    description: 'Plants relay nodes on surfaces. Adjacent nodes form damaging links that can be overloaded.',
+    description: 'Build the battlefield yourself. Plant nodes, trap the boss between their links, then overload the network when the setup is right.',
     appearance: 'outlined relay emitter',
     stats: [
       { label: 'node shot', value: '7 damage' },
@@ -87,7 +87,7 @@ export const ITEM_LIBRARY = {
     price: 520,
     name: 'Parallax',
     category: 'weapons',
-    description: 'Three copies converge on a focal point. Its special forms low-damage lasers around a high-damage focal orb.',
+    description: 'Three synchronized shots converge on one point. Keep them lined up and Parallax turns precise positioning into heavy burst damage.',
     appearance: 'solid center gun with translucent copies',
     stats: [
       { label: 'volley', value: '3 x 5.2' },
@@ -101,7 +101,7 @@ export const ITEM_LIBRARY = {
     price: 480,
     name: 'Anchor',
     category: 'weapons',
-    description: 'Fires a tethering anchor that causes light Bleed buildup on impact. Q uses Ripcord to tear a boss anchor free or violently reel toward a surface anchor.',
+    description: 'Harpoon the boss, stretch the tether, then rip it free at the right moment. Anchor can also latch onto terrain and drag you across the arena.',
     appearance: 'red-glowing tether weapon',
     stats: [
       { label: 'impact', value: '8 damage + 12 Bleed buildup', effect: true },
@@ -115,7 +115,7 @@ export const ITEM_LIBRARY = {
     price: 460,
     name: 'Fukiya',
     category: 'weapons',
-    description: 'A light blowgun that steadily builds Poison with fast darts. Q unleashes a short Needleburst volley.',
+    description: 'A precise blowgun made to wear targets down with poison. Keep landing darts to build the toxin, then spike it quickly with Needleburst.',
     appearance: 'long thin gray blowgun',
     stats: [
       { label: 'dart', value: '12 damage / 0.58s' },
@@ -129,7 +129,7 @@ export const ITEM_LIBRARY = {
     price: 420,
     name: 'Kepler',
     category: 'weapons',
-    description: 'Builds an orbital magazine around the player, then launches stored shots toward the cursor.',
+    description: 'Stores shots in orbit around you before releasing them on demand. Stay loaded, wait for an opening, then unload everything at once.',
     appearance: 'white-glowing orbital weapon',
     stats: [
       { label: 'shot damage', value: '9' },
@@ -143,7 +143,7 @@ export const ITEM_LIBRARY = {
     price: 240,
     name: 'Backfire',
     category: 'abilities',
-    description: 'Dash propulsion that sprays a rear-facing bullet fan.',
+    description: 'Turn every dash into an attack. A fan of burning pellets erupts behind you whenever you make your escape.',
     appearance: 'ability module',
     stats: [
       { label: 'fan', value: '9 x 5 damage' },
@@ -157,7 +157,7 @@ export const ITEM_LIBRARY = {
     price: 380,
     name: 'Strike',
     category: 'abilities',
-    description: 'A dash through an enemy becomes a powerful melee strike.',
+    description: 'Dash straight through an enemy to turn movement into a crushing melee hit that can crack their posture.',
     appearance: 'ability module',
     combatModifiers: {
       outgoingBuildup: {
@@ -177,7 +177,7 @@ export const ITEM_LIBRARY = {
     price: 320,
     name: 'Turret',
     category: 'extra',
-    description: 'Deploys a spinning square that fires a two-sided spiral until destroyed or expired.',
+    description: 'Drop a disposable turret and let it fill the arena with crossfire while you focus on surviving the boss.',
     appearance: 'outlined spinning square',
     stats: [
       { label: 'shot pair', value: '2 x 4.5 / 0.12s' },
@@ -191,7 +191,7 @@ export const ITEM_LIBRARY = {
     price: 260,
     name: 'Decoy',
     category: 'extra',
-    description: 'Deploys a temporary clone that bosses prioritize for 10 seconds.',
+    description: 'Throw out a short-lived clone to steal the boss's attention and buy yourself a few precious seconds of breathing room.',
     appearance: 'player clone',
     stats: [
       { label: 'health', value: '42' },
@@ -205,7 +205,7 @@ export const ITEM_LIBRARY = {
     price: 430,
     name: 'Carapace',
     category: 'armor',
-    description: 'Rigid structural armor that resists fracture at the cost of poorer chemical protection.',
+    description: 'Heavy armor for players who hate getting fractured. Tough against structural damage, but noticeably weaker against poison.',
     appearance: 'heavy segmented armor',
     combatModifiers: {
       incomingBuildup: {
