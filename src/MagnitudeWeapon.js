@@ -116,7 +116,6 @@ export class MagnitudeWeapon {
     this.name = 'Magnitude';
 
     this.damage = 4;
-    this.orbitRadius = 42;
     this.bulletSpeed = 1360;
     this.bulletLife = 1.6;
     this.bulletSize = 15;
