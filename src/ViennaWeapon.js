@@ -217,7 +217,6 @@ export class ViennaWeapon {
   constructor() {
     this.name = 'Vienna';
 
-    this.orbitRadius = 48;
     this.beamRange = 1900;
 
     this.baseDamage = 30;
