@@ -191,7 +191,7 @@ export const ITEM_LIBRARY = {
     price: 260,
     name: 'Decoy',
     category: 'extra',
-    description: 'Throw out a short-lived clone to steal the boss's attention and buy yourself a few precious seconds of breathing room.',
+    description: "Throw out a short-lived clone to steal the boss's attention and buy yourself a few precious seconds of breathing room.",
     appearance: 'player clone',
     stats: [
       { label: 'health', value: '42' },
