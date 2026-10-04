@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v75a**
+> Current reference build: **v75b**
 
 ## 1. What Fallax is
 
@@ -234,15 +234,20 @@ Vienna:
 
 Kismet:
 - user-authored sprite with asset pivot [0,0], group-1 pivot [4,2], muzzle (21,0), scale 1.4, artPixelSize 3
-- normal fire launches four homing glowing squares
-- 7 damage, +8 Fatigue, +3 Burn per homing square
-- normal volley has high recoil
-- Q Fated Orbit adds 3 harmless orbiters around the boss, capped at 15
-- E Convergence pushes orbiters outward and collapses them into a valid target hit region
+- normal fire is continuous: 5 damage every 0.11s
+- each normal bullet adds +3 Fatigue and +1 Burn
+- bullets start with high inaccuracy, home for only their first 1.0s, then keep their current trajectory
+- normal bullet size matches Vector's current rendered bullet size and uses a Vector-style ghost-square trail
+- normal fire has cumulative recoil
+- Q Fated Orbit visibly launches 3 larger squares from the weapon muzzle, capped at 15 stored orbiters
+- orbiters rearrange smoothly toward equal angular spacing as the formation changes
+- normal orbit radius is 185; E Convergence expands them to about 340 before collapsing
+- E Convergence collapses into a valid target hit region
 - Convergence direct damage = 50 + 4.5 per stored orbiter
 - Convergence Burn buildup = 10 + 1.5 per stored orbiter
 - Q cooldown 6.5s, E cooldown 10.5s
 - Convergence uses boss hitTest to preserve Monolith head-only damage
+- Kismet impact rings are spawned through the shared EffectsLibrary
 - shop price 1250 denarii
 
 Uploaded sprite pivot/group-pivot/muzzle/scale/artPixelSize values are preserved in the weapon modules rather than being recentered.
@@ -519,13 +524,23 @@ Generic status architecture + Fracture vertical slice.
 ### v75a
 - corrected Magnitude, Vienna, and Kismet runtime anchoring so player position is the world anchor and JSON sprite pivots determine the authored offset
 - removed obsolete runtime orbit offsets from Magnitude and Vienna; Kismet no longer uses one either
-- Kismet normal fire is now continuous: 5 damage every 0.11s, high initial inaccuracy, homing correction, +3 Fatigue and +1 Burn per bullet
-- Kismet normal recoil is applied per shot for strong cumulative push
+- Kismet normal fire became continuous and highly inaccurate before homing
 - Kismet Q orbiters launch visibly from the authored muzzle instead of appearing around the boss
 - orbiters rearrange toward equal angular spacing whenever the stored count changes
-- normal orbiter radius increased to 150; Convergence expands to 285 before collapsing
-- Kismet impacts spawn fast white glowing expanding-ring effects
 - Convergence still validates the boss hit region before damage
+
+### v75b
+- Kismet normal bullet size now matches Vector's current rendered square size
+- Kismet normal bullets use Vector-style trailing ghost squares
+- homing ends after 1.0s; surviving bullets continue along their last heading
+- Q orbiter arrival uses an additional smooth blend into the rotating formation
+- normal Kismet orbit radius increased to 185; Convergence outer radius increased to 340
+- added src/EffectsLibrary.js as the shared pooled visual-effect registry
+- Kismet's bespoke impactRings array/update/draw code was removed
+- Kismet hit effects now call effects.spawn('impact-ring', ...)
+- built-in EffectsLibrary effects currently include impact-ring and flare-glow
+- EffectsLibrary has world and screen layers; true full-frame filters/distortions still require a future offscreen compositing pass
+- generic reusable visual effects should go in EffectsLibrary rather than individual weapon classes
 
 ## 13. Development rules / invariants
 
@@ -536,6 +551,7 @@ When modifying Fallax:
 - use shared status architecture; do not add bespoke effect timers to weapons
 - use hit packets / CombatResolver for new status-aware attacks when practical
 - preserve raster caching/performance work
+- put reusable visual effects in EffectsLibrary instead of duplicating per-weapon effect systems
 - prefer targeted changes over rewriting `main.js`
 - keep telegraphs readable even when Phase 3 gets faster
 - test both successful and missed grab paths
@@ -558,6 +574,8 @@ The game is now past the bare boss-prototype stage. Good next areas include:
 - tune Magnitude Machine Gun recoil after browser playtesting
 - tune Vienna reload/Barrage damage after browser playtesting
 - tune Kismet orbiter cap, Convergence scaling, and recoil after browser playtesting
+- expand EffectsLibrary before the custom Genesis level/map-editor pass
+- likely future effects: lensing-style distortion, stronger reusable flare glows, shockwaves, and screen impact-frame effects
 - custom Genesis level system / map editor is planned but not implemented
 
 Do not assume every brainstormed mechanic is already implemented. Check the repo before coding.
