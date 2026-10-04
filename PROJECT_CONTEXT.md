@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v74ba**
+> Current reference build: **v75**
 
 ## 1. What Fallax is
 
@@ -128,6 +128,10 @@ Current identities:
 - Anchor impact / Ripcord -> Bleed
 - Mach waves -> Fracture
 - Backfire pellets -> Burn
+- Vienna pulses -> Bleed
+- Vienna Barrage -> Bleed + Burn
+- Kismet homing squares -> Fatigue + Burn
+- Kismet Convergence -> Burn
 - Monolith Piledriver / Ground Sweep -> Fracture buildup on player
 - Monolith Crawl throw / Drop Catch / Wall Toss -> Fatigue buildup on player
 - Fukiya darts / Needleburst -> Poison
@@ -165,8 +169,11 @@ Carapace armor demonstrates generic equipment modifiers:
 
 Weapons:
 - Vector
+- Magnitude
 - Euclid
 - Horizon
+- Vienna
+- Kismet
 - Mach
 - Relay
 - Parallax
@@ -206,6 +213,39 @@ Fukiya was added in v74 as the first dedicated Poison weapon:
 - shop price: 460 denarii
 - darts respect boss hit tests, so Monolith remains head-only
 - Poison still follows boss susceptibility profiles; Matrix and Monolith remain immune
+
+As of v75, three more weapons exist:
+
+Magnitude:
+- user-authored sprite with asset pivot [0,0], muzzle (9,-1), artPixelSize 4
+- same 4-damage square projectile look/trail/fade behavior as Vector
+- projectile speed 1360, burst cooldown 0.30s
+- Q Machine Gun auto-fires for 3s with strong cumulative recoil
+- shop price 220 denarii
+
+Vienna:
+- user-authored sprite with asset pivot [0,0], muzzle (33,-2), artPixelSize 4
+- normal attack is a locked three-pulse laser burst
+- 30 damage and +28 Bleed buildup per normal pulse
+- 2.6s reload after a normal burst
+- Q Barrage fires three wider pulses at 0.5s spacing
+- Barrage pulse: 55 damage, +42 Bleed, +28 Burn, high recoil
+- shop price 680 denarii
+
+Kismet:
+- user-authored sprite with asset pivot [0,0], group-1 pivot [4,2], muzzle (21,0), scale 1.4, artPixelSize 3
+- normal fire launches four homing glowing squares
+- 7 damage, +8 Fatigue, +3 Burn per homing square
+- normal volley has high recoil
+- Q Fated Orbit adds 3 harmless orbiters around the boss, capped at 15
+- E Convergence pushes orbiters outward and collapses them into a valid target hit region
+- Convergence direct damage = 50 + 4.5 per stored orbiter
+- Convergence Burn buildup = 10 + 1.5 per stored orbiter
+- Q cooldown 6.5s, E cooldown 10.5s
+- Convergence uses boss hitTest to preserve Monolith head-only damage
+- shop price 1250 denarii
+
+Uploaded sprite pivot/group-pivot/muzzle/scale/artPixelSize values are preserved in the weapon modules rather than being recentered.
 
 As of v73, Horizon is the first weapon with two dedicated specials:
 - Q: Recoil Drive arms the next shot for 2250 recoil and +18 stagger, 6.5s cooldown
@@ -467,6 +507,17 @@ Generic status architecture + Fracture vertical slice.
 - stat rows still hold the exact numbers
 - no gameplay balance values changed
 
+### v75
+- added Magnitude, Vienna, and Kismet
+- all three use the exact user-authored sprite asset coordinates
+- Magnitude is a faster Vector-style beginner weapon with a 3s Machine Gun special
+- Vienna uses a three-pulse Bleed burst and a wider Bleed+Burn Barrage
+- Kismet normal fire uses homing Fatigue+Burn squares
+- Kismet Q stores 3 orbiters per use up to 15
+- Kismet E performs a gently scaling outward-then-inward Convergence hit
+- Kismet Convergence resolves a valid boss hit region before damage, preserving Monolith head-only behavior
+- prices: Magnitude 220, Vienna 680, Kismet 1250 denarii
+
 ## 13. Development rules / invariants
 
 When modifying Fallax:
@@ -495,5 +546,9 @@ The game is now past the bare boss-prototype stage. Good next areas include:
 - additional bosses after Monolith polish
 - tune Fukiya Poison buildup / Needleburst after browser playtesting
 - tune Anchor Ripcord tension scaling after browser playtesting
+- tune Magnitude Machine Gun recoil after browser playtesting
+- tune Vienna reload/Barrage damage after browser playtesting
+- tune Kismet orbiter cap, Convergence scaling, and recoil after browser playtesting
+- custom Genesis level system / map editor is planned but not implemented
 
 Do not assume every brainstormed mechanic is already implemented. Check the repo before coding.
