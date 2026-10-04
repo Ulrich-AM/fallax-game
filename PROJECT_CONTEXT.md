@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v74**
+> Current reference build: **v74a**
 
 ## 1. What Fallax is
 
@@ -125,7 +125,7 @@ Current effects:
 
 Current identities:
 - Strike -> Fracture
-- Anchor barbed special -> Bleed
+- Anchor impact / Ripcord -> Bleed
 - Mach waves -> Fracture
 - Backfire pellets -> Burn
 - Monolith Piledriver / Ground Sweep -> Fracture buildup on player
@@ -445,6 +445,14 @@ Generic status architecture + Fracture vertical slice.
 - Q Needleburst fires a seven-dart toxic spread
 - Fukiya price set to 460 denarii
 - Fukiya damage/status hits use CombatResolver and respect boss hitTest rules
+
+### v74a
+- equipment tooltip special-move labels use red
+- quantitative effect values on special rows use yellow
+- ordinary stats remain neutral
+- Horizon tooltip is condensed to shot damage, charge/cooldown, Recoil Drive, and Overcharge
+- redundant Q/E prefixes and duplicate special cooldown/effect rows were removed from weapon stat summaries
+- no gameplay balance values changed
 
 ## 13. Development rules / invariants
 
