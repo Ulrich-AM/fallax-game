@@ -90,6 +90,7 @@ export const ITEM_LIBRARY = {
     appearance: 'large glowing gray weapon',
     stats: [
       { label: 'shot', value: '5 damage / 0.11s' },
+      { label: 'homing', value: 'first 1.0s' },
       { label: 'fatigue', value: '+3 / bullet', effect: true },
       { label: 'burn', value: '+1 / bullet', effect: true },
       { label: 'max orbiters', value: '15' },
