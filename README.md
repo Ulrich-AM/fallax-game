@@ -2,7 +2,7 @@
 
 **Fallax** is a browser-based pixel-art boss-rush game built with vanilla JavaScript ES modules and the HTML Canvas 2D API.
 
-Current reference build: **v74**
+Current reference build: **v74a**
 
 The game focuses on fast movement, guard/parry timing, boss stagger windows, readable attack telegraphs, equipment tradeoffs, and a shared status-effect system. The first chapter, **Genesis**, currently contains three bosses: **Prologue**, **Matrix**, and **Monolith**.
 
@@ -443,6 +443,9 @@ Replaced Horizon's placeholder homing-star special with a dual-special kit. Q no
 
 ### v74
 Reworked Anchor so normal hook impacts always add light Bleed buildup and replaced the old armed Barbed shot with Ripcord, a tether-state special that scales off boss-anchor tension or slingshots the player from surface anchors. Added Fukiya using the authored sprite asset as a Poison weapon with a seven-dart Needleburst special and a 460-denarii shop price.
+
+### v74a
+Cleaned up equipment tooltips. Normal stats keep the neutral palette, special-move labels are red, and quantitative effect values on special rows are yellow. Redundant Q/E prefixes and duplicate special/cooldown rows were removed from weapon stat summaries without changing gameplay values.
 
 ## Development status
 
