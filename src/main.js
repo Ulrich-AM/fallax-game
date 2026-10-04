@@ -19,7 +19,7 @@ import {
   grantItem,
   resetEquipmentState,
   getEquippedItems,
-} from './equipment.js?v=74b';
+} from './equipment.js?v=74ba';
 import { VectorWeapon } from './VectorWeapon.js?v=63a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
@@ -74,7 +74,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v74b';
+const BUILD_VERSION = 'v74ba';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
