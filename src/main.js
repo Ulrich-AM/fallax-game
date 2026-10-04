@@ -25,7 +25,8 @@ import { MagnitudeWeapon } from './MagnitudeWeapon.js?v=75a';
 import { EuclidWeapon } from './EuclidWeapon.js?v=63a';
 import { HorizonWeapon } from './HorizonWeapon.js?v=73';
 import { ViennaWeapon } from './ViennaWeapon.js?v=75a';
-import { KismetWeapon } from './KismetWeapon.js?v=75a';
+import { KismetWeapon } from './KismetWeapon.js?v=75b';
+import { EffectsLibrary } from './EffectsLibrary.js?v=75b';
 import { MachWeapon } from './MachWeapon.js?v=72';
 import { RelayWeapon } from './RelayWeapon.js?v=63a';
 import { ParallaxWeapon } from './ParallaxWeapon.js?v=63a';
@@ -77,7 +78,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v75a';
+const BUILD_VERSION = 'v75b';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -431,12 +432,16 @@ const playerDefinition = group([
 });
 
 const playerRaster = rasterize(playerDefinition);
+const effects = new EffectsLibrary();
+
 const vectorWeapon = new VectorWeapon();
 const magnitudeWeapon = new MagnitudeWeapon();
 const euclidWeapon = new EuclidWeapon();
 const horizonWeapon = new HorizonWeapon();
 const viennaWeapon = new ViennaWeapon();
-const kismetWeapon = new KismetWeapon();
+const kismetWeapon = new KismetWeapon(
+  effects,
+);
 const machWeapon = new MachWeapon();
 const relayWeapon = new RelayWeapon();
 const parallaxWeapon = new ParallaxWeapon();
@@ -3373,6 +3378,8 @@ function update(dt) {
     dt,
   );
 
+  effects.update(dt);
+
   const guardedPlayer =
     guardSystem.getDamageTarget(
       player,
@@ -4506,6 +4513,11 @@ function renderGame() {
       activeWeaponId,
   });
 
+  effects.drawWorld(
+    ctx,
+    0,
+  );
+
   backfireAbility.draw(ctx, 0);
 
   attackTelegraphSystem.draw(
@@ -4514,6 +4526,12 @@ function renderGame() {
   );
 
   ctx.restore();
+
+  effects.drawScreen(
+    ctx,
+    W,
+    H,
+  );
 
   drawBossBar();
   drawHUD();
@@ -4536,6 +4554,7 @@ function prepareEncounter(boss) {
   extraSystem.reset();
   refreshExtraButtons();
   particles.length = 0;
+  effects.clear();
   attackTelegraphSystem.clear();
   bossImpactFxCooldown = 0;
   playerImpactFxCooldown = 0;
@@ -5419,6 +5438,7 @@ window.BOSSFIGHTS = {
   horizonWeapon,
   viennaWeapon,
   kismetWeapon,
+  effects,
   machWeapon,
   relayWeapon,
   parallaxWeapon,
