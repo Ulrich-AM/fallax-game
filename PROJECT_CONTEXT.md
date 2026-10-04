@@ -2,7 +2,7 @@
 
 > Copy this file into a new ChatGPT/Codex conversation when continuing development.  
 > Repository: `Ulrich-AM/fallax-game`  
-> Current reference build: **v74b**
+> Current reference build: **v74ba**
 
 ## 1. What Fallax is
 
@@ -458,6 +458,13 @@ Generic status architecture + Fracture vertical slice.
 - rewrote all equipment descriptions for players rather than developers
 - descriptions emphasize playstyle, decision-making, and item identity
 - exact numeric mechanics remain in stat rows instead of prose
+- no gameplay balance values changed
+
+### v74ba
+- simplified all equipment descriptions again
+- wording is intentionally plain and direct rather than polished or marketing-like
+- descriptions mostly state what the item does in one sentence
+- stat rows still hold the exact numbers
 - no gameplay balance values changed
 
 ## 13. Development rules / invariants
