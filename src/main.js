@@ -74,7 +74,7 @@ import {
 
 await loadPixelArial();
 
-const BUILD_VERSION = 'v74';
+const BUILD_VERSION = 'v74a';
 
 const menuScreen = document.querySelector('#menu-screen');
 const chapterScreen = document.querySelector('#chapter-screen');
@@ -4722,6 +4722,12 @@ function showItemTooltip(itemId, event) {
       if (stat.effect) {
         row.classList.add(
           'item-tooltip-stat-effect',
+        );
+      }
+
+      if (stat.special) {
+        row.classList.add(
+          'item-tooltip-stat-special',
         );
       }
 
