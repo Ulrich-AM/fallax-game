@@ -1500,6 +1500,24 @@ canvas {
   color: #e4bf4f;
 }
 
+.item-tooltip-copy
+  .item-tooltip-stat-special
+  .item-tooltip-stat-label {
+  color: #d76565;
+}
+
+.item-tooltip-copy
+  .item-tooltip-stat-special
+  .item-tooltip-stat-value {
+  color: #d7dbe2;
+}
+
+.item-tooltip-copy
+  .item-tooltip-stat-special.item-tooltip-stat-effect
+  .item-tooltip-stat-value {
+  color: #e4bf4f;
+}
+
 #item-tooltip-canvas.hidden + .item-tooltip-copy {
   border-top: 0;
 }
